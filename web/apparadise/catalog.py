@@ -209,6 +209,15 @@ def merge_platforms(builds: list[dict[str, Any]]) -> list[dict[str, Any]]:
         groups.setdefault((b["version"], b["target"]), []).append(b)
     out = []
     for rows in groups.values():
+        # Catalog rows are re-inserted at every startup, so their ids say nothing about age.
+        # Pipeline builds supersede the hand-maintained entry, except that a pipeline build
+        # that is not (yet) published never hides a published catalog release.
+        cat = [r for r in rows if r.get("origin") == "catalog"]
+        pipe = [r for r in rows if r.get("origin") != "catalog"]
+        if cat and pipe:
+            keep_catalog = cat[0]["status"] == "published" and not any(
+                r["status"] == "published" for r in pipe)
+            rows = cat if keep_catalog else pipe
         if len(rows) == 1 or rows[0]["target"] != "generic":
             out.append(max(rows, key=lambda r: r["id"]))  # newest wins (e.g. a rebuild)
             continue
@@ -343,12 +352,17 @@ async def get_package(
             "digest": b["image_digest"],
             "test": b["test_result"],
             "built": b["finished_at"],
+            "failureId": b.get("failure_id"),  # the public failure record, if any
         }
         if b["status"] == "published":
             entry["commands"] = commands(settings, pkg, b["version"], b["target"])
         v["targets"][b["target"]] = entry
+    user = current_user(request)
+    votes = await db.run(db.votes.count, "package", pkg["id"])
+    voted = pkg["id"] in await db.run(db.votes.mine, user.username, "package") if user else False
     return {
-        **_summary(pkg, builds),
+        **_summary({**pkg, "votes": votes}, builds),
+        "voted": voted,
         "homepage": pkg["homepage"],
         "aliases": pkg["aliases"],
         "executables": pkg["executables"],

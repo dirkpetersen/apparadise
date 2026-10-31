@@ -211,6 +211,11 @@ MIGRATIONS: list[str] = [
     ALTER TABLE build ADD COLUMN delivery_error TEXT NOT NULL DEFAULT '';
     ALTER TABLE build ADD COLUMN manifested_at TEXT;
     """,
+    # 8: public failure database: the scrubbed first error line is the group's headline
+    """
+    ALTER TABLE failure ADD COLUMN error_line TEXT NOT NULL DEFAULT '';
+    CREATE INDEX build_failure ON build (failure_id);
+    """,
 ]
 
 _SECRET_KEY = re.compile(
@@ -281,6 +286,7 @@ class Database:
         self.index = IndexRepo(self)
         self.builders = Builders(self)
         self.failures = Failures(self)
+        self.votes = Votes(self)
         self.audit = AuditLog(self)
 
     # -- plumbing -----------------------------------------------------------
@@ -626,7 +632,7 @@ class Builders(_Repo):
 
 class Failures(_Repo):
     def record(self, build_id: int, signature: str, stage: str, excerpt: str,
-               restricted: bool) -> int:
+               restricted: bool, error_line: str = "") -> int:
         """Attach a failed build to its failure group (by signature), creating the group.
         Restricted and public failures never share a group: the signature includes the
         restricted flag (failures.signature), so a restricted log never reaches a public row."""
@@ -634,20 +640,98 @@ class Failures(_Repo):
         with self.db.tx() as c:
             fid = c.execute(
                 "INSERT INTO failure (signature, stage, first_build_id, last_build_id, "
-                "log_excerpt, restricted, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "log_excerpt, restricted, error_line, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT (signature) DO UPDATE SET last_build_id = excluded.last_build_id, "
-                "log_excerpt = excluded.log_excerpt, updated_at = excluded.updated_at "
-                "RETURNING id",
-                (signature, stage, build_id, build_id, excerpt, int(restricted), ts, ts),
+                "log_excerpt = excluded.log_excerpt, error_line = excluded.error_line, "
+                "updated_at = excluded.updated_at RETURNING id",
+                (signature, stage, build_id, build_id, excerpt, int(restricted), error_line,
+                 ts, ts),
             ).fetchone()[0]
             c.execute("UPDATE build SET failure_id = ? WHERE id = ?", (fid, build_id))
             return fid
 
-    def get(self, failure_id: int) -> dict[str, Any] | None:
-        row = self.db.query_one(
-            "SELECT f.*, (SELECT COUNT(*) FROM build b WHERE b.failure_id = f.id) AS builds "
-            "FROM failure f WHERE f.id = ?", (failure_id,))
-        return row
+    _COUNTS = (
+        "(SELECT COUNT(*) FROM build b WHERE b.failure_id = f.id) AS builds, "
+        "(SELECT COUNT(*) FROM vote v WHERE v.subject_type = 'failure' "
+        " AND v.subject_id = f.id) AS votes")
+
+    def get(self, failure_id: int, *, include_restricted: bool = True) -> dict[str, Any] | None:
+        sql = f"SELECT f.*, {self._COUNTS} FROM failure f WHERE f.id = ?"
+        if not include_restricted:
+            sql += " AND f.restricted = 0"
+        return self.db.query_one(sql, (failure_id,))
+
+    def list(self, *, include_restricted: bool = False, q: str = "", stage: str = "",
+             package: str = "", limit: int = 200) -> list[dict[str, Any]]:
+        """Failure groups, most recently seen first, each with the packages it hit."""
+        conds, params = [], []
+        if not include_restricted:
+            conds.append("f.restricted = 0")
+        if stage:
+            conds.append("f.stage = ?")
+            params.append(stage)
+        if q or package:
+            sub, sp = ["EXISTS (SELECT 1 FROM build b JOIN package p ON p.id = b.package_id "
+                       "WHERE b.failure_id = f.id"], []
+            if package:
+                sub.append("AND p.name = ?")
+                sp.append(package)
+            if q:
+                esc = q.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                sub.append("AND (lower(p.name) LIKE ? ESCAPE '\\' "
+                           "OR lower(f.error_line) LIKE ? ESCAPE '\\')")
+                sp += [f"%{esc}%"] * 2
+            conds.append(" ".join(sub) + ")")
+            params += sp
+        where = ("WHERE " + " AND ".join(conds)) if conds else ""
+        rows = self.db.query(
+            f"SELECT f.id, f.stage, f.error_line, f.fix_url, f.restricted, f.created_at, "
+            f"f.updated_at, {self._COUNTS} FROM failure f {where} "
+            "ORDER BY f.updated_at DESC, f.id DESC LIMIT ?", (*params, limit))
+        if rows:
+            ids = [r["id"] for r in rows]
+            marks = ",".join("?" * len(ids))
+            hits: dict[int, list[str]] = {}
+            for b in self.db.query(
+                    "SELECT DISTINCT b.failure_id, p.name FROM build b "
+                    f"JOIN package p ON p.id = b.package_id WHERE b.failure_id IN ({marks}) "
+                    "ORDER BY p.name", tuple(ids)):
+                hits.setdefault(b["failure_id"], []).append(b["name"])
+            for r in rows:
+                r["packages"] = hits.get(r["id"], [])
+        return rows
+
+    def builds(self, failure_id: int, limit: int = 100) -> list[dict[str, Any]]:
+        return self.db.query(
+            "SELECT b.id, p.name AS package, b.version, b.source, b.target, b.platform, "
+            "b.stage, b.status, b.created_at, b.finished_at FROM build b "
+            "JOIN package p ON p.id = b.package_id WHERE b.failure_id = ? "
+            "ORDER BY b.id DESC LIMIT ?", (failure_id, limit))
+
+
+class Votes(_Repo):
+    def set(self, username: str, subject: str, subject_id: int, on: bool) -> bool:
+        """Vote or unvote. -> True when something changed."""
+        with self.db.tx() as c:
+            if on:
+                return c.execute(
+                    "INSERT INTO vote (username, subject_type, subject_id, created_at) "
+                    "VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
+                    (username, subject, subject_id, now())).rowcount > 0
+            return c.execute(
+                "DELETE FROM vote WHERE username = ? AND subject_type = ? AND subject_id = ?",
+                (username, subject, subject_id)).rowcount > 0
+
+    def count(self, subject: str, subject_id: int) -> int:
+        return self.db.query_one(
+            "SELECT COUNT(*) AS n FROM vote WHERE subject_type = ? AND subject_id = ?",
+            (subject, subject_id))["n"]
+
+    def mine(self, username: str, subject: str) -> set[int]:
+        return {r["subject_id"] for r in self.db.query(
+            "SELECT subject_id FROM vote WHERE username = ? AND subject_type = ?",
+            (username, subject))}
 
 
 class AuditLog(_Repo):

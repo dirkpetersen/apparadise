@@ -83,6 +83,46 @@ def seed_index(db) -> None:
             for n, v, cuda, py in rows])
 
 
+# Failed pipeline builds, so the failure database has something to show:
+# (package, version, source, target, platform, stage, log tail).
+DEMO_FAILURES = [
+    ("relion", "5.0.1", "spack", "vr", "linux/arm64", "build",
+     "[ 41%] Building CUDA object src/apps/CMakeFiles/relion_lib.dir/gpu_utils/cuda_kernels.cu.o\n"
+     "nvcc fatal   : Unsupported gpu architecture 'compute_103f'\n"
+     "make[2]: *** [src/apps/CMakeFiles/relion_lib.dir/build.make:76] Error 1"),
+    ("vllm", "0.11.0", "pixi", "vr", "linux/arm64", "build",
+     "Building wheel for vllm (pyproject.toml): started\n"
+     "nvcc fatal   : Unsupported gpu architecture 'compute_103f'\n"
+     "error: subprocess-exited-with-error"),
+    ("gromacs", "2025.4", "spack", "generic", "linux/amd64", "test",
+     "+ srun --container-image=/scratch/ci/gromacs.sqsh gmx mdrun -s topol.tpr -nsteps 1000\n"
+     "CUDA error: no kernel image is available for execution on the device (209)\n"
+     "srun: error: gpu-n12.cluster.fredhutch.org: task 0: Exited with exit code 1"),
+    ("alphafold3", "3.0.1", "easybuild", "vr", "linux/arm64", "build",
+     "== 2026-10-26 01:12:44 building and installing jaxlib/0.4.38-foss-2025b-CUDA-13.0.3...\n"
+     "ERROR: Build of jaxlib failed: bazel: unsupported platform aarch64-linux-gnu-cuda13"),
+]
+
+
+def seed_failures(db) -> None:
+    """Fail a few builds through the real coordinator, so grouping and scrubbing are real."""
+    from apparadise import coordinator, failures
+
+    restricted = {p["name"] for p in db.packages.list(include_restricted=True)
+                  if p["visibility"] == "restricted"}
+    for i, (name, version, source, target, platform, stage, log) in enumerate(DEMO_FAILURES):
+        pkg = db.packages.get(name, include_restricted=True)
+        bid = coordinator.enqueue(db, pkg["id"], version, source, target, platform, "",
+                                  requested_by="system", restricted=name in restricted)
+        line = next(ln for ln in log.splitlines() if "error" in ln.lower() or "fatal" in ln)
+        with db.tx() as c:
+            c.execute("UPDATE build SET status = 'failed', stage = ?, finished_at = ? "
+                      "WHERE id = ?", (stage, f"2026-10-{20 + i}T09:00:00Z", bid))
+        db.failures.record(bid, failures.signature(stage, line, name in restricted), stage,
+                           failures.excerpt(log, around=line[:80]), name in restricted,
+                           error_line=failures.scrub(line))
+
+
 def build_demo_app(settings: Settings, db=None, directory: DemoDirectory | None = None):
     from apparadise.db import DB_FILENAME, Database
 
@@ -99,6 +139,11 @@ def build_demo_app(settings: Settings, db=None, directory: DemoDirectory | None 
     seed_from_catalog(fake_harbor, settings.catalog_dir)
     harbor = HarborClient(settings, transport=httpx.ASGITransport(app=fake_harbor))
     app = create_app(settings, db=db, authenticator=directory or DemoDirectory(), harbor=harbor)
+    # The catalog loads at startup, and failures need its packages: seed after it.
+    from apparadise.catalog import load_and_sync
+
+    load_and_sync(db, settings)
+    seed_failures(db)
     app.state.fake_harbor = fake_harbor
     app.state.demo = True
     return app

@@ -20,12 +20,14 @@ ROUTES = {
     ("POST", "/api/admin/builder-tokens"): "builder.token.create",
     ("POST", "/api/admin/builders/{builder_id}/disable"): "builder.disable",
     ("POST", "/api/admin/builds"): "build.queue",
+    ("PUT", "/api/votes/{subject}/{key}"): "vote.add",
+    ("DELETE", "/api/votes/{subject}/{key}"): "vote.remove",
 }
 NOT_AUDITED = {
     # High-volume log streaming; the build row and the log file are the record.
     ("POST", "/api/builder/jobs/{build_id}/log"),
 }
-SOURCES = ["auth.py", "builder_api.py"]
+SOURCES = ["auth.py", "builder_api.py", "votes.py"]
 
 
 def mutating_routes(tmp_path):

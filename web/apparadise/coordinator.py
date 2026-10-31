@@ -143,7 +143,8 @@ def reap_lost(db: Database, cutoff: str) -> list[dict[str, Any]]:
                          "WHERE id = ? AND status = 'running'", (stage, ts, r["id"])).rowcount:
                 db.failures.record(r["id"], failures.signature(stage, LOST_ERROR,
                                                                bool(r["restricted"])),
-                                   stage, LOST_ERROR, bool(r["restricted"]))
+                                   stage, LOST_ERROR, bool(r["restricted"]),
+                                   error_line=LOST_ERROR)
     return rows
 
 
@@ -227,7 +228,8 @@ def report(db: Database, data_dir: str | Path, builder: dict[str, Any], build_id
             if error and error not in excerpt:  # the builder's own diagnosis, e.g. no digest
                 excerpt = f"{excerpt}\n{failures.scrub(error)}".strip()
             db.failures.record(build_id, failures.signature(stage, line, restricted), stage,
-                               excerpt, restricted)
+                               excerpt, restricted,
+                               error_line=failures.scrub(line)[:500])
     return db.query_one("SELECT id, stage, status, image_digest, failure_id, harbor_robot_id "
                         "FROM build WHERE id = ?", (build_id,))
 

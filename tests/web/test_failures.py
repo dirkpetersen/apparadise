@@ -39,3 +39,8 @@ def test_excerpt_centres_on_error():
     log = "\n".join(f"line {i}" for i in range(200)) + "\nerror: boom\n" + "tail\n" * 5
     ex = excerpt(log, around="error: boom")
     assert "error: boom" in ex and len(ex.splitlines()) <= 30
+
+
+def test_scrub_removes_the_whole_internal_host_name():
+    out = scrub("srun: error: gpu-n12.cluster.fredhutch.org: task 0: Exited")
+    assert "gpu-n12" not in out and "<host>" in out
