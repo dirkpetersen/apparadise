@@ -187,3 +187,15 @@ want:
 - **relion** goes to Spack (it has a cuda variant), not EasyBuild as I guessed in the
   catalog file.
 **Answer:**
+
+## Q22 (2026-10-31): How should EasyBuild recipes get bumped to the platform toolchain?
+
+The real easyconfigs pin old toolchains and their own CUDA. RELION 5.0.0 uses
+`foss-2023a-CUDA-12.1.1`, and Cellpose uses `foss-2022a-CUDA-11.7.0`. Built as-is, each one
+would compile a whole old toolchain and download its own CUDA.
+**Default:** the easystack options add `try-toolchain: foss,2025b` (from
+`containers/targets.yml`) and `filter-deps: CUDA`, so the build uses the base image's CUDA
+13.0.3. Builds where the bump doesn't work fail at `concretize`/`build` and show up as
+failure records. Builds now pick the easyconfig automatically: for the requested version,
+the CUDA easyconfig with the newest toolchain generation.
+**Answer:**

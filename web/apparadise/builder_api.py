@@ -21,6 +21,7 @@ from .auth import SessionUser, require_sysadmin
 from .catalog import NAME_RE, VERSION_RE
 from .db import Database, get_db
 from .harbor import HarborError, HarborUnavailable
+from .index import normalise
 from .recipes import RecipeError, render
 from .resolver import resolve_name
 
@@ -237,6 +238,16 @@ async def start_build(body: BuildBody, request: Request, user: Sysadmin,
         restricted = False
     else:
         pid, restricted = pkg["id"], pkg["visibility"] == "restricted"
+    easyconfig = body.easyconfig
+    if res.source == "easybuild" and not easyconfig:
+        rows = await db.run(db.index.lookup, [normalise(res.upstream_name, "easybuild")])
+        known = next((r["details"].get("easyconfigs", {}) for r in rows
+                      if r["source"] == "easybuild" and r["upstream_name"] == res.upstream_name),
+                     {})
+        easyconfig = known.get(body.version, "")
+        if not easyconfig:
+            raise HTTPException(422, f"No CUDA easyconfig for {res.upstream_name} "
+                                     f"{body.version}; name one in 'easyconfig'.")
     queued, skipped = [], []
     for target in dict.fromkeys(body.targets):
         for platform in coordinator.TARGET_PLATFORMS[target]:
@@ -244,7 +255,7 @@ async def start_build(body: BuildBody, request: Request, user: Sysadmin,
                 recipe = render(res.source, body.package, body.version, target,
                                 registry=settings.registry_host, platform=platform,
                                 spec=body.spec or f"{res.upstream_name}@{body.version}",
-                                easyconfig=body.easyconfig, conda_name=res.upstream_name)
+                                easyconfig=easyconfig, conda_name=res.upstream_name)
             except RecipeError as e:
                 skipped.append({"target": target, "platform": platform, "reason": str(e)})
                 continue

@@ -10,6 +10,7 @@ from apparadise.recipes import RecipeError, load_targets, render, target_vars
 
 def test_targets_file_shape():
     t = load_targets()
+    assert t.pop("easybuild_toolchain") == "foss,2025b"
     assert set(t) == {"vr", "rtx", "generic"}
     assert t["rtx"]["cuda_arch"] == ["120"] and t["rtx"]["ptx_arch"] == "120"
     for name, spec in t.items():
@@ -21,6 +22,8 @@ def test_targets_file_shape():
 def test_easybuild_optarch_is_full_flag():
     """A bare arch name becomes -x86-64-v3 and breaks gcc (FAILURES.md #15)."""
     for name, spec in load_targets().items():
+        if name == "easybuild_toolchain":
+            continue
         values = spec["easybuild_optarch"]
         for v in values.values() if isinstance(values, dict) else [values]:
             assert v.startswith("GCC:-m"), (name, v)
@@ -54,6 +57,7 @@ def test_render_easybuild():
     assert opts["optarch"] == "GCC:-march=x86-64-v4"
     assert opts["cuda-compute-capabilities"] == "12.0"
     assert "ignore-osdeps" not in opts
+    assert opts["try-toolchain"] == "foss,2025b" and opts["filter-deps"] == "CUDA"
 
 
 def test_render_pixi():
@@ -87,4 +91,6 @@ def test_base_refs_pin_digest_when_known(monkeypatch):
 
 def test_targets_have_digest_slots():
     for name, spec in load_targets().items():
+        if name == "easybuild_toolchain":
+            continue
         assert set(spec["base_digests"]) == {"builder", "runtime"}, name

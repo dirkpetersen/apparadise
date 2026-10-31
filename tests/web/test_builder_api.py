@@ -26,8 +26,9 @@ def env(tmp_path):
     db.index.replace_source("spack", [
         _item("spack", "gromacs", ["2026.3"], True, [], False),
         _item("spack", "relion", ["5.0.1"], True, [], False)])
-    db.index.replace_source(
-        "easybuild", [_item("easybuild", "AlphaFold3", ["3.0.1"], True, [], True)])
+    af = _item("easybuild", "AlphaFold3", ["3.0.1"], True, [], True)
+    af["details"] = {"easyconfigs": {"3.0.1": "AlphaFold3-3.0.1-foss-2025b-CUDA-12.9.1.eb"}}
+    db.index.replace_source("easybuild", [af])
     db.index.replace_source("pixi", [
         _item("pixi", "pytorch", ["2.9.1"], True, ["linux-64", "linux-aarch64"], True)])
     app = create_app(s, db=db, authenticator=DemoDirectory())
@@ -244,3 +245,14 @@ def test_queue_counts_for_builders(env):
     queue(c, package="gromacs", version="2026.3", targets=["rtx"])
     assert c.get("/api/builder/queue", headers=bh).json() == {
         "queued": {"linux/amd64": 1}, "running": {}}
+
+
+def test_easyconfig_picked_from_index(env):
+    c, _, _ = env
+    r = queue(c, package="alphafold3", version="3.0.1", targets=["rtx"])
+    assert r.status_code == 200, r.text
+    onprem, _ = new_builder(c)
+    job = c.post("/api/builder/claim", headers=onprem).json()
+    assert "AlphaFold3-3.0.1-foss-2025b-CUDA-12.9.1.eb" in job["recipe"]
+    r = queue(c, package="alphafold3", version="9.9", targets=["rtx"])
+    assert r.status_code == 422 and "No CUDA easyconfig" in r.json()["detail"]

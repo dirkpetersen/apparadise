@@ -6,6 +6,10 @@ easyconfigs:
       options:
         optarch: "$EASYBUILD_OPTARCH"
         cuda-compute-capabilities: "$CUDA_CC_CSV"
+        # Bump to the platform toolchain generation and use the base image's CUDA
+        # (/usr/local/cuda) instead of the CUDA version the easyconfig names (Q22).
+        try-toolchain: "$EASYBUILD_TOOLCHAIN"
+        filter-deps: CUDA
         # Never --ignore-osdeps: a missing OS dependency is a concretize failure (Q10).
         robot: true
         parallel: 16

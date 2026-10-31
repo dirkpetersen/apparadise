@@ -198,6 +198,10 @@ MIGRATIONS: list[str] = [
     """
     ALTER TABLE build ADD COLUMN harbor_robot_id INTEGER;
     """,
+    # 5: per-source details, e.g. the CUDA easyconfig file per version for EasyBuild
+    """
+    ALTER TABLE index_entry ADD COLUMN details TEXT NOT NULL DEFAULT '{}';
+    """,
 ]
 
 _SECRET_KEY = re.compile(
@@ -518,13 +522,16 @@ class IndexRepo(_Repo):
             for it in items:
                 c.execute(
                     "INSERT INTO index_entry (source, upstream_name, norm_name, versions, "
-                    "has_cuda, arches, is_python, refreshed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                    "has_cuda, arches, is_python, details, refreshed_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
                     "ON CONFLICT (source, upstream_name) DO UPDATE SET "
                     "norm_name = excluded.norm_name, versions = excluded.versions, "
                     "has_cuda = excluded.has_cuda, arches = excluded.arches, "
-                    "is_python = excluded.is_python, refreshed_at = excluded.refreshed_at",
+                    "is_python = excluded.is_python, details = excluded.details, "
+                    "refreshed_at = excluded.refreshed_at",
                     (source, it["upstream_name"], it["norm_name"], json.dumps(it["versions"]),
-                     int(it["has_cuda"]), json.dumps(it["arches"]), int(it["is_python"]), ts),
+                     int(it["has_cuda"]), json.dumps(it["arches"]), int(it["is_python"]),
+                     json.dumps(it.get("details") or {}, sort_keys=True), ts),
                 )
                 c.execute("INSERT OR IGNORE INTO _seen (name) VALUES (?)", (it["upstream_name"],))
             removed = c.execute(
@@ -544,6 +551,7 @@ class IndexRepo(_Repo):
             r["arches"] = json.loads(r["arches"])
             r["has_cuda"] = bool(r["has_cuda"])
             r["is_python"] = bool(r["is_python"])
+            r["details"] = json.loads(r["details"])
         return rows
 
     def counts(self) -> dict[str, dict[str, int]]:

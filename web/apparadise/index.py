@@ -95,17 +95,37 @@ def scan_easybuild(root: str | Path) -> list[dict[str, Any]]:
     versions: dict[str, set[str]] = defaultdict(set)
     cuda: dict[str, bool] = defaultdict(bool)
     python: dict[str, bool] = defaultdict(bool)
+    # version -> CUDA easyconfig file names, so a build can pick one without a human
+    files: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
     for f in ecdir.glob("*/*/*.eb"):
         name = f.parent.name
         text = f.read_text(errors="replace")
-        if m := EB_VERSION_RE.search(text):
+        m = EB_VERSION_RE.search(text)
+        if m:
             versions[name].add(m.group(1))
         if "-CUDA-" in f.name or EB_CUDA_DEP_RE.search(text):
             cuda[name] = True
+            if m:
+                files[name][m.group(1)].append(f.name)
         if "PythonPackage" in text or "PythonBundle" in text:
             python[name] = True
-    return [_item("easybuild", n, versions[n], cuda[n], list(CONDA_SUBDIRS), python[n])
-            for n in sorted(versions)]
+    out = []
+    for n in sorted(versions):
+        it = _item("easybuild", n, versions[n], cuda[n], list(CONDA_SUBDIRS), python[n])
+        if files[n]:
+            it["details"] = {"easyconfigs": {v: pick_easyconfig(fs) for v, fs in files[n].items()
+                                             if v in it["versions"]}}
+        out.append(it)
+    return out
+
+
+def pick_easyconfig(names: list[str]) -> str:
+    """Newest toolchain generation wins: RELION-5.0.1-foss-2025b-CUDA-12.9.1.eb over 2023a.
+    Sorting by the year-letter generation in the name, then by the name itself."""
+    def key(n: str) -> tuple:
+        gen = re.findall(r"-(20\d\d[ab])\b", n)
+        return (gen[-1] if gen else "", version_key(n))
+    return max(names, key=key)
 
 
 def scan_conda(repodata: dict[str, str | Path]) -> list[dict[str, Any]]:

@@ -26,6 +26,7 @@ from .catalog import NAME_RE, VERSION_RE
 REPO = Path(__file__).resolve().parents[2]
 TARGETS_FILE = REPO / "containers" / "targets.yml"
 TEMPLATES = REPO / "recipes" / "_templates"
+TARGET_NAMES = ("vr", "rtx", "generic")
 TEMPLATE_FOR = {"spack": "spack.yaml.in", "easybuild": "easystack.yml.in", "pixi": "pixi.toml.in"}
 OUTPUT_FOR = {"spack": "spack.yaml", "easybuild": "easystack.yml", "pixi": "pixi.toml"}
 CONDA_PLATFORM = {"linux/amd64": "linux-64", "linux/arm64": "linux-aarch64"}
@@ -50,7 +51,7 @@ def target_vars(target: str, platform: str | None = None,
                 targets: dict[str, Any] | None = None) -> dict[str, str]:
     """The template variables of one (target, platform). Refuses incomplete targets."""
     targets = targets or load_targets()
-    if target not in targets:
+    if target not in TARGET_NAMES:
         raise RecipeError(f"unknown target {target!r}")
     t = targets[target]
     platforms = t["platform"] if isinstance(t["platform"], list) else [t["platform"]]
@@ -74,6 +75,7 @@ def target_vars(target: str, platform: str | None = None,
         "PTX_ARCH": str(t["ptx_arch"]),
         "SPACK_TARGET": str(_per_platform(t["spack_target"], platform)),
         "EASYBUILD_OPTARCH": str(_per_platform(t["easybuild_optarch"], platform)),
+        "EASYBUILD_TOOLCHAIN": str(targets["easybuild_toolchain"]),
     }
 
 

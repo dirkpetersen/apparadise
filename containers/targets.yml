@@ -11,6 +11,10 @@
 # - always embed PTX for the highest CUDA arch, so newer GPUs can JIT;
 # - prefer family targets (f suffix) over arch-specific ones (a suffix).
 
+# EasyBuild recipes are bumped to one platform toolchain generation (architecture doc, rule 4)
+# and use the base image's CUDA instead of building their own (filter-deps: CUDA). Q22.
+easybuild_toolchain: "foss,2025b"
+
 vr:
   title: Vera Rubin NVL72
   platform: linux/arm64

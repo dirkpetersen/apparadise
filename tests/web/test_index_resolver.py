@@ -193,3 +193,17 @@ def test_compiled_hpc_code_with_python_bindings_goes_to_spack():
     assert resolve(entries).source == "spack"
     entries[1]["upstream_name"] = "py-lammps"  # a py- recipe: the Python stack wins
     assert resolve(entries).source == "pixi"
+
+
+def test_easybuild_records_cuda_easyconfigs(eb_tree):
+    it = by_name(scan_easybuild(eb_tree))
+    assert it["RELION"]["details"] == {
+        "easyconfigs": {"5.0.1": "RELION-5.0.1-foss-2025b-CUDA-12.9.1.eb"}}
+    assert "details" not in it["SAMtools"]
+
+
+def test_pick_easyconfig_prefers_newest_toolchain():
+    from apparadise.index import pick_easyconfig
+
+    assert pick_easyconfig(["X-1-foss-2023a-CUDA-12.1.1.eb", "X-1-foss-2025b-CUDA-12.9.1.eb",
+                            "X-1-foss-2024a-CUDA-12.6.0.eb"]) == "X-1-foss-2025b-CUDA-12.9.1.eb"
