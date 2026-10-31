@@ -97,7 +97,7 @@ builder_api (`/api/builder/*`, `/api/admin/*`), failures (signatures, scrubbing)
 (public failure DB), votes (`/api/votes/{package|failure|request}/{key}`), buildqueue (the one
 resolve/render/queue path + quota), requests_api (`/api/requests`, `/api/index`, `/api/quota`,
 `/api/admin/policy`), live (`/api/builds/{id}/events`, SSE live logs), retry (nightly re-queue of failed builds), repair (bounded auto-repair from
-`recipes/repairs.yml`),
+`recipes/repairs.yml`), upstream (`/api/admin/upstream`: published repairs drafted as upstream issues),
 registry (`/api/registry`, the
 Registry page: `public` for everyone, `restricted` and `cache` for sysadmins, 30 s cache). `builder/apparadise_builder/`: config, agent, launchers, scale.
 chatbot (`/api/chat`: five tools; create_request/start_build only propose, the user confirms). slurm and runai are still to come. Frontend views: catalog, package, registry,

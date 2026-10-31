@@ -1,6 +1,6 @@
 import { h } from "../dom.js";
 import { icon } from "../icons.js";
-import { createBuilderToken, disableBuilder, getPolicy, listBuilders, listBuilds, queueBuild, setPolicy } from "../api.js";
+import { createBuilderToken, disableBuilder, getPolicy, listBuilders, listBuilds, listUpstreamOffers, queueBuild, setPolicy } from "../api.js";
 import { toast } from "../components/toast.js";
 import { confirmDialog } from "../components/confirm-dialog.js";
 import { STATUS_LABEL, TARGET_LABEL } from "./catalog.js";
@@ -150,6 +150,34 @@ function buildersPanel() {
   return { panel, load };
 }
 
+function upstreamPanel() {
+  const list = h("div", { class: "upstream" }, h("p", { class: "muted", text: "Loading…" }));
+  listUpstreamOffers().then(({ offers }) => {
+    if (!offers.length) {
+      list.replaceChildren(h("p", { class: "muted", text: "No repaired build has been published yet. When one is, its fix shows up here, drafted for the upstream project." }));
+      return;
+    }
+    list.replaceChildren(...offers.map((o) => {
+      const panel = h("code-panel");
+      panel.tabs = [{ label: "Issue text", content: `${o.title}\n\n${o.body}` }];
+      return h("article", { class: "upstream-item" },
+        h("div", { class: "upstream-head" },
+          h("strong", { class: "mono", text: `${o.package} ${o.version}` }),
+          h("span", { class: "muted", text: `${TARGET_LABEL[o.target] || o.target} · ${o.source} · rule ${o.rule}` }),
+          o.restricted && h("span", { class: "chip chip-warn" }, icon("lock"), "Restricted: check the licence first"),
+          o.issueUrl
+            ? h("a", { class: "btn btn-sm", href: o.issueUrl, target: "_blank", rel: "noopener noreferrer" }, icon("right"), h("span", { text: "Open an upstream issue" }))
+            : h("a", { class: "btn btn-sm", href: o.repo, target: "_blank", rel: "noopener noreferrer" }, icon("right"), h("span", { text: "Find the feedstock" }))),
+        o.why && h("p", { class: "muted", text: o.why }),
+        panel);
+    }));
+  }).catch((err) => list.replaceChildren(h("p", { class: "form-error", text: err.message })));
+  return h("section", { class: "apanel", "aria-labelledby": "au-h" },
+    h("h2", { id: "au-h", class: "section-h", text: "Fixes worth upstreaming" }),
+    h("p", { class: "muted", text: "Auto-repairs that built and passed their GPU test. Nothing is filed for you: review the text, then open the issue with your own account." }),
+    list);
+}
+
 function policyPanel() {
   const quota = h("input", { class: "input", id: "pol-quota", type: "number", min: "0", max: "1000", step: "1", inputmode: "numeric" });
   const btn = h("button", { class: "btn", type: "submit" }, icon("check"), h("span", { text: "Save" }));
@@ -191,6 +219,7 @@ export function renderAdmin({ me, setTitle }) {
       h("h2", { id: "aq-h", class: "section-h", text: "Queue a build" }), queueForm(() => builds.load())),
     builds.panel,
     builders.panel,
+    upstreamPanel(),
     policyPanel());
   return view;
 }

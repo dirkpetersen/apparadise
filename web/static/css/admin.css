@@ -38,3 +38,7 @@ select.input { appearance: auto; }
   padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: var(--r-md); }
 .builder > div { display: flex; align-items: center; gap: var(--sp-2); margin-inline-end: auto; }
 .builder[data-disabled="true"] { opacity: 0.6; }
+.upstream { display: grid; gap: var(--sp-4); }
+.upstream-item { display: grid; gap: var(--sp-2); }
+.upstream-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.upstream-head .btn { margin-inline-start: auto; }

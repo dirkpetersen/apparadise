@@ -22,6 +22,7 @@ from . import (
     live,
     registry,
     requests_api,
+    upstream,
     votes,
 )
 from .config import Settings
@@ -183,6 +184,7 @@ def create_app(
     api.include_router(requests_api.admin_router)
     api.include_router(live.router)
     api.include_router(chatbot.router)
+    api.include_router(upstream.router)
     api.include_router(builder_api.router)
     api.include_router(builder_api.admin_router)
     app.include_router(api)

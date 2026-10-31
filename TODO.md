@@ -74,4 +74,4 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 
 - [x] Chatbot page with the five tools (`#/ask`; Q12, Q27): Claude via the SDK, proposals confirmed by the user, keyword stand-in in the demo
 - [x] Bounded auto-repair with a known-patch library (`recipes/repairs.yml`, `apparadise.repair`): one fix per failure, max 2 per release, never the same rule twice
-- [ ] Upstream PR offers
+- [x] Upstream PR offers: `#/admin` lists published repairs with a drafted upstream issue (`/api/admin/upstream`); filing stays manual

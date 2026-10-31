@@ -125,3 +125,8 @@ export const buildEvents = (id) => new EventSource(`/api/builds/${enc(id)}/event
 export const getChatStatus = () => api("/chat", { announce401: false });
 export const sendChat = (message, conversation) =>
   api("/chat", { method: "POST", json: { message, conversation } });
+
+// Sysadmin: repairs that were published, drafted for upstream -> {offers: [{build, package,
+// version, target, platform, source, rule, why, error, repo, title, body, issueUrl?,
+// restricted}]}. Nothing is filed automatically.
+export const listUpstreamOffers = () => api("/admin/upstream");

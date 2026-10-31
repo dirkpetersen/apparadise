@@ -155,3 +155,20 @@ def test_a_failed_report_triggers_a_repair(env):
                json={"stage": "build", "ok": False})
     assert r.status_code == 200 and r.json()["repair"]["rule"] == "binutils-gprofng"
     assert build(db, r.json()["repair"]["retry"])["status"] == "queued"
+
+
+def test_published_repairs_become_upstream_offers_for_sysadmins(env):
+    c, db = env, env.app_db
+    bid = queue(c)
+    fail(db, bid, "build", GPROFNG)
+    retry = repair.attempt(db, c.settings, bid)["retry"]
+    c.post("/api/login", json={"login": "alice", "password": "demo"}, headers=H)
+    assert c.get("/api/admin/upstream").status_code == 403
+    c.post("/api/login", json={"login": "dana", "password": "demo"}, headers=H)
+    assert c.get("/api/admin/upstream").json()["offers"] == []  # not published yet
+    with db.tx() as x:
+        x.execute("UPDATE build SET status = 'published' WHERE id = ?", (retry,))
+    o = c.get("/api/admin/upstream").json()["offers"][0]
+    assert o["rule"] == "binutils-gprofng" and o["error"] == GPROFNG and not o["restricted"]
+    assert "lammps@20250722 ~gprofng" in o["body"]
+    assert o["issueUrl"].startswith("https://github.com/spack/spack-packages/issues/new?")
