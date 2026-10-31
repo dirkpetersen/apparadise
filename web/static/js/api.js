@@ -98,3 +98,18 @@ export const getFailure = (id) => api(`/failures/${enc(id)}`, { announce401: fal
 // Votes: subject "package" (key = name) or "failure" (key = id). -> {votes, voted}
 export const setVote = (subject, key, on) =>
   api(`/votes/${enc(subject)}/${enc(key)}`, { method: on ? "PUT" : "DELETE" });
+
+// Requests (phase 3). create({name, version?, targets?, source?}) -> {request (id or null
+// when nothing new was queued), package, version, source, rule, reason, cudaPort, queued,
+// skipped}; 422 no recipe, 429 over quota. list(mine) -> {requests: [{id, package, version,
+// targets, status, votes, voted, mine, created, builds, failureId, restricted, requestedBy}]}.
+export const createRequest = (body) => api("/requests", { method: "POST", json: body });
+export const listRequests = (mine = false) => api(`/requests${mine ? "?mine=true" : ""}`, { announce401: false });
+// -> {unlimited, limit, used, left}
+export const getQuota = () => api("/quota");
+// Index search for the request form -> {results: [{name, sources: {spack|easybuild|pixi:
+// {upstream, cuda, versions, arches}}, resolution: {source, rule, reason, cudaPort, versions}}]}
+export const searchIndex = (q) => api(`/index?q=${enc(q)}`, { announce401: false });
+// Sysadmin runtime policy -> {quotaBuildsPerWeek}
+export const getPolicy = () => api("/admin/policy");
+export const setPolicy = (body) => api("/admin/policy", { method: "PUT", json: body });

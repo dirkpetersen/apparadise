@@ -29,8 +29,9 @@ The demo needs no AD, Harbor or cluster. It runs the real app (real login flow, 
 CSRF) with a fake directory in place of LDAP, a fake Harbor seeded from the sample catalog, and
 a small package index. All users have the password `demo`. `alice` and `bob` are regular users.
 `dana` is a sysadmin (RCO-Admins), who also sees restricted packages, the `restricted` and
-`cache` registry projects, and the build console at `#/admin`. The registry browser is at
-`#/registry`.
+`cache` registry projects, and the build console at `#/admin`. Pages: `#/` catalog,
+`#/registry` registry browser, `#/requests` software requests (sign in; quota per user),
+`#/failures` the public failure database.
 
 | Path | What it is |
 |---|---|

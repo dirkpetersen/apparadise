@@ -64,7 +64,7 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 
 ## Phase 3: community layer
 
-- [ ] Requests and quota
+- [x] Requests and quota (`#/requests`, `POST /api/requests`, weekly quota on the admin page, Q25)
 - [x] Public failure DB: signature grouping, log scrubbing, restricted filtering (`#/failures`, `#/f/<id>`, Q24)
 - [x] Upvotes on packages and failure groups (`PUT/DELETE /api/votes/...`)
 - [ ] Nightly retries when dependencies change upstream

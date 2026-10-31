@@ -94,10 +94,12 @@ Existing modules in `web/apparadise/`: config, main (app factory + lost-builder 
 (template rendering), index (three-way index), resolver, coordinator (queue, claim, report),
 builder_api (`/api/builder/*`, `/api/admin/*`), failures (signatures, scrubbing), harbor
 (per-job robots, read-only repository/artifact listing), failures also serves `/api/failures`
-(public failure DB), votes (`/api/votes/{package|failure}/{key}`), registry (`/api/registry`, the
+(public failure DB), votes (`/api/votes/{package|failure|request}/{key}`), buildqueue (the one
+resolve/render/queue path + quota), requests_api (`/api/requests`, `/api/index`, `/api/quota`,
+`/api/admin/policy`), registry (`/api/registry`, the
 Registry page: `public` for everyone, `restricted` and `cache` for sysadmins, 30 s cache). `builder/apparadise_builder/`: config, agent, launchers, scale.
 chatbot, slurm and runai are still to come. Frontend views: catalog, package, registry,
-failures, admin, login; `js/vote.js` is the upvote button; use `replace(el, [...])` from
+requests, failures, admin, login; `js/vote.js` is the upvote button; use `replace(el, [...])` from
 `dom.js`, not native `replaceChildren`, when children may be `cond && node`.
 **appmotel gotcha:** a top-level directory named `frontend`, `backend`, `api`, `worker`, `db` or
 `cache` that holds a `requirements.txt` switches appmotel into multi-component mode. Never use

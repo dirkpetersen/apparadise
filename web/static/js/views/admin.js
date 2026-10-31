@@ -1,6 +1,6 @@
 import { h } from "../dom.js";
 import { icon } from "../icons.js";
-import { createBuilderToken, disableBuilder, getBuildLog, listBuilders, listBuilds, queueBuild } from "../api.js";
+import { createBuilderToken, disableBuilder, getBuildLog, getPolicy, listBuilders, listBuilds, queueBuild, setPolicy } from "../api.js";
 import { toast } from "../components/toast.js";
 import { confirmDialog } from "../components/confirm-dialog.js";
 import { STATUS_LABEL, TARGET_LABEL } from "./catalog.js";
@@ -159,6 +159,24 @@ function buildersPanel() {
   return { panel, load };
 }
 
+function policyPanel() {
+  const quota = h("input", { class: "input", id: "pol-quota", type: "number", min: "0", max: "1000", step: "1", inputmode: "numeric" });
+  const btn = h("button", { class: "btn", type: "submit" }, icon("check"), h("span", { text: "Save" }));
+  getPolicy().then((p) => { quota.value = String(p.quotaBuildsPerWeek); }).catch((err) => toast.error(err.message));
+  const form = h("form", { class: "policy-form", novalidate: true, on: { submit: async (e) => {
+    e.preventDefault();
+    const n = Number.parseInt(quota.value, 10);
+    if (!Number.isInteger(n) || n < 0 || n > 1000) { toast.error("Enter a whole number from 0 to 1000."); return; }
+    btn.disabled = true;
+    try { await setPolicy({ quotaBuildsPerWeek: n }); toast.show("Quota saved"); } catch (err) { toast.error(err.message); } finally { btn.disabled = false; }
+  } } },
+  h("div", { class: "field" }, h("label", { for: "pol-quota", text: "Build jobs per user per 7 days" }), quota), btn);
+  return h("section", { class: "apanel", "aria-labelledby": "ap-h" },
+    h("h2", { id: "ap-h", class: "section-h", text: "Request quota" }),
+    h("p", { class: "muted", text: "Counted per platform job: a generic build is two. Sysadmins have no quota." }),
+    form);
+}
+
 export function renderAdmin({ me, setTitle }) {
   setTitle("Admin");
   if (!me?.isSysadmin) {
@@ -181,6 +199,7 @@ export function renderAdmin({ me, setTitle }) {
     h("section", { class: "apanel", "aria-labelledby": "aq-h" },
       h("h2", { id: "aq-h", class: "section-h", text: "Queue a build" }), queueForm(() => builds.load())),
     builds.panel,
-    builders.panel);
+    builders.panel,
+    policyPanel());
   return view;
 }

@@ -93,9 +93,9 @@ async def create_request(body: RequestBody, request: Request,
         raise HTTPException(e.status, e.message) from None
     rid = None
     if res["queued"]:
-        rid = await db.run(db.requests.create, res["packageId"], res["version"],
-                           list(dict.fromkeys(body.targets)), user.username, res["restricted"],
-                           [q["id"] for q in res["queued"]])
+        targets = list(dict.fromkeys(q["target"] for q in res["queued"]))
+        rid = await db.run(db.requests.create, res["packageId"], res["version"], targets,
+                           user.username, res["restricted"], [q["id"] for q in res["queued"]])
     await db.run(db.audit.add, user.username, "request.create", "package", body.name,
                  {"request": rid, "version": res["version"], "source": res["source"],
                   "queued": [q["id"] for q in res["queued"]]})

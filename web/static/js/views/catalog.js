@@ -62,7 +62,7 @@ export function renderCatalog({ query, setTitle }) {
     count.textContent = `${items.length} package${items.length === 1 ? "" : "s"}${search.value.trim() ? ` matching “${search.value.trim()}”` : ""}`;
     list.replaceChildren(...(items.length ? items.map(card) : [h("li", { class: "empty" },
       h("p", { class: "empty-title", text: "Nothing here yet" }),
-      h("p", { text: "Requests for new software arrive in a later phase. Until then, ask the research computing team." }))]));
+      h("p", {}, "Not in the catalog yet? ", h("a", { href: "#/requests", text: "Request it" }), ": the resolver finds a recipe in Spack, EasyBuild or conda-forge."))]));
   }
   async function load() {
     const mine = ++seq;

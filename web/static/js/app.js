@@ -6,6 +6,7 @@ import { renderPackage } from "./views/package.js";
 import { renderAdmin } from "./views/admin.js";
 import { renderRegistry, renderRepository } from "./views/registry.js";
 import { renderFailure, renderFailures } from "./views/failures.js";
+import { renderRequests } from "./views/requests.js";
 import "./components/confirm-dialog.js";
 import { h } from "./dom.js";
 import { toast } from "./components/toast.js";
@@ -13,7 +14,7 @@ import "./components/code-panel.js";
 
 // Hash routes: "#/" catalog, "#/p/<name>" package page, "#/registry" (and
 // "#/registry/<project>/<repo>") what Harbor holds, "#/failures" (and "#/f/<id>") the
-// public failure database, "#/admin" build console
+// public failure database, "#/requests" software requests, "#/admin" build console
 // (sysadmins; the server enforces the role), "#/login" sign-in.
 // The catalog is public; signing in only matters for sysadmins (restricted
 // packages) and, in later phases, for requests and votes.
@@ -47,6 +48,8 @@ function route() {
   const query = new URLSearchParams(hash.split("?")[1] || "").get("q") || "";
   const page = hash === "#/admin"
     ? renderAdmin({ me, setTitle })
+    : hash === "#/requests"
+      ? renderRequests({ me, setTitle })
     : hash.split("?")[0] === "#/failures"
       ? renderFailures({ me, query, setTitle })
     : f
