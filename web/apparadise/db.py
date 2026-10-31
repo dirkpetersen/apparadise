@@ -202,6 +202,10 @@ MIGRATIONS: list[str] = [
     """
     ALTER TABLE index_entry ADD COLUMN details TEXT NOT NULL DEFAULT '{}';
     """,
+    # 6: delivery (squashfs staged on shared storage, modules regenerated)
+    """
+    ALTER TABLE build ADD COLUMN delivered_at TEXT;
+    """,
 ]
 
 _SECRET_KEY = re.compile(

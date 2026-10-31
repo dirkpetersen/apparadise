@@ -39,6 +39,17 @@ def _targets() -> dict[str, Any]:
     return load_targets()
 
 
+def arch_of(platform: str) -> str:
+    return platform.split("/", 1)[1]  # linux/amd64 -> amd64
+
+
+def image_tag(version: str, target: str, platform: str) -> str:
+    """vr/rtx: <version>-<target>. generic builds once per platform and pushes
+    <version>-generic-<arch>; delivery then joins both into the multi-arch <version>-generic."""
+    tag = f"{version}-{target}"
+    return f"{tag}-{arch_of(platform)}" if target == "generic" else tag
+
+
 def base_ref(role: str, target: str, cuda: str) -> str:
     """cache/base-<role>:<cuda>-<target>, pinned @sha256 once targets.yml has the digest."""
     ref = f"cache/base-{role}:{cuda}-{target}"
@@ -111,7 +122,8 @@ def claim(db: Database, builder: dict[str, Any]) -> dict[str, Any] | None:
         "target": job["target"],
         "platform": job["platform"],
         "recipe": job["recipe"],
-        "image": f"{project}/{pkg['name']}:{job['version']}-{job['target']}",
+        "image": f"{project}/{pkg['name']}:"
+                 f"{image_tag(job['version'], job['target'], job['platform'])}",
         "cache": f"cache/{job['source']}-{job['target']}",
         "stages": list(BUILDER_STAGES),
         "baseBuilder": base_ref("builder", job["target"], cuda),

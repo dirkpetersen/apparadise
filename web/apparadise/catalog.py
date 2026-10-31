@@ -191,6 +191,13 @@ def version_key(v: str) -> tuple:
     return tuple((0, int(p)) if p.isdigit() else (1, p) for p in re.split(r"[._+-]", v))
 
 
+def sqsh_path(sqsh_dir: str, name: str, version: str, target: str,
+              arch: str | None = None) -> str:
+    """<dir>/<target>/<name>-<version>-<target>.sqsh; generic adds -<arch> (one per arch)."""
+    suffix = f"-{arch}" if target == "generic" and arch else ""
+    return f"{sqsh_dir}/{target}/{name}-{version}-{target}{suffix}.sqsh"
+
+
 def image_tag(name: str, version: str, target: str) -> str:
     return f"{name}:{version}-{target}"
 
@@ -204,11 +211,15 @@ def commands(settings: Settings, pkg: dict[str, Any], version: str, target: str)
     tag = image_tag(pkg["name"], version, target)
     project = project_for(pkg["visibility"])
     exe = pkg["executables"][0] if pkg["executables"] else "bash"
-    sqsh = f"{settings.sqsh_dir}/{target}/{pkg['name']}-{version}-{target}.sqsh"
+    sqsh = sqsh_path(settings.sqsh_dir, pkg["name"], version, target,
+                     "amd64" if target == "generic" else None)
+    srun_sqsh = f"srun --container-image={sqsh} {exe}"
+    if target == "generic":  # one squashfs per architecture
+        srun_sqsh += f"\n# on Arm nodes: {sqsh.replace('-amd64.sqsh', '-arm64.sqsh')}"
     return {
         "module": f"module load {pkg['name']}/{version}",
         "srunRegistry": f"srun --container-image={settings.registry_host}#{project}/{tag} {exe}",
-        "srunSqsh": f"srun --container-image={sqsh} {exe}",
+        "srunSqsh": srun_sqsh,
         "pull": f"{settings.registry_host}/{project}/{tag}",
         "sqsh": sqsh,
     }

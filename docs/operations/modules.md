@@ -17,6 +17,26 @@ module load gromacs/2026.3
 gmx_mpi mdrun ...
 ```
 
+## Automatic delivery (phase 2)
+
+Pipeline builds need no hand step. Run the delivery job from cron on one node of each
+architecture that has Enroot and the CephFS mounts:
+
+```cron
+*/10 * * * * cd /srv/apparadise/web && .venv/bin/python3 -m apparadise.deliver --db data/apparadise.sqlite3 --registry registry.example.org
+```
+
+The job does three things:
+1. It stages the published builds for this host's platform with `tools/stage-sqsh`, by
+   digest.
+2. Once both the `-generic-amd64` and `-generic-arm64` images exist, it joins them into the
+   multi-arch `-generic` manifest.
+3. It regenerates the modules from the database.
+
+A build appears in a module only after its `.sqsh` exists. Generic images get one `.sqsh`
+per architecture (`...-generic-amd64.sqsh`, `...-generic-arm64.sqsh`), and the wrapper
+picks between them at run time.
+
 ## How a wrapper picks its image
 
 | Node | Image |

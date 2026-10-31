@@ -58,6 +58,9 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 - [x] Test stage as low-priority Slurm job via Pyxis (`srun --nice --container-image`); TEST_MODE=none fails closed
 - [x] Harbor client: robot per job (project + cache, 1 day, deleted at the end; job released on outage); builder uses a 0600 authfile (Q19, Q20)
 
+- [x] Delivery job (`python -m apparadise.deliver`): stage .sqsh by digest, multi-arch generic manifest, modules from the DB
+- [x] generic builds push per-arch tags; .sqsh and wrappers are per-arch for generic
+
 ## Phase 3: community layer
 
 - [ ] Requests, upvotes, quota

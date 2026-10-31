@@ -9,7 +9,8 @@
 # Imports by digest (never by tag), writes to a temp file next to the target and renames
 # atomically, then makes it read-only. Re-running for an existing file is a no-op unless
 # FORCE=1. Needs enroot on a node of the image's architecture (enroot import does not
-# convert foreign-architecture images).
+# convert foreign-architecture images). For target generic the file name gets -amd64 or
+# -arm64 from ARCH (default: this host).
 set -euo pipefail
 
 usage() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
@@ -25,7 +26,16 @@ valid target "$target" '^(vr|rtx|generic)$'
 valid digest "$digest" '^sha256:[0-9a-f]{64}$'
 valid sqsh_dir "$sqsh_dir" '^/[A-Za-z0-9._/-]+$'
 
-dest="$sqsh_dir/$target/$name-$version-$target.sqsh"
+# generic has one squashfs per architecture: ARCH (default: this host's) names it
+suffix=""
+if [[ "$target" == generic ]]; then
+  case "${ARCH:-$(uname -m)}" in
+    x86_64|amd64) suffix=-amd64 ;;
+    aarch64|arm64) suffix=-arm64 ;;
+    *) echo "stage-sqsh: unknown ARCH" >&2; exit 2 ;;
+  esac
+fi
+dest="$sqsh_dir/$target/$name-$version-$target$suffix.sqsh"
 if [[ -e "$dest" && "${FORCE:-0}" != 1 ]]; then
   echo "$dest exists (FORCE=1 to replace)"
   exit 0
