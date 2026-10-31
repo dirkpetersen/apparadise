@@ -216,6 +216,11 @@ MIGRATIONS: list[str] = [
     ALTER TABLE failure ADD COLUMN error_line TEXT NOT NULL DEFAULT '';
     CREATE INDEX build_failure ON build (failure_id);
     """,
+    # 9: nightly retries: when an index entry last changed (not just when it was refreshed)
+    """
+    ALTER TABLE index_entry ADD COLUMN changed_at TEXT NOT NULL DEFAULT '';
+    UPDATE index_entry SET changed_at = refreshed_at;
+    """,
 ]
 
 _SECRET_KEY = re.compile(
@@ -540,16 +545,22 @@ class IndexRepo(_Repo):
             for it in items:
                 c.execute(
                     "INSERT INTO index_entry (source, upstream_name, norm_name, versions, "
-                    "has_cuda, arches, is_python, details, refreshed_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    "has_cuda, arches, is_python, details, refreshed_at, changed_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
                     "ON CONFLICT (source, upstream_name) DO UPDATE SET "
+                    # changed_at moves only when the recipe's facts change (nightly retries)
+                    "changed_at = CASE WHEN index_entry.versions IS NOT excluded.versions "
+                    " OR index_entry.has_cuda IS NOT excluded.has_cuda "
+                    " OR index_entry.arches IS NOT excluded.arches "
+                    " OR index_entry.details IS NOT excluded.details "
+                    " THEN excluded.changed_at ELSE index_entry.changed_at END, "
                     "norm_name = excluded.norm_name, versions = excluded.versions, "
                     "has_cuda = excluded.has_cuda, arches = excluded.arches, "
                     "is_python = excluded.is_python, details = excluded.details, "
                     "refreshed_at = excluded.refreshed_at",
                     (source, it["upstream_name"], it["norm_name"], json.dumps(it["versions"]),
                      int(it["has_cuda"]), json.dumps(it["arches"]), int(it["is_python"]),
-                     json.dumps(it.get("details") or {}, sort_keys=True), ts),
+                     json.dumps(it.get("details") or {}, sort_keys=True), ts, ts),
                 )
                 c.execute("INSERT OR IGNORE INTO _seen (name) VALUES (?)", (it["upstream_name"],))
             removed = c.execute(

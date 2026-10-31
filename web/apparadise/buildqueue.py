@@ -59,7 +59,8 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
                  targets: list[str], requested_by: str, admin: bool,
                  source: str | None = None, easyconfig: str = "", spec: str = "",
                  request_id: int | None = None, skip_existing: bool = False,
-                 enforce_quota: bool = False) -> dict[str, Any]:
+                 enforce_quota: bool = False,
+                 platforms: list[str] | None = None) -> dict[str, Any]:
     """-> {package, version, source, rule, reason, cudaPort, queued, skipped}.
     Raises QueueError(422) for no recipe, (429) when over quota."""
     pkg = db.packages.get(package, include_restricted=True)
@@ -102,6 +103,8 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
     plan, skipped = [], []
     for target in dict.fromkeys(targets):
         for platform in coordinator.TARGET_PLATFORMS[target]:
+            if platforms is not None and platform not in platforms:
+                continue  # e.g. a retry of only the arm64 half of a generic release
             if skip_existing and (st := _existing(db, pid, version, target, platform)):
                 skipped.append({"target": target, "platform": platform,
                                 "reason": "already available" if st == "published"

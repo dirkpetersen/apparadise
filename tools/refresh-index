@@ -43,3 +43,7 @@ cd "$here/web"
   --easybuild "$src/easybuild-easyconfigs" "${conda_args[@]}" \
   --csv "$src/cuda_spack_easybuild_pixi.csv"
 echo "index refreshed $(date -Is)"
+
+# Failed builds whose recipe just changed upstream (or whose failure is old) go back in the
+# queue; caps and intervals are runtime policy in the database (apparadise.retry).
+"$py" -m apparadise.retry --db "$db" || echo "some retries could not be queued (see above)"
