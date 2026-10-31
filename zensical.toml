@@ -12,6 +12,7 @@ nav = [
     { "Harbor registry" = "operations/harbor.md" },
     { "Base images" = "operations/base-images.md" },
     { "Hand-building a package" = "operations/hand-build.md" },
+    { "Builders" = "operations/builders.md" },
     { "Modules and wrappers" = "operations/modules.md" },
   ] },
   { "Lessons" = [

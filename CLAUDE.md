@@ -74,7 +74,8 @@ web/            FastAPI app + build coordinator + static frontend (appmotel app 
                   votes.py, failures.py, chatbot.py, harbor.py, slurm.py, runai.py, modules.py
   static/         frontend, served at /
 builder/        pull-based builder agent (appmotel app #2, big MEMORY_LIMIT)
-  app.py
+  app.py          /health + the pull loop
+  apparadise_builder/   config, agent, launchers (start/stop), scale (autoscaler)
   requirements.txt
   .env.default
 catalog/        hand-maintained catalog/<name>.yml (phase 1), loaded at startup
@@ -88,9 +89,12 @@ docs/           Markdown for Zensical; docs/stack.md lists versions
 TODO.md  QUESTIONS.md  zensical.toml  ruff.toml (lint config for mock/ and tests/)
 ```
 
-Existing modules: config, main, db, auth, ldapauth, ldapca, catalog, modules (Lmod +
-Enroot wrappers), recipes (template rendering). Planned names for the rest are a proposal,
-so adjust them as the code takes shape.
+Existing modules in `web/apparadise/`: config, main (app factory + lost-builder reaper), db
+(migrations 1-5), auth, ldapauth, ldapca, catalog, modules (Lmod + Enroot wrappers), recipes
+(template rendering), index (three-way index), resolver, coordinator (queue, claim, report),
+builder_api (`/api/builder/*`, `/api/admin/*`), failures (signatures, scrubbing), harbor
+(per-job robots). `builder/apparadise_builder/`: config, agent, launchers, scale.
+chatbot, votes, slurm and runai are still to come.
 **appmotel gotcha:** a top-level directory named `frontend`, `backend`, `api`, `worker`, `db` or
 `cache` that holds a `requirements.txt` switches appmotel into multi-component mode. Never use
 those names. `builder/` must never import from `web/`. It talks to the coordinator only over

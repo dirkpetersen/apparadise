@@ -18,6 +18,14 @@ These are the versions in use. Keep this page in step with `web/requirements*.tx
 | SQLite | stdlib | WAL, STRICT tables, `PRAGMA user_version` migrations |
 | pytest, ruff, cryptography | dev only | `cryptography` makes test certificates |
 
+## Builder (`builder/`)
+
+| Component | Version | Notes |
+|---|---|---|
+| httpx | >= 0.27 | Outbound calls to the coordinator only |
+| FastAPI + uvicorn | as `web/` | Serves only `/health` for appmotel |
+| podman, srun, cosign | on the host | Called as argv lists, never through a shell |
+
 ## Frontend (`web/static/`)
 
 Plain HTML, CSS and vanilla JS ES modules, with no framework and no build step.
@@ -25,7 +33,7 @@ Plain HTML, CSS and vanilla JS ES modules, with no framework and no build step.
   light and dark both use `light-dark()`.
 - `js/dom.js` provides `h()`. `js/api.js` is the only way to call `/api`.
 - Components (`js/components/`): `code-panel`, `toast`, `menu-button`, `confirm-dialog`.
-- Views (`js/views/`): `shell`, `catalog`, `package`, `login`.
+- Views (`js/views/`): `shell`, `catalog`, `package`, `login`, `admin` (the build console).
 - Fonts are self-hosted, all under the OFL: Inter, Fraunces and JetBrains Mono.
 - `showcase.html` shows every component.
 
