@@ -1,0 +1,11 @@
+# EasyBuild easystack for $NAME $VERSION on target $TARGET ($PLATFORM).
+# Run inside the builder image: eb --easystack easystack.yml --robot
+# One EasyBuild run per (target, toolchain generation) install tree at a time (Q9).
+easyconfigs:
+  - $EASYCONFIG:
+      options:
+        optarch: "$EASYBUILD_OPTARCH"
+        cuda-compute-capabilities: "$CUDA_CC_CSV"
+        # Never --ignore-osdeps: a missing OS dependency is a concretize failure (Q10).
+        robot: true
+        parallel: 16

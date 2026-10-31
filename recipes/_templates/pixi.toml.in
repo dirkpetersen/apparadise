@@ -1,0 +1,14 @@
+# pixi workspace for $NAME $VERSION on target $TARGET ($PLATFORM).
+# conda-forge binaries are used as-is (not rebuilt per target). Lock with `pixi lock`
+# and commit pixi.lock next to this file.
+[workspace]
+name = "$NAME"
+version = "$VERSION"
+channels = ["conda-forge"]
+platforms = ["$CONDA_PLATFORM"]
+
+[system-requirements]
+cuda = "$CUDA_MAJOR"
+
+[dependencies]
+$PIXI_DEPENDENCY

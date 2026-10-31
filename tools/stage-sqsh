@@ -1,0 +1,42 @@
+#!/bin/bash
+# Pre-stage a published image as a read-only squashfs on shared storage, once, so Pyxis
+# jobs and module wrappers start from the file instead of every node pulling and
+# converting the image (architecture doc, "Pre-stage squashfs on shared storage").
+#
+#   tools/stage-sqsh REGISTRY PROJECT NAME VERSION TARGET DIGEST [SQSH_DIR]
+#   tools/stage-sqsh registry.example.org public gromacs 2026.3 rtx sha256:abc... /shared/containers
+#
+# Imports by digest (never by tag), writes to a temp file next to the target and renames
+# atomically, then makes it read-only. Re-running for an existing file is a no-op unless
+# FORCE=1. Needs enroot on a node of the image's architecture (enroot import does not
+# convert foreign-architecture images).
+set -euo pipefail
+
+usage() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+[[ $# -ge 6 && $# -le 7 ]] || usage
+registry=$1 project=$2 name=$3 version=$4 target=$5 digest=$6 sqsh_dir=${7:-/shared/containers}
+
+valid() { [[ "$2" =~ $3 ]] || { echo "stage-sqsh: invalid $1: $2" >&2; exit 2; }; }
+valid registry "$registry" '^[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]+)?$'
+valid project "$project" '^(public|restricted)$'
+valid name "$name" '^[a-z0-9][a-z0-9._+-]{0,63}$'
+valid version "$version" '^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$'
+valid target "$target" '^(vr|rtx|generic)$'
+valid digest "$digest" '^sha256:[0-9a-f]{64}$'
+valid sqsh_dir "$sqsh_dir" '^/[A-Za-z0-9._/-]+$'
+
+dest="$sqsh_dir/$target/$name-$version-$target.sqsh"
+if [[ -e "$dest" && "${FORCE:-0}" != 1 ]]; then
+  echo "$dest exists (FORCE=1 to replace)"
+  exit 0
+fi
+mkdir -p "$sqsh_dir/$target"
+tmp=$(mktemp "$sqsh_dir/$target/.$name-$version-$target.XXXXXX.sqsh")
+rm -f "$tmp"  # enroot import refuses to overwrite
+trap 'rm -f "$tmp"' EXIT
+# Pyxis/enroot reference syntax: REGISTRY#IMAGE; a digest pins the exact content.
+"${ENROOT:-enroot}" import --output "$tmp" "docker://$registry#$project/$name@$digest"
+chmod 0444 "$tmp"
+mv -f "$tmp" "$dest"
+trap - EXIT
+echo "$dest"

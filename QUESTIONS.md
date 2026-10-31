@@ -101,3 +101,34 @@ current `config.guess`/`config.sub`, and EasyBuild's download of them is disable
 **Default:** Claude via the Anthropic API (`ANTHROPIC_API_KEY`, model `claude-opus-5-5`, with
 the model as a setting). This is phase 4, so nothing is built yet.
 **Answer:**
+
+## Q13 (2026-10-31): What are Rubin's compute capability and Vera's CPU target?
+
+NVIDIA's compute-capability appendix doesn't list Rubin yet, and archspec doesn't know Vera.
+**Default:** `containers/targets.yml` leaves `vr.cuda_arch`/`ptx_arch` null, so `vr` recipes
+refuse to render until someone reads the value with `nvidia-smi --query-gpu=compute_cap` on
+the NVL72. The CPU tuning uses `neoverse_v2` (Grace, Armv9.0) until Spack and GCC know Vera.
+Module wrappers pick `vr` by CPU architecture (aarch64) alone.
+**Answer:**
+
+## Q14 (2026-10-31): How should module wrappers start the image?
+
+**Default:** `enroot start -- <file.sqsh> <exe> args`, run from the pre-staged read-only
+`.sqsh`, keeping the working directory. Mounts and GPU/RDMA injection come from the site
+Enroot config. This needs `squashfuse`/`fuse-overlayfs` on the nodes. Which host environment
+variables to pass through is still open: right now only what Enroot passes by default.
+**Answer:**
+
+## Q15 (2026-10-31): Should the frontend keep Bucketeer's look with a new accent?
+
+**Default:** the same design system (tokens, fonts, components), with the accent switched
+from orange to indigo `#4f46e5` and cool neutrals, so the two apps are related but easy to
+tell apart.
+**Answer:**
+
+## Q16 (2026-10-31): Are the pinned tool versions in the builder image right?
+
+**Default:** Spack `v1.1.0`, EasyBuild `5.1.2`, pixi `0.58.0`. None of them have been checked
+against upstream yet, because no container runtime is available on the development host.
+Verify them at the first image build.
+**Answer:**

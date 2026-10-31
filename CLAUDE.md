@@ -77,13 +77,19 @@ builder/        pull-based builder agent (appmotel app #2, big MEMORY_LIMIT)
   app.py
   requirements.txt
   .env.default
-mock/           fake Harbor, Slurm, Run:ai, builder and LDAP for tests + demo (mock/demo.py)
-tests/
+catalog/        hand-maintained catalog/<name>.yml (phase 1), loaded at startup
+containers/     targets.yml (all arch flags: single source of truth) + base/ Containerfiles
+recipes/        _templates/ + rendered recipes/<name>/<version>/<target>/
+tools/          stage-sqsh and other single-file operator scripts (bash or stdlib Python)
+mock/           fake directory, sample catalog, demo (mock/demo.py); later fake Harbor/Slurm
+tests/web/      tests for web/ (run from web/: .venv/bin/pytest)
 docs/           Markdown for Zensical; docs/stack.md lists versions
-TODO.md  QUESTIONS.md  zensical.toml
+TODO.md  QUESTIONS.md  zensical.toml  ruff.toml (lint config for mock/ and tests/)
 ```
 
-The module names inside `apparadise/` are a proposal, so adjust them as the code takes shape.
+Existing modules: config, main, db, auth, ldapauth, ldapca, catalog, modules (Lmod +
+Enroot wrappers), recipes (template rendering). Planned names for the rest are a proposal,
+so adjust them as the code takes shape.
 **appmotel gotcha:** a top-level directory named `frontend`, `backend`, `api`, `worker`, `db` or
 `cache` that holds a `requirements.txt` switches appmotel into multi-component mode. Never use
 those names. `builder/` must never import from `web/`. It talks to the coordinator only over
@@ -98,9 +104,11 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt   # setup
 cp .env.default .env                     # then fill in the REQUIRED values
 .venv/bin/python3 app.py                 # run locally, same as appmotel
 .venv/bin/python3 ../mock/demo.py        # local demo with mocks + fake users, http://127.0.0.1:8000
-.venv/bin/ruff check .                   # lint
+.venv/bin/ruff check . ../mock ../tests # lint
 .venv/bin/pytest                         # all tests
-.venv/bin/pytest tests/test_config.py::test_parsing   # single test
+.venv/bin/pytest ../tests/web/test_catalog.py::test_search   # single test
+.venv/bin/python -m apparadise.modules --catalog ../catalog --module-dir /m --wrapper-dir /w --sqsh-dir /s --dry-run
+.venv/bin/python -m apparadise.recipes spack gromacs 2026.3 rtx --spec gromacs@2026.3+mpi --stdout
 zensical serve                           # docs (pip install zensical); build → site/ (git-ignored)
 ```
 

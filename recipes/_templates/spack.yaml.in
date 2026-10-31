@@ -1,0 +1,36 @@
+# Spack environment for $NAME $VERSION on target $TARGET ($PLATFORM).
+# Rendered by: python -m apparadise.recipes spack $NAME $VERSION $TARGET --spec '<spec>'
+spack:
+  specs:
+  - "$SPEC +cuda cuda_arch=$CUDA_ARCH_CSV target=$SPACK_TARGET"
+  packages:
+    all:
+      require: ["target=$SPACK_TARGET"]
+      variants: [+cuda, "cuda_arch=$CUDA_ARCH_CSV"]
+    # The CUDA toolkit comes from the builder base image, never rebuilt by Spack.
+    cuda:
+      buildable: false
+      externals:
+      - spec: cuda@$CUDA_VERSION
+        prefix: /usr/local/cuda
+    # RDMA comes from the image's rdma-core so MPI/UCX keep InfiniBand support.
+    rdma-core:
+      buildable: false
+      externals:
+      - spec: rdma-core@50
+        prefix: /usr
+  concretizer:
+    unify: true
+  view: /opt/view
+  config:
+    install_tree:
+      root: /opt/software
+  mirrors:
+    apparadise-cache:
+      url: oci://$REGISTRY/cache/spack-$TARGET
+      signed: false
+  container:
+    format: docker
+    images:
+      build: $REGISTRY/cache/base-builder:$CUDA_VERSION-$TARGET
+      final: $REGISTRY/cache/base-runtime:$CUDA_VERSION-$TARGET

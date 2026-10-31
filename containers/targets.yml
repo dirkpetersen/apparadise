@@ -1,0 +1,45 @@
+# Hardware targets: the single source of truth for architecture flags.
+# Read by the recipe templates (tools/render-recipe), the runbooks and, in phase 2,
+# the recipe generators. tests/web/test_targets.py checks this file.
+#
+# Rules (architecture doc, "Hardware targets and build matrix"):
+# - build natively on a CPU of the matching architecture, never under emulation;
+# - always embed PTX for the highest CUDA arch, so newer GPUs can JIT;
+# - prefer family targets (f suffix) over arch-specific ones (a suffix).
+
+vr:
+  title: Vera Rubin NVL72
+  platform: linux/arm64
+  cuda_version: "13.0"
+  # Rubin's compute capability is not published yet (QUESTIONS.md Q13). Read it from the
+  # hardware with `nvidia-smi --query-gpu=compute_cap` and fill these in; vr builds refuse
+  # to start while cuda_arch is null.
+  cuda_arch: null
+  ptx_arch: null
+  # Vera's Olympus cores (Armv9.2) are not in archspec yet; neoverse_v2 (Grace, Armv9.0)
+  # code runs on them. Switch to the Vera target once Spack/GCC know it (Q13).
+  spack_target: neoverse_v2
+  easybuild_optarch: "GCC:-mcpu=neoverse-v2"
+  compiler_min: "GCC 16.1 or Clang 21 for Olympus tuning; GCC 14 for neoverse-v2"
+
+rtx:
+  title: RTX PRO 6000 Blackwell farm
+  platform: linux/amd64
+  cuda_version: "13.0"
+  cuda_arch: ["120"]
+  ptx_arch: "120"
+  spack_target: x86_64_v4
+  # Always the full flag: a bare "x86-64-v4" becomes "-x86-64-v4" (FAILURES.md #15).
+  easybuild_optarch: "GCC:-march=x86-64-v4"
+  compiler_min: "GCC 13"
+
+generic:
+  title: Portable fallback
+  platform: [linux/amd64, linux/arm64]
+  # CUDA 13 dropped Volta (sm_70), so the portable image stays on 12.9 (Q6).
+  cuda_version: "12.9"
+  cuda_arch: ["70", "75", "80", "86", "89", "90", "100", "120"]
+  ptx_arch: "120"
+  spack_target: {linux/amd64: x86_64_v3, linux/arm64: aarch64}
+  easybuild_optarch: {linux/amd64: "GCC:-march=x86-64-v3", linux/arm64: "GCC:-march=armv8.2-a"}
+  compiler_min: "GCC 13"

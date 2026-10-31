@@ -1,0 +1,24 @@
+# Documentation site (Zensical). Preview: zensical serve. Build: zensical build (output site/).
+[project]
+site_name = "apparadise"
+site_description = "CUDA software for HPC as signed OCI images, modules and containers"
+docs_dir = "docs"
+site_dir = "site"
+nav = [
+  { "Home" = "index.md" },
+  { "Software stack" = "stack.md" },
+  { "Development" = "development.md" },
+  { "Operations" = [
+    { "Harbor registry" = "operations/harbor.md" },
+    { "Base images" = "operations/base-images.md" },
+    { "Hand-building a package" = "operations/hand-build.md" },
+    { "Modules and wrappers" = "operations/modules.md" },
+  ] },
+  { "Lessons" = [
+    { "EasyBuild on a bare host" = "lessons/easybuild-host-build.md" },
+  ] },
+]
+
+[project.theme]
+variant = "modern"
+features = ["navigation.sections", "content.code.copy"]
