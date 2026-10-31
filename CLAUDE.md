@@ -90,13 +90,14 @@ TODO.md  QUESTIONS.md  zensical.toml  ruff.toml (lint config for mock/ and tests
 ```
 
 Existing modules in `web/apparadise/`: config, main (app factory + lost-builder reaper), db
-(migrations 1-9), auth, ldapauth, ldapca, catalog, modules (Lmod + Enroot wrappers), recipes
+(migrations 1-11), auth, ldapauth, ldapca, catalog, modules (Lmod + Enroot wrappers), recipes
 (template rendering), index (three-way index), resolver, coordinator (queue, claim, report),
 builder_api (`/api/builder/*`, `/api/admin/*`), failures (signatures, scrubbing), harbor
 (per-job robots, read-only repository/artifact listing), failures also serves `/api/failures`
 (public failure DB), votes (`/api/votes/{package|failure|request}/{key}`), buildqueue (the one
 resolve/render/queue path + quota), requests_api (`/api/requests`, `/api/index`, `/api/quota`,
-`/api/admin/policy`), live (`/api/builds/{id}/events`, SSE live logs), retry (nightly re-queue of failed builds),
+`/api/admin/policy`), live (`/api/builds/{id}/events`, SSE live logs), retry (nightly re-queue of failed builds), repair (bounded auto-repair from
+`recipes/repairs.yml`),
 registry (`/api/registry`, the
 Registry page: `public` for everyone, `restricted` and `cache` for sysadmins, 30 s cache). `builder/apparadise_builder/`: config, agent, launchers, scale.
 chatbot (`/api/chat`: five tools; create_request/start_build only propose, the user confirms). slurm and runai are still to come. Frontend views: catalog, package, registry,

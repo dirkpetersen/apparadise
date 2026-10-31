@@ -282,3 +282,21 @@ upstream, and still sees "no recipe" here, can infer that it is restricted on th
 **Default:** accepted. Hiding it would mean building it, or pretending to, for people who
 mustn't have it.
 **Answer:**
+
+## Q29 (2026-10-31): Auto-repair scope
+
+**Default:**
+- When a build fails and its scrubbed error line matches a rule in `recipes/repairs.yml`,
+  one repaired build is queued at once, as `system`, for the same release and platform.
+- At most 2 repaired builds per release (`repair.max_attempts`), and never the same rule
+  twice.
+- Repairs can only append to the Spack spec, set allowlisted EasyBuild options
+  (`try-amend`, or drop `try-toolchain`), or switch to the next source that has a CUDA
+  recipe.
+- No LLM is involved and nothing is patched by hand. A rule only reaches the library
+  through a reviewed commit.
+- A repaired image that passes its GPU test is published under the normal tag. Its build
+  record says which rule produced it.
+**Open:** should a repaired build that passes be published automatically, or wait for a
+sysadmin to approve it?
+**Answer:**

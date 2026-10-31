@@ -1,0 +1,62 @@
+# Known-patch library for bounded auto-repair (phase 4, apparadise.repair).
+#
+# When a build fails, the first rule whose `match` (a Python regex, case-insensitive) finds
+# the failure's scrubbed error line, at one of its `stages`, for the build's source, queues
+# ONE repaired build of the same release. At most repair.max_attempts (default 2) repaired
+# builds per release, never the same rule twice; every attempt is recorded on the failure
+# record and in the audit log. Prefer toolchain-level fixes over per-file patches
+# (docs/lessons/easybuild-host-build.md).
+#
+# Actions per source:
+#   spack:      {spec_append: "<spec fragment>"}            appended to the Spack spec
+#   easybuild:  {eb_options: {<eb option>: <value|null>}}   easystack options; null drops one
+#   any source: {switch_source: true}                       next source with a CUDA recipe
+#
+# Seeded from the bare-metal EasyBuild session (FAILURES.md #13, #17, #19-21) and the
+# failures CUDA builds hit most often.
+
+- id: binutils-gprofng
+  why: gprofng does not compile against glibc 2.42+ (_Generic macros); nothing needs it
+  match: 'all-gprofng|gprofng.*(_Generic|error)'
+  stages: [build]
+  actions:
+    spack: {spec_append: "~gprofng"}
+    easybuild: {eb_options: {try-amend: "configopts=--disable-gprofng"}}
+
+- id: c23-old-code
+  why: GCC 15 defaults to C23, where bool/true/false are keywords; old code typedefs them
+  match: "cannot be defined via typedef|two or more data types in declaration specifiers|expected identifier or .\\(. before .(bool|true|false)."
+  stages: [build]
+  actions:
+    spack: {spec_append: "cflags=-std=gnu17"}
+    easybuild: {eb_options: {try-amend: "preconfigopts=export CFLAGS=\"$CFLAGS -std=gnu17\" && "}}
+
+- id: gnulib-glibc-generic
+  why: old gnulib redefines memchr/bsearch, which glibc 2.42+ turned into _Generic macros
+  match: "_Generic|expected declaration specifiers or '\\.\\.\\.' before '\\(' token.*(memchr|strchr|bsearch)"
+  stages: [build]
+  actions:
+    spack: {spec_append: "cflags=-std=gnu17"}
+    easybuild: {eb_options: {try-amend: "preconfigopts=export CPPFLAGS=\"$CPPFLAGS -D__glibc_const_generic(a,b)=\" && "}}
+
+- id: easybuild-toolchain-bump
+  why: the try-toolchain bump to the platform generation found no matching dependencies;
+    build the easyconfig with the toolchain it names instead (Q22)
+  match: "no easyconfig found|missing dependencies|tweak|no such toolchain|failed to process easyconfig"
+  stages: [concretize]
+  actions:
+    easybuild: {eb_options: {try-toolchain: null}}
+
+- id: spack-unsatisfiable
+  why: Spack cannot concretize this spec on this target; another source may have it
+  match: "concretization failed|unsatisfiable|cannot satisfy|no version satisfies"
+  stages: [concretize]
+  actions:
+    spack: {switch_source: true}
+
+- id: conda-solve-failed
+  why: the conda-forge solve found no CUDA build for this arch; Spack or EasyBuild may
+  match: "could not solve|cannot solve the request|nothing provides|no candidates were found"
+  stages: [concretize]
+  actions:
+    pixi: {switch_source: true}

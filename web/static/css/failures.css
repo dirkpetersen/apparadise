@@ -52,3 +52,5 @@
 .pkg-votes .icon { width: 0.9rem; height: 0.9rem; }
 .tc-fail { display: inline-flex; align-items: center; gap: var(--sp-1); width: fit-content; }
 .tc-fail-icon { width: 1rem; height: 1rem; }
+.fail-repairs li { display: grid; gap: 0.1rem; }
+.fail-why { font-size: var(--fs-xs); }

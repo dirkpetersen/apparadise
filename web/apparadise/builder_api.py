@@ -16,7 +16,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from . import coordinator
+from . import coordinator, repair
 from .auth import SessionUser, require_sysadmin
 from .buildqueue import QueueError, queue_builds
 from .catalog import NAME_RE, VERSION_RE
@@ -141,6 +141,14 @@ async def report(build_id: int, body: ReportBody, request: Request, builder: Bui
                               digest=body.digest, test=body.test, error=body.error)
     except coordinator.JobError as e:
         raise _job_error(e) from None
+    if result["status"] == "failed":  # one known fix, if the patch library has one
+        try:
+            fixed = await db.run(repair.attempt, db, request.app.state.settings, build_id)
+        except Exception:  # a repair problem must never fail the builder's report
+            log.exception("auto-repair of build %s failed", build_id)
+            fixed = None
+        if fixed:
+            result["repair"] = fixed
     robot = result.pop("harbor_robot_id")
     harbor = request.app.state.harbor
     if robot is not None and harbor is not None and result["status"] in ("published", "failed"):

@@ -13,6 +13,7 @@ Output goes to recipes/<name>/<version>/<target>/ (or stdout with --stdout).
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -79,10 +80,29 @@ def target_vars(target: str, platform: str | None = None,
     }
 
 
+# EasyBuild options a repair may set (recipes/repairs.yml): nothing that turns a check off.
+EB_OPTIONS = {"try-amend", "try-toolchain"}
+
+
+def _eb_options(options: dict[str, Any]) -> str:
+    """Extra easystack option lines. Values are JSON-quoted, so YAML reads them verbatim."""
+    out = []
+    for key, value in sorted(options.items()):
+        if key not in EB_OPTIONS:
+            raise RecipeError(f"easystack option {key!r} is not allowed")
+        if value is None:
+            continue
+        if not isinstance(value, str) or len(value) > 300 or "\n" in value:
+            raise RecipeError(f"easystack option {key}: one line of text")
+        out.append(f"\n        {key}: {json.dumps(value)}")
+    return "".join(out)
+
+
 def render(source: str, name: str, version: str, target: str, *, registry: str,
            platform: str | None = None, spec: str = "", easyconfig: str = "",
            conda_name: str = "", cuda_build_marker: bool = True,
-           targets: dict[str, Any] | None = None) -> str:
+           targets: dict[str, Any] | None = None,
+           eb_options: dict[str, Any] | None = None) -> str:
     if source not in TEMPLATE_FOR:
         raise RecipeError(f"unknown source {source!r}")
     if not NAME_RE.match(name) or not VERSION_RE.match(version):
@@ -97,6 +117,11 @@ def render(source: str, name: str, version: str, target: str, *, registry: str,
         if not EASYCONFIG_RE.match(easyconfig or ""):
             raise RecipeError("--easyconfig: an easyconfig file name ending in .eb")
         v["EASYCONFIG"] = easyconfig
+        v["EXTRA_OPTIONS"] = _eb_options(eb_options or {})
+        if (eb_options or {}).get("try-toolchain", "") is None:  # a repair dropped the bump
+            text = (TEMPLATES / TEMPLATE_FOR[source]).read_text()
+            text = re.sub(r"(?m)^ *try-toolchain: .*\n", "", text)
+            return Template(text).substitute(v)
     else:
         conda = conda_name or name
         if not NAME_RE.match(conda):

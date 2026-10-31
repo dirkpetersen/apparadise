@@ -230,6 +230,12 @@ MIGRATIONS: list[str] = [
     ALTER TABLE build ADD COLUMN easyconfig TEXT NOT NULL DEFAULT '';
     UPDATE index_entry SET changed_at = '';
     """,
+    # 11: bounded auto-repair: which known-patch rule produced a build, and the easystack
+    # options it set (so retries keep them)
+    """
+    ALTER TABLE build ADD COLUMN repair TEXT NOT NULL DEFAULT '';
+    ALTER TABLE build ADD COLUMN eb_options TEXT NOT NULL DEFAULT '{}';
+    """,
 ]
 
 _SECRET_KEY = re.compile(

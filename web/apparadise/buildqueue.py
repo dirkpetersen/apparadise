@@ -89,7 +89,9 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
                  source: str | None = None, easyconfig: str = "", spec: str = "",
                  request_id: int | None = None, skip_existing: bool = False,
                  enforce_quota: bool = False,
-                 platforms: list[str] | None = None) -> dict[str, Any]:
+                 platforms: list[str] | None = None, spec_append: str = "",
+                 eb_options: dict[str, Any] | None = None,
+                 repair: str = "") -> dict[str, Any]:
     """-> {package, version, source, rule, reason, cudaPort, queued, skipped, packageId,
     restricted}. Raises QueueError(422) for no recipe or an unknown version, (429) over quota.
 
@@ -137,6 +139,8 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
                        if r["source"] == "pixi" and r["upstream_name"] == res.upstream_name),
                       True)
     restricted = bool(pkg and pkg["visibility"] == "restricted")
+    if spec_append:  # a repair (or a retry of one) adds to the spec; store the result
+        spec = f"{spec or f'{res.upstream_name}@{version}'} {spec_append}"
 
     def existing(target: str, platform: str) -> str | None:
         return _existing(db, pkg["id"], version, target, platform) if pkg else None
@@ -151,7 +155,7 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
                                 registry=settings.registry_host, platform=platform,
                                 spec=spec or f"{res.upstream_name}@{version}",
                                 easyconfig=easyconfig, conda_name=res.upstream_name,
-                                cuda_build_marker=marker)
+                                cuda_build_marker=marker, eb_options=eb_options)
             except RecipeError as e:
                 skipped.append({"target": target, "platform": platform, "reason": str(e)})
                 continue
@@ -181,7 +185,8 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
             bid = coordinator.enqueue(db, pid, version, res.source, target, platform, recipe,
                                       requested_by=requested_by, restricted=restricted,
                                       request_id=request_id, spec=spec,
-                                      easyconfig=easyconfig)
+                                      easyconfig=easyconfig, eb_options=eb_options,
+                                      repair=repair)
             queued.append({"id": bid, "target": target, "platform": platform})
     return {"package": package, "version": version, "source": res.source, "rule": res.rule,
             "reason": res.reason, "cudaPort": res.cuda_port, "queued": queued,

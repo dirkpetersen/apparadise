@@ -114,7 +114,11 @@ export function renderFailure({ id, me, setTitle }) {
       h("pre", { class: "log fail-log", tabindex: "0", "aria-label": "Scrubbed log excerpt" }, f.excerpt || "No log was captured."),
       h("p", { class: "muted fail-note", text: "Paths, host names, IP addresses and tokens are replaced before a log reaches this page." }),
       f.repairAttempts.length > 0 && [h("h2", { class: "section-h", text: "Repair attempts" }),
-        h("ol", { class: "fail-repairs" }, f.repairAttempts.map((a) => h("li", { text: typeof a === "string" ? a : JSON.stringify(a) })))],
+        h("ol", { class: "fail-repairs" }, f.repairAttempts.map((a) => (typeof a === "string"
+          ? h("li", { text: a })
+          : h("li", {},
+            h("code", { text: a.rule }), ` on build ${a.build}, retried as build ${a.retry} · ${day(a.at)}`,
+            a.why && h("span", { class: "muted fail-why", text: a.why })))))],
       h("h2", { class: "section-h", text: "Builds" }),
       h("div", { class: "table-wrap" },
         h("table", { class: "tbl" },

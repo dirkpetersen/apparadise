@@ -68,7 +68,10 @@ is one. Upvote the failures that block your work. Restricted packages' failures 
 to RCO-Admins only.
 
 Failed builds are retried nightly when their recipe changes upstream, or after 14 days,
-with at most three failed attempts per release.
+with at most three failed attempts per release. A failure whose error matches the
+known-patch library (`recipes/repairs.yml`, e.g. gprofng against a new glibc, or old C code
+under C23) is repaired at once: one rebuild with the known fix, at most two per release, each
+listed under *Repair attempts* on the failure page.
 
 ## For other apps
 

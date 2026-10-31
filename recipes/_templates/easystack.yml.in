@@ -12,4 +12,4 @@ easyconfigs:
         filter-deps: CUDA
         # Never --ignore-osdeps: a missing OS dependency is a concretize failure (Q10).
         robot: true
-        parallel: 16
+        parallel: 16$EXTRA_OPTIONS

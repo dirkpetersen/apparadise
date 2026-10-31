@@ -61,7 +61,8 @@ class JobError(Exception):
 
 def enqueue(db: Database, package_id: int, version: str, source: str, target: str,
             platform: str, recipe: str, *, requested_by: str, restricted: bool,
-            request_id: int | None = None, spec: str = "", easyconfig: str = "") -> int:
+            request_id: int | None = None, spec: str = "", easyconfig: str = "",
+            eb_options: dict[str, Any] | None = None, repair: str = "") -> int:
     """Queue one build of one (target, platform); `generic` is queued once per platform."""
     if platform not in TARGET_PLATFORMS[target]:
         raise ValueError(f"{target} does not build for {platform}")
@@ -70,11 +71,12 @@ def enqueue(db: Database, package_id: int, version: str, source: str, target: st
         return c.execute(
                 "INSERT INTO build (package_id, version, source, target, platform, origin, "
                 "request_id, requested_by, recipe, stage, status, restricted, created_at, "
-                "spec, easyconfig) "
-                "VALUES (?, ?, ?, ?, ?, 'pipeline', ?, ?, ?, 'concretize', 'queued', ?, ?, ?, ?) "
-                "RETURNING id",
+                "spec, easyconfig, eb_options, repair) "
+                "VALUES (?, ?, ?, ?, ?, 'pipeline', ?, ?, ?, 'concretize', 'queued', ?, ?, ?, ?, "
+                "?, ?) RETURNING id",
                 (package_id, version, source, target, platform, request_id, requested_by,
-                 recipe, int(restricted), ts, spec, easyconfig),
+                 recipe, int(restricted), ts, spec, easyconfig,
+                 json.dumps(eb_options or {}, sort_keys=True), repair),
         ).fetchone()[0]
 
 
