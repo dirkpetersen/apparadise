@@ -92,8 +92,9 @@ def _eb_options(options: dict[str, Any]) -> str:
             raise RecipeError(f"easystack option {key!r} is not allowed")
         if value is None:
             continue
-        if not isinstance(value, str) or len(value) > 300 or "\n" in value:
-            raise RecipeError(f"easystack option {key}: one line of text")
+        if not isinstance(value, str) or len(value) > 300 or "\n" in value or "," in value:
+            # EasyBuild splits option values on commas: one value, one line, no commas
+            raise RecipeError(f"easystack option {key}: one line of text without commas")
         out.append(f"\n        {key}: {json.dumps(value)}")
     return "".join(out)
 

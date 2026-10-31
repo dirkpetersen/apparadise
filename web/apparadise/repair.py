@@ -76,10 +76,11 @@ def _release_builds(db: Database, b: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _next_source(db: Database, b: dict[str, Any], tried: set[str]) -> str | None:
-    """The next source, in the resolver's port order, that has a CUDA recipe."""
+    """The next source, in the resolver's port order, that has a CUDA recipe for this
+    very version (a repair never changes what is being built)."""
     pkg = db.query_one("SELECT name, aliases FROM package WHERE id = ?", (b["package_id"],))
     rows = db.index.lookup(candidates(pkg["name"], json.loads(pkg["aliases"] or "{}")))
-    cuda = {r["source"] for r in rows if r["has_cuda"]}
+    cuda = {r["source"] for r in rows if r["has_cuda"] and b["version"] in r["versions"]}
     return next((s for s in PORT_ORDER if s in cuda and s not in tried), None)
 
 
@@ -94,7 +95,7 @@ def plan(db: Database, build_id: int, rules=None) -> dict[str, Any] | None:
     history = _release_builds(db, b)
     if history[-1]["id"] != b["id"]:
         return None  # a newer build of this release exists (queued, running, or done)
-    used = [h["repair"] for h in history if h["repair"]]
+    used = {h["repair"] for h in history if h["repair"]}
     if len(used) >= int(db.settings.get(MAX_KEY, MAX_DEFAULT)):
         return None
     for rule in rules if rules is not None else load():
@@ -103,6 +104,11 @@ def plan(db: Database, build_id: int, rules=None) -> dict[str, Any] | None:
             continue
         if not rule["rx"].search(b["error_line"] or ""):
             continue
+        if action.get("spec_append") and action["spec_append"] in (b["spec"] or "").split():
+            continue  # this fix is already in the spec (another rule added it)
+        prior = json.loads(b["eb_options"] or "{}")
+        if set(action.get("eb_options") or {}) & set(prior):
+            continue  # never overwrite an earlier fix's option
         return {"build": b, "rule": rule, "action": action, "failure": b["fid"]}
     return None
 

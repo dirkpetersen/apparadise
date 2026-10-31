@@ -24,7 +24,7 @@ import logging
 import secrets
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -47,6 +47,8 @@ MAX_CONVERSATIONS = 500
 MAX_TURNS = 30               # user messages per conversation
 PER_HOUR = 40                # user messages per user per hour
 RESULT_LIMIT = 12000         # characters of one tool result
+CALLS_PER_ROUND = 6          # parallel tool calls run per round; more get an error result
+CONV_LIMIT = 300_000         # characters of history before a conversation must start over
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 SYSTEM = """You are the software assistant of apparadise, the CUDA software platform of a \
@@ -122,15 +124,16 @@ class ToolInputError(ValueError):
 class RequestInput(BaseModel):
     name: str = Field(pattern=NAME_RE.pattern.replace("\\Z", "$"))
     version: str = Field("", pattern=r"^$|" + VERSION_RE.pattern.replace("\\Z", "$"))
-    targets: list[str] = Field(default_factory=lambda: list(DEFAULT_TARGETS))
-    source: str | None = None
+    targets: list[Literal["vr", "rtx", "generic"]] = Field(
+        default_factory=lambda: list(DEFAULT_TARGETS), min_length=1, max_length=3)
+    source: Literal["spack", "easybuild", "pixi"] | None = None
 
 
 class BuildInput(BaseModel):
     package: str = Field(pattern=NAME_RE.pattern.replace("\\Z", "$"))
     version: str = Field(pattern=VERSION_RE.pattern.replace("\\Z", "$"))
-    targets: list[str]
-    source: str | None = None
+    targets: list[Literal["vr", "rtx", "generic"]] = Field(min_length=1, max_length=3)
+    source: Literal["spack", "easybuild", "pixi"] | None = None
 
 
 # --- tools ------------------------------------------------------------------------------------
@@ -151,8 +154,9 @@ def _search_catalog(db: Database, user: SessionUser, query: str) -> dict[str, An
 def _explain_failure(db: Database, user: SessionUser, failure_id: Any = None,
                      package: Any = None) -> dict[str, Any]:
     if failure_id is not None:
-        if not isinstance(failure_id, int):
-            raise ToolInputError("failure_id must be an integer")
+        if not isinstance(failure_id, int) or isinstance(failure_id, bool) \
+                or not 0 < failure_id < 2**63:
+            raise ToolInputError("failure_id must be a positive integer")
         row = db.failures.get(failure_id, include_restricted=user.is_admin)
         if row is None:
             return {"error": "No such failure."}
@@ -190,8 +194,6 @@ def run_tool(db: Database, user: SessionUser, name: str, args: Any,
             body = RequestInput(**args)
         except ValidationError as e:
             raise ToolInputError(f"invalid request: {e.errors()[0]['msg']}") from None
-        if not set(body.targets) <= {"vr", "rtx", "generic"}:
-            raise ToolInputError("targets are vr, rtx and generic")
         hits = index_search(db, body.name, user.is_admin)
         hit = next((h for h in hits if h["name"] == body.name), None)
         proposal = {"kind": "request", "name": body.name, "version": body.version,
@@ -273,6 +275,34 @@ class ChatBody(BaseModel):
     conversation: str | None = Field(None, max_length=64)
 
 
+def _size(messages: list[Any]) -> int:
+    """Rough characters of a history (what each turn resends)."""
+    n = 0
+    for m in messages:
+        content = m["content"]
+        if isinstance(content, str):
+            n += len(content)
+            continue
+        for b in content:
+            n += len(b.model_dump_json()) if hasattr(b, "model_dump_json") else len(
+                json.dumps(b, default=str))
+    return n
+
+
+def _close_tool_uses(messages: list[Any]) -> None:
+    """A turn that ended with tool_use blocks (cut off at max_tokens, or refused) would
+    leave them unanswered, and the API rejects every later turn of that history. Answer
+    them as not run."""
+    last = messages[-1]
+    if last["role"] != "assistant":
+        return
+    open_calls = [b for b in last["content"] if getattr(b, "type", "") == "tool_use"]
+    if open_calls:
+        messages.append({"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": b.id, "is_error": True,
+             "content": "Not run: the answer was cut off."} for b in open_calls]})
+
+
 def _text(content: list[Any]) -> str:
     return "\n\n".join(b.text for b in content if getattr(b, "type", "") == "text").strip()
 
@@ -294,10 +324,18 @@ async def chat(body: ChatBody, request: Request,
     cid, conv = state.get(body.conversation, user.username)
     if conv.turns >= MAX_TURNS:
         raise HTTPException(409, "This conversation is long enough. Start a new one.")
+    if _size(conv.messages) > CONV_LIMIT:
+        raise HTTPException(409, "This conversation is long enough. Start a new one.")
     model = request.app.state.settings.chat_model
     # A working copy: the stored history only changes once the whole turn has worked, so a
     # failed turn never leaves a dangling tool_use behind (and the history stays append-only).
-    messages = [*conv.messages, {"role": "user", "content": body.message}]
+    if conv.messages and conv.messages[-1]["role"] == "user":
+        # the last turn ended with not-run tool results: the new text joins that message
+        prev = conv.messages[-1]
+        messages = [*conv.messages[:-1], {"role": "user", "content": [
+            *prev["content"], {"type": "text", "text": body.message}]}]
+    else:
+        messages = [*conv.messages, {"role": "user", "content": body.message}]
     proposals: list[dict[str, Any]] = []
     used: list[str] = []
     reply = ""
@@ -306,10 +344,12 @@ async def chat(body: ChatBody, request: Request,
             response = await client.beta.messages.create(
                 model=model, max_tokens=MAX_TOKENS, system=SYSTEM, tools=TOOLS,
                 messages=messages, output_config={"effort": EFFORT},
+                cache_control={"type": "ephemeral"},  # each round resends the history
                 betas=[FALLBACK_BETA], fallbacks="default")
             messages.append({"role": "assistant", "content": response.content})
             if response.stop_reason == "refusal":
                 reply = "I can't help with that request."
+                _close_tool_uses(messages)
                 break
             if response.stop_reason == "pause_turn":
                 continue
@@ -318,9 +358,15 @@ async def chat(body: ChatBody, request: Request,
                 reply = _text(response.content)
                 if response.stop_reason == "max_tokens":
                     reply += "\n\n(The answer was cut short.)"
+                _close_tool_uses(messages)
                 break
             results = []
-            for call in calls:  # all results go back in one user message
+            for i, call in enumerate(calls):  # all results go back in one user message
+                if i >= CALLS_PER_ROUND:
+                    results.append({"type": "tool_result", "tool_use_id": call.id,
+                                    "is_error": True, "content": "Not run: at most "
+                                    f"{CALLS_PER_ROUND} tool calls at once."})
+                    continue
                 used.append(call.name)
                 try:
                     out = await db.run(run_tool, db, user, call.name, call.input, proposals)
@@ -329,6 +375,10 @@ async def chat(body: ChatBody, request: Request,
                 except ToolInputError as e:
                     results.append({"type": "tool_result", "tool_use_id": call.id,
                                     "content": f"Error: {e}", "is_error": True})
+                except Exception:  # a tool bug must not lose the turn
+                    log.exception("chat tool %s failed", call.name)
+                    results.append({"type": "tool_result", "tool_use_id": call.id,
+                                    "content": "Error: the tool failed.", "is_error": True})
             messages.append({"role": "user", "content": results})
         else:  # out of rounds: the history would end mid-tool-use, so it is not kept
             return {"conversation": cid, "reply": "That took too many steps. Try asking more "

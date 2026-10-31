@@ -142,9 +142,6 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
     if spec_append:  # a repair (or a retry of one) adds to the spec; store the result
         spec = f"{spec or f'{res.upstream_name}@{version}'} {spec_append}"
 
-    def existing(target: str, platform: str) -> str | None:
-        return _existing(db, pkg["id"], version, target, platform) if pkg else None
-
     plan, skipped = [], []
     for target in dict.fromkeys(targets):
         for platform in coordinator.TARGET_PLATFORMS[target]:
@@ -163,9 +160,13 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
 
     queued = []
     with db.tx():  # check and act under one lock (see the docstring)
+        # Look the package up again: a concurrent request may have created it since.
+        current = find_package(db, package)
+        pid = current["id"] if current else None
         todo = []
         for target, platform, recipe in plan:
-            if skip_existing and (st := existing(target, platform)):
+            if skip_existing and pid is not None \
+                    and (st := _existing(db, pid, version, target, platform)):
                 skipped.append({"target": target, "platform": platform,
                                 "reason": "already available" if st == "published"
                                 else "already queued"})
@@ -178,7 +179,6 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
                                       f"{'s' if len(todo) != 1 else ''}, and your weekly "
                                       f"quota has {max(left, 0)} left. Upvote an existing "
                                       "request, or ask the research computing team.")
-        pid = pkg["id"] if pkg else None
         if todo and pid is None:
             pid = db.packages.upsert({"name": package, "title": package, "origin": "request"})
         for target, platform, recipe in todo:

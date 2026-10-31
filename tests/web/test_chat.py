@@ -261,3 +261,56 @@ def test_too_many_rounds_is_not_kept(env, monkeypatch):
     fake.text("fresh")
     say(c, "again", r["conversation"])
     assert len(fake.sent[-1]["body"]["messages"]) == 1
+
+
+def test_cut_off_tool_use_is_closed_and_the_conversation_goes_on(env):
+    c, fake = env
+    login(c)
+    fake.reply({"type": "text", "text": "Let me look"},
+               {"type": "tool_use", "id": "tu_cut", "name": "search_catalog",
+                "input": {"query": "x"}}, stop="max_tokens")
+    r = say(c, "first").json()
+    assert "cut short" in r["reply"] and r["tools"] == []
+    fake.text("Second answer.")
+    assert say(c, "second", r["conversation"]).json()["reply"] == "Second answer."
+    msgs = fake.sent[-1]["body"]["messages"]
+    assert [m["role"] for m in msgs] == ["user", "assistant", "user"]
+    closing = msgs[2]["content"]
+    assert closing[0]["type"] == "tool_result" and closing[0]["tool_use_id"] == "tu_cut"
+    assert closing[0]["is_error"] is True and closing[-1] == {"type": "text", "text": "second"}
+
+
+def test_tool_bugs_and_absurd_inputs_are_error_results(env):
+    c, fake = env
+    login(c)
+    fake.tool("explain_failure", {"failure_id": 2**70})
+    fake.text("ok")
+    assert say(c, "x").status_code == 200
+    result = fake.sent[1]["body"]["messages"][2]["content"][0]
+    assert result["is_error"] is True and "positive integer" in result["content"]
+    fake.tool("create_request", {"name": "lammps", "source": "evil"}, tid="tu_2")
+    fake.text("ok")
+    r = say(c, "y").json()
+    assert r["proposals"] == []
+
+
+def test_parallel_calls_are_capped(env):
+    c, fake = env
+    login(c)
+    calls = [{"type": "tool_use", "id": f"tu_{i}", "name": "search_catalog",
+              "input": {"query": "gromacs"}} for i in range(chatbot.CALLS_PER_ROUND + 2)]
+    fake.reply(*calls, stop="tool_use")
+    fake.text("ok")
+    assert len(say(c, "x").json()["tools"]) == chatbot.CALLS_PER_ROUND
+    results = fake.sent[1]["body"]["messages"][2]["content"]
+    assert len(results) == len(calls) and results[-1]["is_error"] is True
+
+
+def test_long_conversations_must_start_over(env, monkeypatch):
+    c, fake = env
+    monkeypatch.setattr(chatbot, "CONV_LIMIT", 10)
+    login(c)
+    fake.text("A long enough answer.")
+    cid = say(c, "first message").json()["conversation"]
+    assert say(c, "more", cid).status_code == 409
+    assert fake.sent[0]["body"]["cache_control"] == {"type": "ephemeral"}

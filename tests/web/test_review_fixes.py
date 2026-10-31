@@ -193,3 +193,49 @@ def test_half_published_generic_keeps_the_catalog_release():
     assert merge_platforms([cat, amd, arm])[0]["origin"] == "catalog"
     assert merge_platforms([cat, amd, {**arm, "status": "published"}])[0]["origin"] == \
         "pipeline"
+
+
+# --- second review (2026-10-31) ---
+
+def test_an_unaligned_resume_point_drops_input_to_the_next_line(env):
+    c, db = env, env.app_db
+    login(c, "alice")
+    bid = ask(c, name="lammps", targets=["rtx"]).json()["queued"][0]["id"]
+    path = log_path(c.settings.data_dir, bid)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    secret_at = len("x" * 20000) + len(" token=")
+    path.write_text("x" * 20000 + " token=SUPERSECRETVALUE " + "y" * 20000 + "\nnext line\n")
+    with db.tx() as x:
+        x.execute("UPDATE build SET status = 'failed' WHERE id = ?", (bid,))
+    with c.stream("GET", f"/api/builds/{bid}/events?from={secret_at + 16384}") as r:
+        body = r.read().decode()
+    assert "SUPERSECRET" not in body and "data: next line" in body
+
+
+def test_a_cut_line_is_skipped_to_its_end(env):
+    c, db = env, env.app_db
+    login(c, "alice")
+    bid = ask(c, name="lammps", targets=["rtx"]).json()["queued"][0]["id"]
+    path = log_path(c.settings.data_dir, bid)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("a" * 300_000 + " token=s3cr3t\nafter\n")
+    with db.tx() as x:
+        x.execute("UPDATE build SET status = 'failed' WHERE id = ?", (bid,))
+    with c.stream("GET", f"/api/builds/{bid}/events?from=0") as r:
+        body = r.read().decode()
+    assert "s3cr3t" not in body and "[cut]" in body and "data: after" in body
+
+
+def test_concurrent_first_requests_queue_a_new_package_once(env):
+    c, db = env, env.app_db
+
+    def one(user):
+        try:
+            return queue_builds(db, c.settings, package="lammps", version="", targets=["rtx"],
+                                requested_by=user, admin=False, skip_existing=True,
+                                enforce_quota=True)["queued"]
+        except QueueError as e:
+            return e.status
+    list(ThreadPoolExecutor(4).map(one, ["alice", "bob", "carol", "dave"]))
+    assert db.query_one("SELECT COUNT(*) AS n FROM build b JOIN package p ON p.id = "
+                        "b.package_id WHERE p.name = 'lammps'")["n"] == 1

@@ -14,30 +14,33 @@
 #
 # Seeded from the bare-metal EasyBuild session (FAILURES.md #13, #17, #19-21) and the
 # failures CUDA builds hit most often.
+#
+# EasyBuild: the compiler-level fixes are Spack-only for now. --try-amend reaches only the
+# top-level easyconfig (not the robot-resolved dependency that failed), replaces a
+# parameter instead of extending it, and splits values on commas (Q30).
 
 - id: binutils-gprofng
   why: gprofng does not compile against glibc 2.42+ (_Generic macros); nothing needs it
   match: 'all-gprofng|gprofng.*(_Generic|error)'
   stages: [build]
   actions:
-    spack: {spec_append: "~gprofng"}
-    easybuild: {eb_options: {try-amend: "configopts=--disable-gprofng"}}
+    # the dependency, not the root package (^ in a Spack spec)
+    spack: {spec_append: "^binutils~gprofng"}
 
 - id: c23-old-code
   why: GCC 15 defaults to C23, where bool/true/false are keywords; old code typedefs them
   match: "cannot be defined via typedef|two or more data types in declaration specifiers|expected identifier or .\\(. before .(bool|true|false)."
   stages: [build]
   actions:
-    spack: {spec_append: "cflags=-std=gnu17"}
-    easybuild: {eb_options: {try-amend: "preconfigopts=export CFLAGS=\"$CFLAGS -std=gnu17\" && "}}
+    # == propagates the flag to every dependency, wherever the old code is
+    spack: {spec_append: "cflags==-std=gnu17"}
 
 - id: gnulib-glibc-generic
   why: old gnulib redefines memchr/bsearch, which glibc 2.42+ turned into _Generic macros
   match: "_Generic|expected declaration specifiers or '\\.\\.\\.' before '\\(' token.*(memchr|strchr|bsearch)"
   stages: [build]
   actions:
-    spack: {spec_append: "cflags=-std=gnu17"}
-    easybuild: {eb_options: {try-amend: "preconfigopts=export CPPFLAGS=\"$CPPFLAGS -D__glibc_const_generic(a,b)=\" && "}}
+    spack: {spec_append: "cflags==-std=gnu17"}
 
 - id: easybuild-toolchain-bump
   why: the try-toolchain bump to the platform generation found no matching dependencies;

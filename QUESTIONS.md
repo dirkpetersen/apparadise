@@ -300,3 +300,15 @@ mustn't have it.
 **Open:** should a repaired build that passes be published automatically, or wait for a
 sysadmin to approve it?
 **Answer:**
+
+## Q30 (2026-10-31): How should auto-repair fix a failing EasyBuild dependency?
+
+The compiler-level repairs (gprofng in binutils, old C under C23, gnulib against new
+glibc) almost always hit a *dependency* that EasyBuild resolves through `--robot`. EasyBuild's
+`--try-amend` changes only the top-level easyconfig. It also replaces a parameter instead of
+adding to it, and splits values on commas. Spack can target the dependency (`^binutils~gprofng`)
+or propagate a flag (`cflags==-std=gnu17`).
+**Default:** those rules are Spack-only. For EasyBuild, the only automatic repair is
+dropping the toolchain bump. An EasyBuild-side fix would need patched easyconfigs in a
+site robot path (`recipes/easybuild-overrides/`), shipped in the builder image.
+**Answer:**

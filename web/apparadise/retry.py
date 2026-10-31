@@ -8,7 +8,8 @@ failed and either
   versions, CUDA variant, arches or easyconfig files), or
 - the failure is older than `retry.after_days` (default 14): dependencies, toolchains and
   base images move on without the package's own recipe changing.
-Never more than `retry.max_attempts` (default 3) failed builds per release, never for
+Never more than `retry.max_attempts` (default 3) failed builds per release (auto-repair's
+own rebuilds don't count: apparadise.repair has its own cap), never for
 `no-recipe`, and never while a build of that release is queued or running. Retries go
 through buildqueue with the same source, as user `system`, and stay linked to the original
 request. Both values are runtime policy (the settings table), like the quota.
@@ -47,7 +48,7 @@ def due(db: Database, now: datetime | None = None) -> list[dict[str, Any]]:
         "SELECT b.*, p.name, p.aliases, "
         " (SELECT COUNT(*) FROM build f WHERE f.package_id = b.package_id "
         "  AND f.version = b.version AND f.target = b.target AND f.platform = b.platform "
-        "  AND f.origin = 'pipeline' AND f.status = 'failed') AS attempts "
+        "  AND f.origin = 'pipeline' AND f.status = 'failed' AND f.repair = '') AS attempts "
         "FROM build b JOIN package p ON p.id = b.package_id "
         "WHERE b.origin = 'pipeline' AND b.status = 'failed' "
         "AND b.stage IS NOT 'no-recipe' AND b.id = ("

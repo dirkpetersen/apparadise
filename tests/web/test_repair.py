@@ -74,8 +74,11 @@ def test_spack_failure_gets_one_repaired_build(env):
     out = repair.attempt(db, c.settings, bid)
     assert out["rule"] == "binutils-gprofng"
     new = build(db, out["retry"])
-    assert new["repair"] == "binutils-gprofng" and new["spec"] == "lammps@20250722 ~gprofng"
-    assert "lammps@20250722 ~gprofng" in new["recipe"] and new["requested_by"] == "system"
+    # the fix goes to the dependency that failed, not to the package itself
+    assert new["repair"] == "binutils-gprofng"
+    assert new["spec"] == "lammps@20250722 ^binutils~gprofng"
+    assert "lammps@20250722 ^binutils~gprofng" in new["recipe"]
+    assert new["requested_by"] == "system"
     f = db.query_one("SELECT repair_attempts FROM failure WHERE id = ?",
                      (build(db, bid)["failure_id"],))
     assert json.loads(f["repair_attempts"])[0]["retry"] == out["retry"]
@@ -105,14 +108,29 @@ def test_easybuild_toolchain_bump_is_dropped(env):
     assert json.loads(new["eb_options"]) == {"try-toolchain": None}
 
 
-def test_easybuild_amend_is_quoted_safely(env):
-    c, db = env, env.app_db
-    bid = eb_build(c)
-    fail(db, bid, "build", "error: 'bool' cannot be defined via typedef")
-    new = build(db, repair.attempt(db, c.settings, bid)["retry"])
+def test_easybuild_options_are_quoted_and_vetted():
     import yaml
-    opts = yaml.safe_load(new["recipe"])["easyconfigs"][0][EC]["options"]
-    assert opts["try-amend"] == 'preconfigopts=export CFLAGS="$CFLAGS -std=gnu17" && '
+
+    from apparadise.recipes import RecipeError, render
+    value = 'preconfigopts=export CFLAGS="$CFLAGS -std=gnu17" && '
+    text = render("easybuild", "lammps", "20250722", "rtx", registry="r.example.org",
+                  easyconfig=EC, eb_options={"try-amend": value})
+    assert yaml.safe_load(text)["easyconfigs"][0][EC]["options"]["try-amend"] == value
+    for bad in ({"try-amend": "a=1,2"}, {"try-amend": "x\ny"}, {"robot-paths": "/x"}):
+        with pytest.raises(RecipeError):
+            render("easybuild", "lammps", "20250722", "rtx", registry="r.example.org",
+                   easyconfig=EC, eb_options=bad)
+
+
+def test_a_fix_already_in_the_spec_is_not_tried_again(env):
+    c, db = env, env.app_db
+    bid = queue(c)
+    fail(db, bid, "build", "error: 'bool' cannot be defined via typedef")
+    retry = repair.attempt(db, c.settings, bid)["retry"]
+    assert build(db, retry)["spec"].endswith("cflags==-std=gnu17")
+    # gnulib's rule has the same fix: it is skipped, not appended twice
+    fail(db, retry, "build", "error: _Generic selection in memchr")
+    assert repair.attempt(db, c.settings, retry) is None
 
 
 def test_switch_source_when_spack_cannot_concretize(env):
@@ -125,6 +143,15 @@ def test_switch_source_when_spack_cannot_concretize(env):
     new = build(db, repair.attempt(db, c.settings, bid)["retry"])
     assert new["source"] == "easybuild" and EC in new["recipe"]
     assert new["repair"] == "spack-unsatisfiable"
+
+
+def test_switch_source_needs_the_same_version(env):
+    c, db = env, env.app_db
+    db.index.replace_source("pixi", [_item("pixi", "lammps", ["2024.08.29"], True,
+                                           ["linux-64", "linux-aarch64"], False)])
+    bid = queue(c)
+    fail(db, bid, "concretize", "==> Error: concretization failed for lammps")
+    assert repair.attempt(db, c.settings, bid) is None
 
 
 def test_no_repair_without_a_match_or_when_superseded(env):
@@ -170,5 +197,5 @@ def test_published_repairs_become_upstream_offers_for_sysadmins(env):
         x.execute("UPDATE build SET status = 'published' WHERE id = ?", (retry,))
     o = c.get("/api/admin/upstream").json()["offers"][0]
     assert o["rule"] == "binutils-gprofng" and o["error"] == GPROFNG and not o["restricted"]
-    assert "lammps@20250722 ~gprofng" in o["body"]
+    assert "lammps@20250722 ^binutils~gprofng" in o["body"]
     assert o["issueUrl"].startswith("https://github.com/spack/spack-packages/issues/new?")

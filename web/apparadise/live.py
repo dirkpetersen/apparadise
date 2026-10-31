@@ -42,18 +42,22 @@ def _event(kind: str, data: str, event_id: int | None = None) -> bytes:
     return ("\n".join(out) + "\n\n").encode()
 
 
-def _line_start(path, offset: int) -> int:
-    """The start of the line that contains byte `offset`. A client-chosen offset could
-    otherwise begin mid-line, so scrubbing would see half a token (`token=s3cr3t` read from
-    after the `=`)."""
+def _line_start(path, offset: int) -> tuple[int, bool]:
+    """-> (offset, aligned). The start of the line that contains byte `offset`, if it lies
+    within LINE_LIMIT bytes before it. A client-chosen offset could otherwise begin
+    mid-line, so scrubbing would see half a token (`token=s3cr3t` read from after the `=`).
+    When no line start is that close, `aligned` is False and the stream must drop input up
+    to the next line break."""
     if offset <= 0 or not path.exists():
-        return 0
+        return 0, True
     lo = max(0, offset - LINE_LIMIT)
     with path.open("rb") as fh:
         fh.seek(lo)
         before = fh.read(offset - lo).replace(b"\r", b"\n")
     nl = before.rfind(b"\n")
-    return lo + nl + 1 if nl >= 0 else lo
+    if nl >= 0:
+        return lo + nl + 1, True
+    return (0, True) if lo == 0 else (offset, False)
 
 
 def _start_offset(path, size: int) -> int:
@@ -68,7 +72,7 @@ def _start_offset(path, size: int) -> int:
 
 
 async def stream(request: Request, db: Database, build_id: int, offset: int | None,
-                 clean: Callable[[str], str]) -> AsyncIterator[bytes]:
+                 clean: Callable[[str], str], aligned: bool = True) -> AsyncIterator[bytes]:
     app = request.app
     path = log_path(app.state.settings.data_dir, build_id)
     poll, limit = app.state.sse_poll_seconds, app.state.sse_max_seconds
@@ -77,6 +81,9 @@ async def stream(request: Request, db: Database, build_id: int, offset: int | No
     if offset is None:
         offset = _start_offset(path, path.stat().st_size) if path.exists() else 0
     pending = b""
+    # True while the input is mid-line (a cut line, or a resume point with no line start
+    # in reach): drop bytes until the next line break, so scrubbing only sees whole lines.
+    skipping = not aligned
     last: tuple[str, str | None] | None = None
     yield b"retry: 3000\n\n"
     while True:
@@ -97,13 +104,18 @@ async def stream(request: Request, db: Database, build_id: int, offset: int | No
                     data = fh.read(min(size - offset, READ_LIMIT))
         if data:
             # A bare \r (progress bars) ends a line too, so they never pile up unsent.
-            pending += data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+            chunk = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
             offset += len(data)
+            if skipping:
+                nl = chunk.find(b"\n")
+                chunk = chunk[nl + 1:] if nl >= 0 else b""
+                skipping = nl < 0
+            pending += chunk
             whole, sep, rest = pending.rpartition(b"\n")
             if sep:
                 pending = rest
-            elif len(pending) > LINE_LIMIT:  # no line end in sight: cut, don't hoard
-                whole, pending = pending, b""
+            elif len(pending) > LINE_LIMIT:  # no line end in sight: send the start, skip on
+                whole, pending, skipping = pending[:LINE_LIMIT] + b" [cut]", b"", True
             if whole:
                 text = whole.decode(errors="replace")
                 text = "\n".join(ln if len(ln) <= LINE_LIMIT else ln[:LINE_LIMIT] + " [cut]"
@@ -113,7 +125,7 @@ async def stream(request: Request, db: Database, build_id: int, offset: int | No
                              offset - len(pending))
         finished = row["status"] not in ACTIVE
         if finished and not data:
-            if pending:  # the last line had no newline
+            if pending and not skipping:  # the last line had no newline
                 text = pending.decode(errors="replace")[:LINE_LIMIT]
                 yield _event("log", await asyncio.to_thread(clean, text), offset)
             yield _event("end", row["status"])
@@ -149,9 +161,10 @@ async def build_events(
     if last_event_id and last_event_id.isdigit():
         offset = int(last_event_id)
     path = log_path(request.app.state.settings.data_dir, build_id)
+    aligned = True
     if offset is not None and not admin:
-        offset = await asyncio.to_thread(_line_start, path, offset)
+        offset, aligned = await asyncio.to_thread(_line_start, path, offset)
     clean = (lambda s: s) if admin else scrub
-    return StreamingResponse(stream(request, db, build_id, offset, clean),
+    return StreamingResponse(stream(request, db, build_id, offset, clean, aligned),
                              media_type="text/event-stream",
                              headers={"X-Accel-Buffering": "no"})
