@@ -470,6 +470,18 @@ class Builds(_Repo):
                     ),
                 )
 
+    def recent(self, *, status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        """Pipeline builds, newest first, for the sysadmin queue view."""
+        where = "WHERE b.origin = 'pipeline'" + (" AND b.status = ?" if status else "")
+        params: tuple = ((status,) if status else ()) + (limit,)
+        return self.db.query(
+            "SELECT b.id, p.name AS package, b.version, b.source, b.target, b.platform, "
+            "b.status, b.stage, b.restricted, b.requested_by, b.image_digest, b.failure_id, "
+            "b.created_at, b.started_at, b.finished_at, w.name AS builder, b.log_path "
+            "FROM build b JOIN package p ON p.id = b.package_id "
+            f"LEFT JOIN builder w ON w.id = b.builder_id {where} "
+            "ORDER BY b.id DESC LIMIT ?", params)
+
     def for_package(self, package_id: int) -> list[dict[str, Any]]:
         """The latest build row per (version, target)."""
         return self.db.query(

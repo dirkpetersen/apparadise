@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -153,6 +154,34 @@ async def disable_builder(builder_id: int, user: Sysadmin,
         raise HTTPException(404, "No such builder.")
     await _audit(db, user.username, "builder.disable", "builder", str(builder_id))
     return {"ok": True}
+
+
+@admin_router.get("/builds")
+async def list_builds(_: Sysadmin, db: Annotated[Database, Depends(get_db)],
+                      status: Literal["queued", "running", "published", "failed"] | None = None):
+    rows = await db.run(db.builds.recent, status=status)
+    for r in rows:
+        r["hasLog"] = bool(r.pop("log_path"))
+    return {"builds": rows}
+
+
+@admin_router.get("/builds/{build_id}/log")
+async def build_log(build_id: int, _: Sysadmin, db: Annotated[Database, Depends(get_db)],
+                    tail: int = 65536):
+    """The last `tail` bytes of the raw (unscrubbed) log: sysadmins only."""
+    row = await db.run(db.query_one, "SELECT log_path FROM build WHERE id = ?", (build_id,))
+    if row is None:
+        raise HTTPException(404, "No such build.")
+    path = row["log_path"]
+    if not path:
+        return {"log": "", "size": 0}
+    p = Path(path)
+    size = p.stat().st_size if p.exists() else 0
+    tail = max(1024, min(tail, 1024 * 1024))
+    with p.open("rb") as fh:
+        fh.seek(max(0, size - tail))
+        text = fh.read().decode(errors="replace")
+    return {"log": text, "size": size}
 
 
 class BuildBody(BaseModel):

@@ -60,3 +60,16 @@ export const listCatalog = (q = "") => api(`/catalog${q ? `?q=${enc(q)}` : ""}`,
 // `commands` (published builds only) = {module, srunRegistry, srunSqsh, pull, sqsh}.
 export const getPackage = (name) => api(`/catalog/${enc(name)}`, { announce401: false });
 
+
+// Sysadmin (RCO-Admins) only; the server enforces the role.
+// builds -> {builds: [{id, package, version, source, target, platform, status, stage,
+//   restricted, requested_by, image_digest, failure_id, created_at, started_at, finished_at,
+//   builder, hasLog}]}; log -> {log, size} (the raw tail, unscrubbed).
+export const listBuilds = (status = "") => api(`/admin/builds${status ? `?status=${enc(status)}` : ""}`);
+export const getBuildLog = (id) => api(`/admin/builds/${enc(id)}/log`);
+// queue -> {source, rule, reason, cudaPort, queued: [{id, target, platform}], skipped: [{target, platform, reason}]}
+export const queueBuild = (body) => api("/admin/builds", { method: "POST", json: body });
+export const listBuilders = () => api("/admin/builders");
+export const disableBuilder = (id) => api(`/admin/builders/${enc(id)}/disable`, { method: "POST" });
+// -> {token, expiresAt}: shown once, a one-time secret; keep it in memory only.
+export const createBuilderToken = () => api("/admin/builder-tokens", { method: "POST" });

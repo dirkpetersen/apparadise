@@ -198,3 +198,19 @@ def test_unresolvable_package(env):
     c, _, _ = env
     r = queue(c, package="nothing-here", version="1.0", targets=["rtx"])
     assert r.status_code == 422 and "No recipe" in r.json()["detail"]
+
+
+def test_admin_build_list_and_log(env):
+    c, _, _ = env
+    bh, _ = new_builder(c)
+    queue(c, package="gromacs", version="2026.3", targets=["rtx"])
+    jid = c.post("/api/builder/claim", headers=bh).json()["id"]
+    c.post(f"/api/builder/jobs/{jid}/log", headers=bh, content=b"hello log\n")
+    assert c.get("/api/admin/builds").status_code == 401
+    login(c, "dana")
+    rows = c.get("/api/admin/builds").json()["builds"]
+    assert rows[0]["id"] == jid and rows[0]["builder"] == "b1" and rows[0]["hasLog"]
+    assert "log_path" not in rows[0]
+    assert c.get("/api/admin/builds", params={"status": "queued"}).json()["builds"] == []
+    assert c.get(f"/api/admin/builds/{jid}/log").json() == {"log": "hello log\n", "size": 10}
+    assert c.get("/api/admin/builds/9999/log").status_code == 404

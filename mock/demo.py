@@ -58,7 +58,31 @@ def demo_settings(*, port: int, data_dir: str, catalog_dir: str = str(DEMO_CATAL
     )
 
 
+# A small three-way index so "Queue a build" on the admin page resolves real-looking sources.
+DEMO_INDEX = {
+    "spack": [("gromacs", ["2026.3", "2025.4"], True, False), ("lammps", ["20250722"], True, False),
+              ("relion", ["5.0.1"], True, False), ("samtools", ["1.21"], False, False)],
+    "easybuild": [("RELION", ["5.0.1"], True, False), ("AlphaFold3", ["3.0.1"], True, True)],
+    "pixi": [("pytorch", ["2.9.1"], True, True), ("vllm", ["0.11.0"], True, True)],
+}
+
+
+def seed_index(db) -> None:
+    from apparadise.index import _item
+
+    for source, rows in DEMO_INDEX.items():
+        arches = ["linux-64", "linux-aarch64"]
+        db.index.replace_source(source, [
+            _item(source, n, v, cuda, arches if n != "vllm" else ["linux-64"], py)
+            for n, v, cuda, py in rows])
+
+
 def build_demo_app(settings: Settings, db=None, directory: DemoDirectory | None = None):
+    from apparadise.db import DB_FILENAME, Database
+
+    if db is None:
+        db = Database(Path(settings.data_dir) / DB_FILENAME)
+    seed_index(db)
     app = create_app(settings, db=db, authenticator=directory or DemoDirectory())
     app.state.demo = True
     return app
