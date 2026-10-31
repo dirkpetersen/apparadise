@@ -112,6 +112,28 @@ def claim(db: Database, builder: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+LOST_ERROR = "builder lost: no contact from the builder while the job was running"
+
+
+def reap_lost(db: Database, cutoff: str) -> list[dict[str, Any]]:
+    """Fail running builds whose builder has not been seen since `cutoff` (ISO time).
+    Returns the reaped rows (id, harbor_robot_id) so the caller can delete their robots."""
+    rows = db.query(
+        "SELECT b.id, b.stage, b.restricted, b.harbor_robot_id FROM build b "
+        "JOIN builder w ON w.id = b.builder_id WHERE b.status = 'running' "
+        "AND COALESCE(w.last_seen, b.started_at) < ?", (cutoff,))
+    ts = now()
+    for r in rows:
+        stage = r["stage"] if r["stage"] in BUILDER_STAGES else "build"
+        with db.tx() as c:
+            if c.execute("UPDATE build SET status = 'failed', stage = ?, finished_at = ? "
+                         "WHERE id = ? AND status = 'running'", (stage, ts, r["id"])).rowcount:
+                db.failures.record(r["id"], failures.signature(stage, LOST_ERROR,
+                                                               bool(r["restricted"])),
+                                   stage, LOST_ERROR, bool(r["restricted"]))
+    return rows
+
+
 def release(db: Database, build_id: int) -> None:
     """Put a just-claimed job back in the queue (e.g. Harbor was unavailable)."""
     with db.tx() as c:

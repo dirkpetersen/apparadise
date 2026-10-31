@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     harbor_password: SecretStr = SecretStr("")
     harbor_robot_days: int = Field(1, ge=1, le=7)
 
+    # A running build fails when its builder has not called in for this long (builders
+    # send a heartbeat every minute while working).
+    builder_stale_minutes: int = Field(30, ge=5)
+
     @field_validator("ldap_url", mode="before")
     @classmethod
     def _split_urls(cls, v):

@@ -98,8 +98,7 @@ def test_happy_path_publishes(world):
     # the token file is private and reused on the next start
     tf = tmp / "builder" / "builder.token"
     assert tf.stat().st_mode & 0o777 == 0o600
-    cf = (tmp / "work" / str(bid) / "Containerfile").read_text()
-    assert cf.startswith("FROM registry.example.org/cache/base-builder:13.0-rtx AS build")
+    assert not (tmp / "work" / str(bid)).exists()  # cleaned up after the job
 
 
 def test_failure_reports_stage_and_error(world):
@@ -178,7 +177,7 @@ def test_registry_token_goes_to_authfile_not_argv(world):
     assert status == "published" and seen["mode"] == 0o600
     assert "registry.example.org" in seen["auth"]
     assert not any("s3cret" in a for argv in runner.calls for a in argv)
-    assert not (tmp / "work" / str(job["id"]) / "auth.json").exists()  # removed afterwards
+    assert not (tmp / "work" / str(job["id"])).exists()  # work tree and auth file removed
 
 
 def test_idle_exit(world):
@@ -186,3 +185,12 @@ def test_idle_exit(world):
     agent = make_agent(FakeRunner(), idle_exit_polls=2, poll_interval=1)
     asyncio.run(asyncio.wait_for(agent.run(), 10))
     assert agent.stopping.is_set()
+
+
+def test_containerfile_uses_job_base_images(world, tmp_path):
+    from apparadise_builder.agent import CONTAINERFILES
+
+    text = CONTAINERFILES["spack"].format(registry="r.example", base_builder="cache/b:13.0-rtx",
+                                          base_runtime="cache/r:13.0-rtx")
+    assert text.startswith("FROM r.example/cache/b:13.0-rtx AS build")
+    assert "FROM r.example/cache/r:13.0-rtx" in text

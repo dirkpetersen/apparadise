@@ -51,6 +51,7 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 - [x] `builder/` agent: register, pull loop, podman build/package, srun smoke test, push + digest, log streaming
 - [x] Sysadmin build console (`#/admin`): queue builds, live build list with log tails, builders + one-time tokens
 - [x] Launchers (start/stop): local container, `sbatch`, EC2 spot; IDLE_EXIT_POLLS releases nodes
+- [x] Lost-builder reaper (BUILDER_STALE_MINUTES) + agent heartbeat; work trees removed after each job
 - [ ] Autoscaler: start builders from queue depth per platform
 - [x] Test stage as low-priority Slurm job via Pyxis (`srun --nice --container-image`); TEST_MODE=none fails closed
 - [x] Harbor client: robot per job (project + cache, 1 day, deleted at the end; job released on outage); builder uses a 0600 authfile (Q19, Q20)

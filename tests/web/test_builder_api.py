@@ -214,3 +214,24 @@ def test_admin_build_list_and_log(env):
     assert c.get("/api/admin/builds", params={"status": "queued"}).json()["builds"] == []
     assert c.get(f"/api/admin/builds/{jid}/log").json() == {"log": "hello log\n", "size": 10}
     assert c.get("/api/admin/builds/9999/log").status_code == 404
+
+
+def test_reaper_fails_jobs_of_silent_builders(env):
+    import asyncio
+
+    from apparadise.main import reap_once
+
+    c, db, _ = env
+    bh, _ = new_builder(c)
+    queue(c, package="gromacs", version="2026.3", targets=["rtx"])
+    jid = c.post("/api/builder/claim", headers=bh).json()["id"]
+    assert asyncio.run(reap_once(c.app)) == []  # just seen: not stale
+    with db.tx() as t:
+        t.execute("UPDATE builder SET last_seen = '2000-01-01T00:00:00.000000Z'")
+    assert asyncio.run(reap_once(c.app)) == [jid]
+    row = db.query_one("SELECT status, stage, failure_id FROM build WHERE id = ?", (jid,))
+    assert row["status"] == "failed" and row["failure_id"]
+    assert "builder lost" in db.failures.get(row["failure_id"])["log_excerpt"]
+    # the builder can no longer report on it
+    r = c.post(f"/api/builder/jobs/{jid}/report", headers=bh, json={"stage": "build", "ok": True})
+    assert r.status_code == 409

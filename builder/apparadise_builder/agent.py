@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import shlex
+import shutil
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,7 @@ CSRF = {"X-Requested-With": "apparadise"}
 RECIPE_FILE = {"spack": "spack.yaml", "easybuild": "easystack.yml", "pixi": "pixi.toml"}
 ERROR_RE = re.compile(rb"^.*\b(error|fatal|failed)\b.*$", re.I | re.M)
 LOG_FLUSH_BYTES = 64 * 1024
+HEARTBEAT_SECONDS = 60  # well under the coordinator's BUILDER_STALE_MINUTES
 
 # Containerfiles per source. Build stage named `build`, final stage FROM the runtime base.
 CONTAINERFILES = {
@@ -201,6 +203,16 @@ class Agent:
             if len(buf) >= LOG_FLUSH_BYTES:
                 await flush()
 
+        async def heartbeat() -> None:
+            # A quiet compile can run for an hour without output; keep the coordinator's
+            # last_seen fresh so the job is not reaped as lost.
+            while True:
+                await asyncio.sleep(HEARTBEAT_SECONDS)
+                with contextlib.suppress(httpx.HTTPError):
+                    await flush() if buf else await self.client.post(
+                        f"/api/builder/jobs/{job['id']}/log", headers=self._auth(), content=b"")
+
+        beat = asyncio.create_task(heartbeat())
         try:
             for stage in job["stages"]:
                 if stage == "test" and self.s.test_mode == "none":
@@ -228,7 +240,11 @@ class Agent:
                     await self.report(job["id"], stage, True)
             return "published"
         finally:
+            beat.cancel()
+            await asyncio.gather(beat, return_exceptions=True)
             authfile.unlink(missing_ok=True)
+            # The log lives on the coordinator; the work tree only fills the scratch disk.
+            shutil.rmtree(workdir, ignore_errors=True)
             self.current = None
 
     # -- the loop ---------------------------------------------------------------------------

@@ -1,18 +1,20 @@
 """App factory. Tests build the app in-process with `create_app(settings, db=..., ...)`."""
 
+import asyncio
 import logging
 import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, builder_api, catalog
+from . import auth, builder_api, catalog, coordinator
 from .config import Settings
 from .db import DB_FILENAME, Database
-from .harbor import HarborClient
+from .harbor import HarborClient, HarborError, HarborUnavailable
 from .ldapauth import AdAuthenticator
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -32,6 +34,37 @@ SECURITY_HEADERS = {
 ASSET_CACHE = "public, max-age=86400"  # fonts and images: stable, not fingerprinted
 
 
+REAP_EVERY = 300  # seconds
+
+
+async def reap_once(app: FastAPI) -> list[int]:
+    """Fail builds whose builder went silent, and delete their Harbor robots."""
+    settings: Settings = app.state.settings
+    cutoff = (datetime.now(UTC) - timedelta(minutes=settings.builder_stale_minutes)) \
+        .strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    db = app.state.db
+    rows = await db.run(coordinator.reap_lost, db, cutoff)
+    for r in rows:
+        logging.getLogger(__name__).warning("build %s failed: builder lost", r["id"])
+        await db.run(db.audit.add, "system", "build.reap", "build", str(r["id"]), {})
+        if r["harbor_robot_id"] is not None and app.state.harbor is not None:
+            try:
+                await app.state.harbor.delete_robot(r["harbor_robot_id"])
+                await db.run(coordinator.set_robot, db, r["id"], None)
+            except (HarborError, HarborUnavailable):
+                pass  # it expires on its own
+    return [r["id"] for r in rows]
+
+
+async def reaper_loop(app: FastAPI) -> None:
+    while True:
+        await asyncio.sleep(REAP_EVERY)
+        try:
+            await reap_once(app)
+        except Exception:
+            logging.getLogger(__name__).exception("reaper failed")
+
+
 def create_app(
     settings: Settings,
     db: Database | None = None,
@@ -39,6 +72,7 @@ def create_app(
     clock: Callable[[], float] = time.time,
     load_catalog: bool = True,
     harbor: HarborClient | None = None,
+    background: bool = True,
 ) -> FastAPI:
     """`db`: an already-open database (e.g. in-memory), which the caller then closes;
     `authenticator`: a fake-LDAP one; `clock` drives session expiry and the login
@@ -56,9 +90,13 @@ def create_app(
             _app.state.db = Database(Path(settings.data_dir) / DB_FILENAME)
         if load_catalog:
             await _app.state.db.run(catalog.load_and_sync, _app.state.db, settings)
+        tasks = [asyncio.create_task(reaper_loop(_app))] if background else []
         try:
             yield
         finally:
+            for t in tasks:
+                t.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
             if _app.state.harbor is not None:
                 await _app.state.harbor.aclose()
             if owned:
