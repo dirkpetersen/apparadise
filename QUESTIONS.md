@@ -225,3 +225,20 @@ with phase 3 code, as Q17 did for phase 2.
   can take it back.
 - Votes are counted, but nothing is ranked or scheduled by them yet.
 **Answer:**
+
+## Q25 (2026-10-31): Requests: default targets, weekly quota, and unknown names
+
+**Default:**
+- A request with no targets builds `vr` and `rtx`. `generic` is opt-in, because it costs two
+  build jobs (amd64 and arm64).
+- With no version given, the newest release the chosen source lists is built. For EasyBuild,
+  that is the newest version that has a CUDA easyconfig.
+- Quota: 6 build jobs per user in any 7 days, counted per platform job. Sysadmins have no
+  quota. The value is runtime policy, changed on the admin page.
+- A release that is already available or already queued is skipped and costs nothing.
+- A name that no source knows gets a 422 and nothing is stored: no package row, no request
+  and no `no-recipe` failure record. Typos shouldn't fill the catalog or the failure
+  database. Requests for restricted packages from non-sysadmins get the same answer as
+  unknown names.
+- Who made a request is visible only to themselves and to sysadmins.
+**Answer:**

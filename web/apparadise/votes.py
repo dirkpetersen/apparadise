@@ -2,7 +2,7 @@
 
 Votes tell the build team what people want (packages) and what hurts most (failures). A
 vote on something the voter cannot see is the same 404 as one on something that does not
-exist. Requests get votes once requests exist (TODO phase 3).
+exist. Subjects: packages (key = name), failure groups and requests (key = id).
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from .auth import SessionUser, require_user
 from .db import Database, get_db
 
-SUBJECTS = ("package", "failure")
+SUBJECTS = ("package", "failure", "request")
 router = APIRouter(tags=["votes"])  # mounted under /api/ in main.create_app
 
 
@@ -25,6 +25,9 @@ def _visible(db: Database, subject: str, key: str, admin: bool) -> int | None:
         return p["id"] if p else None
     if not key.isdigit():
         return None
+    if subject == "request":
+        r = db.requests.get(int(key))
+        return r["id"] if r and (admin or not r["restricted"]) else None
     f = db.failures.get(int(key), include_restricted=admin)
     return f["id"] if f else None
 

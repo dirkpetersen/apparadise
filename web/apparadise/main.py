@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, builder_api, catalog, coordinator, failures, registry, votes
+from . import auth, builder_api, catalog, coordinator, failures, registry, requests_api, votes
 from .config import Settings
 from .db import DB_FILENAME, Database
 from .harbor import HarborClient, HarborError, HarborUnavailable
@@ -156,6 +156,8 @@ def create_app(
     api.include_router(registry.router)
     api.include_router(failures.router)
     api.include_router(votes.router)
+    api.include_router(requests_api.router)
+    api.include_router(requests_api.admin_router)
     api.include_router(builder_api.router)
     api.include_router(builder_api.admin_router)
     app.include_router(api)

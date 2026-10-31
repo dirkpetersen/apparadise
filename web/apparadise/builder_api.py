@@ -18,12 +18,10 @@ from pydantic import BaseModel, Field
 
 from . import coordinator
 from .auth import SessionUser, require_sysadmin
+from .buildqueue import QueueError, queue_builds
 from .catalog import NAME_RE, VERSION_RE
 from .db import Database, get_db
 from .harbor import HarborError, HarborUnavailable
-from .index import normalise
-from .recipes import RecipeError, render
-from .resolver import resolve_name
 
 log = logging.getLogger(__name__)
 REGISTRATION_TTL = timedelta(hours=24)
@@ -247,54 +245,16 @@ class BuildBody(BaseModel):
 @admin_router.post("/builds")
 async def start_build(body: BuildBody, request: Request, user: Sysadmin,
                       db: Annotated[Database, Depends(get_db)]):
-    """Resolve the source, generate the recipe per target and queue the builds.
-    Sysadmin-only until requests and quotas arrive (phase 3)."""
-    settings = request.app.state.settings
-    pkg = await db.run(db.packages.get, body.package, include_restricted=True)
-    aliases = pkg["aliases"] if pkg else {}
-    res = await db.run(resolve_name, db, body.package, aliases, body.source)
-    if res.failed:
-        raise HTTPException(422, f"No recipe: {res.reason}.")
-    if pkg is None:
-        pid = await db.run(db.packages.upsert, {"name": body.package, "title": body.package,
-                                                "origin": "request"})
-        restricted = False
-    else:
-        pid, restricted = pkg["id"], pkg["visibility"] == "restricted"
-    easyconfig = body.easyconfig
-    if res.source == "easybuild" and not easyconfig:
-        rows = await db.run(db.index.lookup, [normalise(res.upstream_name, "easybuild")])
-        known = next((r["details"].get("easyconfigs", {}) for r in rows
-                      if r["source"] == "easybuild" and r["upstream_name"] == res.upstream_name),
-                     {})
-        easyconfig = known.get(body.version, "")
-        if not easyconfig:
-            raise HTTPException(422, f"No CUDA easyconfig for {res.upstream_name} "
-                                     f"{body.version}; name one in 'easyconfig'.")
-    marker = True
-    if res.source == "pixi":
-        rows = await db.run(db.index.lookup, [normalise(res.upstream_name, "pixi")])
-        marker = next((r["details"].get("cuda_build_marker", True) for r in rows
-                       if r["source"] == "pixi" and r["upstream_name"] == res.upstream_name),
-                      True)
-    queued, skipped = [], []
-    for target in dict.fromkeys(body.targets):
-        for platform in coordinator.TARGET_PLATFORMS[target]:
-            try:
-                recipe = render(res.source, body.package, body.version, target,
-                                registry=settings.registry_host, platform=platform,
-                                spec=body.spec or f"{res.upstream_name}@{body.version}",
-                                easyconfig=easyconfig, conda_name=res.upstream_name,
-                                cuda_build_marker=marker)
-            except RecipeError as e:
-                skipped.append({"target": target, "platform": platform, "reason": str(e)})
-                continue
-            bid = await db.run(coordinator.enqueue, db, pid, body.version, res.source, target,
-                               platform, recipe, requested_by=user.username,
-                               restricted=restricted)
-            queued.append({"id": bid, "target": target, "platform": platform})
+    """Resolve the source, generate the recipe per target and queue the builds. Sysadmins
+    may rebuild a release that already exists; users go through POST /api/requests."""
+    try:
+        res = await db.run(queue_builds, db, request.app.state.settings, package=body.package,
+                           version=body.version, targets=body.targets, source=body.source,
+                           easyconfig=body.easyconfig, spec=body.spec,
+                           requested_by=user.username, admin=True)
+    except QueueError as e:
+        raise HTTPException(e.status, e.message) from None
     await _audit(db, user.username, "build.queue", "package", body.package,
-                 {"version": body.version, "source": res.source, "rule": res.rule,
-                  "queued": [q["id"] for q in queued]})
-    return {"source": res.source, "rule": res.rule, "reason": res.reason,
-            "cudaPort": res.cuda_port, "queued": queued, "skipped": skipped}
+                 {"version": res["version"], "source": res["source"], "rule": res["rule"],
+                  "queued": [q["id"] for q in res["queued"]]})
+    return {k: res[k] for k in ("source", "rule", "reason", "cudaPort", "queued", "skipped")}

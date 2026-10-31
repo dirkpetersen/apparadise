@@ -287,6 +287,7 @@ class Database:
         self.builders = Builders(self)
         self.failures = Failures(self)
         self.votes = Votes(self)
+        self.requests = Requests(self)
         self.audit = AuditLog(self)
 
     # -- plumbing -----------------------------------------------------------
@@ -571,6 +572,17 @@ class IndexRepo(_Repo):
             r["details"] = json.loads(r["details"])
         return rows
 
+    def search(self, q: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Rows of the `limit` best-matching normalised names (prefix matches first)."""
+        esc = q.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        names = [r["norm_name"] for r in self.db.query(
+            "SELECT norm_name FROM index_entry WHERE norm_name LIKE ? ESCAPE '\\' "
+            "OR lower(upstream_name) LIKE ? ESCAPE '\\' GROUP BY norm_name "
+            "ORDER BY CASE WHEN norm_name = ? THEN 0 WHEN norm_name LIKE ? ESCAPE '\\' "
+            "THEN 1 ELSE 2 END, MAX(has_cuda) DESC, length(norm_name), norm_name LIMIT ?",
+            (f"%{esc}%", f"%{esc}%", q.lower(), f"{esc}%", limit))]
+        return self.lookup(names)
+
     def counts(self) -> dict[str, dict[str, int]]:
         out: dict[str, dict[str, int]] = {}
         for r in self.db.query(
@@ -708,6 +720,54 @@ class Failures(_Repo):
             "b.stage, b.status, b.created_at, b.finished_at FROM build b "
             "JOIN package p ON p.id = b.package_id WHERE b.failure_id = ? "
             "ORDER BY b.id DESC LIMIT ?", (failure_id, limit))
+
+
+class Requests(_Repo):
+    def create(self, package_id: int, version: str, targets: list[str], username: str,
+               restricted: bool, build_ids: list[int]) -> int:
+        with self.db.tx() as c:
+            rid = c.execute(
+                "INSERT INTO request (package_id, version, targets, requested_by, restricted, "
+                "created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
+                (package_id, version, json.dumps(targets), username, int(restricted), now()),
+            ).fetchone()[0]
+            for bid in build_ids:
+                c.execute("UPDATE build SET request_id = ? WHERE id = ?", (rid, bid))
+            return rid
+
+    def list(self, *, include_restricted: bool = False, username: str | None = None,
+             mine: bool = False, limit: int = 200) -> list[dict[str, Any]]:
+        """Newest first, with build counts and the derived status."""
+        conds, params = [], []
+        if not include_restricted:
+            conds.append("r.restricted = 0")
+        if mine:
+            conds.append("r.requested_by = ?")
+            params.append(username)
+        where = ("WHERE " + " AND ".join(conds)) if conds else ""
+        rows = self.db.query(
+            "SELECT r.*, p.name AS package, "
+            "(SELECT COUNT(*) FROM vote v WHERE v.subject_type = 'request' "
+            " AND v.subject_id = r.id) AS votes, "
+            "(SELECT COUNT(*) FROM build b WHERE b.request_id = r.id "
+            " AND b.status IN ('queued', 'running')) AS active, "
+            "(SELECT COUNT(*) FROM build b WHERE b.request_id = r.id "
+            " AND b.status = 'published') AS published, "
+            "(SELECT COUNT(*) FROM build b WHERE b.request_id = r.id "
+            " AND b.status = 'failed') AS failed, "
+            "(SELECT MIN(b.failure_id) FROM build b WHERE b.request_id = r.id) AS failure_id "
+            f"FROM request r JOIN package p ON p.id = r.package_id {where} "
+            "ORDER BY r.id DESC LIMIT ?", (*params, limit))
+        for r in rows:
+            r["targets"] = json.loads(r["targets"])
+            if r["status"] == "declined":
+                continue
+            r["status"] = ("building" if r["active"] else "built" if r["published"]
+                           else "failed" if r["failed"] else r["status"])
+        return rows
+
+    def get(self, request_id: int) -> dict[str, Any] | None:
+        return self.db.query_one("SELECT * FROM request WHERE id = ?", (request_id,))
 
 
 class Votes(_Repo):
