@@ -191,6 +191,38 @@ def version_key(v: str) -> tuple:
     return tuple((0, int(p)) if p.isdigit() else (1, p) for p in re.split(r"[._+-]", v))
 
 
+def sqsh_root(sqsh_dir: str, restricted: bool) -> str:
+    """Restricted images live under <dir>/restricted, which only RCO-Admins can read
+    (tools/stage-sqsh writes them 0440 there); never next to the world-readable ones."""
+    return f"{sqsh_dir}/restricted" if restricted else sqsh_dir
+
+
+STATUS_PRECEDENCE = ("failed", "running", "queued", "planned", "cancelled", "published")
+
+
+def merge_platforms(builds: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One row per (version, target). A generic pipeline release has a row per platform: it
+    counts as published only when every platform is; otherwise it shows the most telling
+    non-published status (failed before running before queued ...)."""
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for b in builds:
+        groups.setdefault((b["version"], b["target"]), []).append(b)
+    out = []
+    for rows in groups.values():
+        if len(rows) == 1 or rows[0]["target"] != "generic":
+            out.append(max(rows, key=lambda r: r["id"]))  # newest wins (e.g. a rebuild)
+            continue
+        rows = sorted(rows, key=lambda r: r.get("platform") or "")
+        worst = min(rows, key=lambda r: STATUS_PRECEDENCE.index(r["status"])
+                    if r["status"] in STATUS_PRECEDENCE else 0)
+        merged = dict(worst)
+        if worst["status"] == "published":  # all published: report the amd64 digest
+            merged = dict(rows[0])
+        merged["platforms"] = {r.get("platform"): r["status"] for r in rows}
+        out.append(merged)
+    return out
+
+
 def sqsh_path(sqsh_dir: str, name: str, version: str, target: str,
               arch: str | None = None) -> str:
     """<dir>/<target>/<name>-<version>-<target>.sqsh; generic adds -<arch> (one per arch)."""
@@ -224,7 +256,8 @@ def commands(settings: Settings, pkg: dict[str, Any], version: str, target: str)
     tag = image_tag(pkg["name"], version, target)
     project = project_for(pkg["visibility"])
     exe = pkg["executables"][0] if pkg["executables"] else "bash"
-    sqsh = sqsh_path(settings.sqsh_dir, pkg["name"], version, target,
+    root = sqsh_root(settings.sqsh_dir, pkg["visibility"] == "restricted")
+    sqsh = sqsh_path(root, pkg["name"], version, target,
                      "amd64" if target == "generic" else None)
     srun_sqsh = f"srun --container-image={sqsh} {exe}"
     if target == "generic":  # one squashfs per architecture
@@ -287,7 +320,7 @@ async def list_catalog(
     pkgs = await db.run(db.packages.list, include_restricted=admin, q=q.strip())
     out = []
     for p in pkgs:
-        builds = await db.run(db.builds.for_package, p["id"])
+        builds = merge_platforms(await db.run(db.builds.for_package, p["id"]))
         out.append(_summary(p, builds))
     return {"packages": out, "targets": list(TARGETS)}
 
@@ -300,7 +333,7 @@ async def get_package(
     pkg = await db.run(db.packages.get, name, include_restricted=_sysadmin(request))
     if pkg is None:
         raise HTTPException(404, "No such package.")
-    builds = await db.run(db.builds.for_package, pkg["id"])
+    builds = merge_platforms(await db.run(db.builds.for_package, pkg["id"]))
     versions: dict[str, dict[str, Any]] = {}
     for b in builds:
         v = versions.setdefault(b["version"], {"version": b["version"], "targets": {}})

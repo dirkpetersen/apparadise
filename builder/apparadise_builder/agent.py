@@ -99,11 +99,10 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
              "sh", "-c", job["smoke"]],
         ]
     if stage == "publish":
-        cmds = [[tool, "push", *auth, "--digestfile", str(workdir / "digest"), local,
+        # Signing happens in execute(), after the push, on ref@<pushed digest>: never on the
+        # mutable tag, which a concurrent rebuild could move.
+        return [[tool, "push", *auth, "--digestfile", str(workdir / "digest"), local,
                  f"docker://{ref}"]]
-        if s.sign_key:
-            cmds.append(["cosign", "sign", "--yes", "--key", s.sign_key, ref])
-        return cmds
     raise ValueError(stage)
 
 
@@ -147,7 +146,8 @@ class Agent:
             "token": reg, "name": self.s.builder_name, "platform": self.s.builder_platform,
             "onprem": self.s.builder_onprem})
         if r.status_code != 200:
-            raise SystemExit(f"Registration refused ({r.status_code}): {r.text[:200]}")
+            raise SystemExit(f"Registration refused (HTTP {r.status_code}): the token is "
+                             "invalid, used or expired; ask a sysadmin for a new one.")
         self.token = r.json()["token"]
         f.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         fd = os.open(f, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -188,9 +188,10 @@ class Agent:
             base_runtime=job["baseRuntime"]))
         buf = bytearray()
         tail = bytearray()
+        lock = asyncio.Lock()  # one log POST at a time, so chunks arrive in order
 
         async def flush() -> None:
-            if buf:
+            async with lock:
                 data = bytes(buf)
                 buf.clear()
                 await self.client.post(f"/api/builder/jobs/{job['id']}/log",
@@ -209,10 +210,10 @@ class Agent:
             while True:
                 await asyncio.sleep(HEARTBEAT_SECONDS)
                 with contextlib.suppress(httpx.HTTPError):
-                    await flush() if buf else await self.client.post(
-                        f"/api/builder/jobs/{job['id']}/log", headers=self._auth(), content=b"")
+                    await flush()  # an empty POST still refreshes last_seen
 
         beat = asyncio.create_task(heartbeat())
+        stage = job["stages"][0]
         try:
             for stage in job["stages"]:
                 if stage == "test" and self.s.test_mode == "none":
@@ -233,12 +234,28 @@ class Agent:
                 await flush()
                 if stage == "publish":
                     digest = (workdir / "digest").read_text().strip()
+                    if self.s.sign_key:
+                        ref = f"{self.s.registry_host}/{job['image'].rsplit(':', 1)[0]}@{digest}"
+                        argv = ["cosign", "sign", "--yes", "--key", self.s.sign_key, ref]
+                        if await self.runner(argv, workdir, on_output) != 0:
+                            await flush()
+                            await self.report(job["id"], "publish", False,
+                                              error="cosign sign failed")
+                            return "failed"
                     await self.report(job["id"], "publish", True, digest=digest)
                 elif stage == "test":
                     await self.report(job["id"], "test", True, test=job["smoke"][:500])
                 else:
                     await self.report(job["id"], stage, True)
             return "published"
+        except (httpx.HTTPError, OSError) as e:
+            # A network error or a missing file: report the real cause when we can, so the
+            # job does not sit "running" until the reaper calls it "builder lost".
+            log.warning("job %s: %s at stage %s", job["id"], type(e).__name__, stage)
+            with contextlib.suppress(httpx.HTTPError):
+                await self.report(job["id"], stage, False,
+                                  error=f"builder error at {stage}: {type(e).__name__}")
+            return "failed"
         finally:
             beat.cancel()
             await asyncio.gather(beat, return_exceptions=True)
@@ -256,7 +273,7 @@ class Agent:
             try:
                 job = await self.claim()
             except httpx.HTTPError as e:
-                log.warning("claim failed: %s", e)
+                log.warning("claim failed: %s", type(e).__name__)  # never the URL
                 job = None
             if job is None:
                 idle += 1

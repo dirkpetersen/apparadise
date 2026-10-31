@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import re
+import secrets
 from typing import Any
 from urllib.parse import quote
 
@@ -63,7 +64,8 @@ class HarborClient:
             raise ValueError(f"bad project {project!r}")
         access = [{"resource": "repository", "action": a} for a in ("push", "pull")]
         body = {
-            "name": f"apparadise-job-{int(job_id)}",
+            # unique per attempt: a robot left behind by a failed call never blocks a retry
+            "name": f"apparadise-job-{int(job_id)}-{secrets.token_hex(4)}",
             "description": f"apparadise build job {int(job_id)}",
             "duration": self.days,
             "level": "system",

@@ -509,11 +509,13 @@ class Builds(_Repo):
             "ORDER BY b.id DESC LIMIT ?", params)
 
     def for_package(self, package_id: int) -> list[dict[str, Any]]:
-        """The latest build row per (version, target)."""
+        """The latest build row per (version, target, platform). A generic pipeline release
+        has one row per platform; catalog.merge_platforms combines them."""
         return self.db.query(
             "SELECT b.* FROM build b WHERE b.package_id = ? AND b.id = ("
             " SELECT MAX(b2.id) FROM build b2 WHERE b2.package_id = b.package_id "
-            " AND b2.version = b.version AND b2.target = b.target) "
+            " AND b2.version = b.version AND b2.target = b.target "
+            " AND b2.platform = b.platform) "
             "ORDER BY b.version DESC, b.target",
             (package_id,),
         )

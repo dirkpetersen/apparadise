@@ -47,8 +47,11 @@ def stage_all(s: Settings, client: httpx.Client, runner: Run = run,
             ok, err = True, ""
         except (subprocess.CalledProcessError, OSError) as e:
             ok, err = False, f"stage-sqsh failed: {type(e).__name__}"
-        client.post(f"/api/builder/deliveries/{d['id']}", headers=auth,
-                    json={"ok": ok, "error": err}).raise_for_status()
+        try:  # a failed report never stops the other deliveries; it is retried next run
+            client.post(f"/api/builder/deliveries/{d['id']}", headers=auth,
+                        json={"ok": ok, "error": err}).raise_for_status()
+        except httpx.HTTPError:
+            ok = False
         results.append({"id": d["id"], "ok": ok})
     return results
 

@@ -140,3 +140,27 @@ def test_stage_sqsh_generic_suffix(tmp_path):
                        env={**os.environ, "ENROOT": str(fake), "ARCH": "aarch64"})
     assert r.returncode == 0, r.stderr
     assert (tmp_path / "c" / "generic" / "g-1-generic-arm64.sqsh").exists()
+
+
+def test_failed_rebuild_keeps_the_working_release(db, tmp_path):
+    d, ids, enq = db
+    publish(d, ids, ("rtx", "linux/amd64"))
+    new = enq("rtx", "linux/amd64")
+    with d.tx() as c:
+        c.execute("UPDATE build SET status = 'failed', stage = 'build' WHERE id = ?", (new,))
+    assert [(r.version, r.targets) for r in releases(entries_from_db(d))] == [("2026.3", ("rtx",))]
+
+
+def test_catalog_generic_needs_every_platform(db):
+    from apparadise.catalog import merge_platforms
+
+    d, ids, _ = db
+    publish(d, ids, ("generic", "linux/arm64"))
+    pid = d.packages.get("gromacs", include_restricted=True)["id"]
+    merged = {(b["version"], b["target"]): b for b in merge_platforms(d.builds.for_package(pid))}
+    g = merged[("2026.3", "generic")]
+    assert g["status"] == "queued"
+    assert g["platforms"] == {"linux/amd64": "queued", "linux/arm64": "published"}
+    publish(d, ids, ("generic", "linux/amd64"))
+    merged = {(b["version"], b["target"]): b for b in merge_platforms(d.builds.for_package(pid))}
+    assert merged[("2026.3", "generic")]["status"] == "published"

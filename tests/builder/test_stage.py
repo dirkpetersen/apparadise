@@ -62,3 +62,25 @@ def test_stage_reports_each_delivery(tmp_path):
     calls.clear()
     stage_all(s, client, runner=lambda a, e: calls.append(a), stage_tool="/bin/stage")
     assert [c[4] for c in calls] == ["2"]
+
+
+def test_stage_keeps_going_when_a_report_fails(tmp_path):
+    import httpx as _httpx
+
+    from apparadise_builder.config import Settings as BS
+
+    s = BS(_env_file=None, coordinator_url="http://127.0.0.1", builder_name="n",
+           builder_platform="linux/arm64", registry_host="r", data_dir=str(tmp_path))
+    s.token_file.parent.mkdir(parents=True, exist_ok=True)
+    s.token_file.write_text("t")
+    deliveries = [{"id": i, "project": "public", "package": "g", "version": str(i),
+                   "target": "vr", "image_digest": D} for i in (1, 2)]
+
+    def handler(req):
+        if req.method == "GET":
+            return _httpx.Response(200, json={"deliveries": deliveries})
+        return _httpx.Response(404 if req.url.path.endswith("/1") else 200, json={})
+
+    client = _httpx.Client(transport=_httpx.MockTransport(handler), base_url="http://x")
+    res = stage_all(s, client, runner=lambda a, e: None, stage_tool="/bin/stage")
+    assert res == [{"id": 1, "ok": False}, {"id": 2, "ok": True}]

@@ -56,3 +56,12 @@ def test_stage_writes_readonly_file_by_digest(tmp_path, fake_enroot):
 def test_stage_rejects_bad_args(tmp_path, fake_enroot, args):
     r = stage(fake_enroot, *args, str(tmp_path))
     assert r.returncode == 2 and "invalid" in r.stderr
+
+
+def test_restricted_images_staged_apart_and_private(tmp_path, fake_enroot):
+    r = stage(fake_enroot, "reg", "restricted", "af3", "3.0.1", "rtx", DIGEST, str(tmp_path / "c"))
+    assert r.returncode == 0, r.stderr
+    dest = tmp_path / "c" / "restricted" / "rtx" / "af3-3.0.1-rtx.sqsh"
+    assert dest.stat().st_mode & 0o777 == 0o440
+    assert (tmp_path / "c" / "restricted").stat().st_mode & 0o777 == 0o750
+    assert not (tmp_path / "c" / "rtx").exists()  # nothing in the public tree

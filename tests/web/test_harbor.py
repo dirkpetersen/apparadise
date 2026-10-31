@@ -45,7 +45,7 @@ def test_robot_created_scoped_and_deleted(env):
     c, db, mock, bh = env
     job = c.post("/api/builder/claim", headers=bh).json()
     tok = job["registryToken"]
-    assert tok["username"] == f"robot$apparadise-job-{job['id']}" and tok["password"]
+    assert tok["username"].startswith(f"robot$apparadise-job-{job['id']}-") and tok["password"]
     robot = next(iter(mock.state.robots.values()))
     assert [p["namespace"] for p in robot["body"]["permissions"]] == ["public", "cache"]
     assert robot["body"]["duration"] == 1

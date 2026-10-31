@@ -194,3 +194,29 @@ def test_containerfile_uses_job_base_images(world, tmp_path):
                                           base_runtime="cache/r:13.0-rtx")
     assert text.startswith("FROM r.example/cache/b:13.0-rtx AS build")
     assert "FROM r.example/cache/r:13.0-rtx" in text
+
+
+def test_signs_the_pushed_digest_not_the_tag(world):
+    _, _, make_agent, queue, _ = world
+    queue()
+    runner = FakeRunner()
+    job, status = asyncio.run(one_job(make_agent(runner, sign_key="cosign.key")))
+    assert status == "published"
+    sign = [c for c in runner.calls if c[0] == "cosign"]
+    assert sign and sign[0][-1] == f"registry.example.org/public/gromacs@{DIGEST}"
+
+
+def test_missing_digest_file_reports_failure_not_lost(world):
+    _, db, make_agent, queue, _ = world
+    bid = queue()
+
+    class NoDigest(FakeRunner):
+        async def __call__(self, argv, cwd, on_output):
+            await on_output(b"ok\n")
+            return 0  # push "succeeds" but writes no digest file
+
+    job, status = asyncio.run(one_job(make_agent(NoDigest())))
+    assert status == "failed"
+    row = db.query_one("SELECT status, stage, failure_id FROM build WHERE id = ?", (bid,))
+    assert (row["status"], row["stage"]) == ("failed", "publish")
+    assert "FileNotFoundError" in db.failures.get(row["failure_id"])["log_excerpt"]

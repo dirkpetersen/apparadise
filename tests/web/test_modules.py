@@ -153,3 +153,11 @@ def test_cli_dry_run(tmp_path, capsys):
 def test_repo_catalog_generates():
     assert isinstance(generate(load_dir(ROOT / "catalog"), module_dir="/m", wrapper_dir="/w",
                                sqsh_dir="/s", dry_run=True), list)
+
+
+def test_restricted_wrapper_points_at_restricted_tree(tmp_path):
+    r = releases([entry(visibility="restricted")])[0]
+    from apparadise.modules import wrapper_script
+
+    text = wrapper_script(r, "gmx", "/shared/containers")
+    assert "/shared/containers/restricted/rtx/gromacs-" in text

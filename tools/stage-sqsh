@@ -35,6 +35,18 @@ if [[ "$target" == generic ]]; then
     *) echo "stage-sqsh: unknown ARCH" >&2; exit 2 ;;
   esac
 fi
+# Restricted images never sit next to the world-readable ones: they go under
+# <dir>/restricted (0750 dirs, 0440 files), group-owned by RESTRICTED_GROUP (RCO-Admins).
+root=$sqsh_dir mode=0444
+if [[ "$project" == restricted ]]; then
+  root=$sqsh_dir/restricted mode=0440
+  mkdir -p "$root/$target"
+  chmod 0750 "$root" "$root/$target"
+  if [[ -n "${RESTRICTED_GROUP:-}" ]]; then
+    chgrp "$RESTRICTED_GROUP" "$root" "$root/$target"
+  fi
+fi
+sqsh_dir=$root
 dest="$sqsh_dir/$target/$name-$version-$target$suffix.sqsh"
 if [[ -e "$dest" && "${FORCE:-0}" != 1 ]]; then
   echo "$dest exists (FORCE=1 to replace)"
@@ -46,7 +58,10 @@ rm -f "$tmp"  # enroot import refuses to overwrite
 trap 'rm -f "$tmp"' EXIT
 # Pyxis/enroot reference syntax: REGISTRY#IMAGE; a digest pins the exact content.
 "${ENROOT:-enroot}" import --output "$tmp" "docker://$registry#$project/$name@$digest"
-chmod 0444 "$tmp"
+if [[ "$project" == restricted && -n "${RESTRICTED_GROUP:-}" ]]; then
+  chgrp "$RESTRICTED_GROUP" "$tmp"
+fi
+chmod "$mode" "$tmp"
 mv -f "$tmp" "$dest"
 trap - EXIT
 echo "$dest"

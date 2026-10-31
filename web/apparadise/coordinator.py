@@ -194,9 +194,11 @@ def report(db: Database, data_dir: str | Path, builder: dict[str, Any], build_id
     if stage not in BUILDER_STAGES:
         raise JobError(422, f"stage must be one of {', '.join(BUILDER_STAGES)}")
     row = _own_running(db, builder, build_id)
-    current = row["stage"]
-    if current in STAGES and STAGES.index(stage) < STAGES.index(current):
-        raise JobError(409, f"stage {stage} comes before the reported stage {current}")
+    current = row["stage"] if row["stage"] in STAGES else "concretize"
+    # Each stage is reported in order: the same stage again, or the next one. Nobody gets
+    # to publish without having passed test.
+    if not 0 <= STAGES.index(stage) - STAGES.index(current) <= 1:
+        raise JobError(409, f"stage {stage} does not follow the reported stage {current}")
     ts = now()
     if ok and stage == "publish":
         if not DIGEST_RE.fullmatch(digest or ""):
@@ -221,9 +223,11 @@ def report(db: Database, data_dir: str | Path, builder: dict[str, Any], build_id
         with db.tx() as c:
             c.execute("UPDATE build SET stage = ?, status = 'failed', finished_at = ? "
                       "WHERE id = ?", (stage, ts, build_id))
+            excerpt = failures.excerpt(log or line, around=line[:80] or None)
+            if error and error not in excerpt:  # the builder's own diagnosis, e.g. no digest
+                excerpt = f"{excerpt}\n{failures.scrub(error)}".strip()
             db.failures.record(build_id, failures.signature(stage, line, restricted), stage,
-                               failures.excerpt(log or line, around=line[:80] or None),
-                               restricted)
+                               excerpt, restricted)
     return db.query_one("SELECT id, stage, status, image_digest, failure_id, harbor_robot_id "
                         "FROM build WHERE id = ?", (build_id,))
 

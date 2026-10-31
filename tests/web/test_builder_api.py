@@ -146,11 +146,21 @@ def test_reports_are_checked(env):
     queue(c, package="gromacs", version="2026.3", targets=["rtx"])
     jid = c.post("/api/builder/claim", headers=bh).json()["id"]
     url = f"/api/builder/jobs/{jid}/report"
-    assert c.post(url, headers=other, json={"stage": "build", "ok": True}).status_code == 404
-    assert c.post(url, headers=bh, json={"stage": "publish", "ok": True}).status_code == 422
-    assert c.post(url, headers=bh, json={"stage": "test", "ok": True}).status_code == 200
-    assert c.post(url, headers=bh, json={"stage": "build", "ok": True}).status_code == 409
-    assert c.post(url, headers=bh, json={"stage": "resolve", "ok": True}).status_code == 422
+
+    def rep(h, stage, **kw):
+        return c.post(url, headers=h, json={"stage": stage, "ok": True, **kw}).status_code
+
+    assert rep(other, "build") == 404  # not this builder's job
+    assert rep(bh, "publish", digest=D) == 409  # cannot skip package and test
+    assert rep(bh, "test") == 409
+    assert rep(bh, "resolve") == 422
+    assert rep(bh, "build") == 200
+    assert rep(bh, "build") == 200  # repeating a stage is fine
+    assert rep(bh, "package") == 200
+    assert rep(bh, "build") == 409  # going back is not
+    assert rep(bh, "test") == 200
+    assert rep(bh, "publish") == 422  # publish needs the digest
+    assert rep(bh, "publish", digest=D) == 200
 
 
 def test_restricted_only_onprem(env):

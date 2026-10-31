@@ -52,7 +52,10 @@ project and scratch, and injects the GPU driver and the host RDMA/NCCL libraries
 
 ## Restricted packages
 
-These are skipped by default. Generate them with `--include-restricted` into a module
+Their squashfs files live under `SQSH_DIR/restricted/` (0750 directories, 0440 files),
+group-owned by `RESTRICTED_GROUP` when that is set for `tools/stage-sqsh`. Set it to the
+RCO-Admins group, so other users can never start a restricted image from shared storage.
+Their modules are skipped by default. Generate them with `--include-restricted` into a module
 directory that only sysadmins can read, never into the shared one.
 
 ## Open points

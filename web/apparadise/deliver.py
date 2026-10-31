@@ -42,12 +42,15 @@ def run(argv: Sequence[str]) -> None:
 
 
 def _latest_rows(db: Database) -> list[dict[str, Any]]:
-    """The newest build per (package, version, target, platform), with its package."""
+    """The current release per (package, version, target, platform): its newest *published*
+    build. A failed rebuild never takes a working release away. Same rule as
+    coordinator.pending_deliveries."""
     return db.query(
         "SELECT b.*, p.name, p.title, p.description, p.homepage, p.executables, p.visibility "
         "FROM build b JOIN package p ON p.id = b.package_id WHERE b.id = ("
         " SELECT MAX(b2.id) FROM build b2 WHERE b2.package_id = b.package_id"
-        " AND b2.version = b.version AND b2.target = b.target AND b2.platform = b.platform)")
+        " AND b2.version = b.version AND b2.target = b.target AND b2.platform = b.platform"
+        " AND b2.status = 'published')")
 
 
 def manifests_due(db: Database) -> list[dict[str, Any]]:
@@ -124,8 +127,10 @@ def deliver(db: Database, *, registry: str, sqsh_dir: str, module_dir: str, wrap
                         f"docker://{repo}@{item['rows'][plat]['image_digest']}"])
             runner([tool, "manifest", "push", "--all", local, f"docker://{target}"])
         except (subprocess.CalledProcessError, OSError) as e:
-            log.error("manifest %s failed: %s", target, e)
-            errors.append({"manifest": target, "error": type(e).__name__})
+            log.error("generic manifest for %s %s failed: %s", item["name"], item["version"],
+                      type(e).__name__)
+            errors.append({"package": item["name"], "version": item["version"],
+                           "error": type(e).__name__})
             continue
         with db.tx() as c:
             for r in item["rows"].values():
