@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: hpl
+title: "HPL"
+description: "High-Performance Linpack."
+homepage: https://www.netlib.org/benchmark/hpl/
+source: spack
+visibility: public
+tags: [benchmark]
+aliases: {spack: hpl, easybuild: HPL}
+executables: [xhpl]
+versions: {}

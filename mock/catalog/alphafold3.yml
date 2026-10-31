@@ -1,0 +1,15 @@
+name: alphafold3
+title: AlphaFold 3
+description: >
+  Protein structure prediction. The model weights are gated by DeepMind's terms,
+  so the image is restricted and only visible to sysadmins.
+homepage: https://github.com/google-deepmind/alphafold3
+source: easybuild
+visibility: restricted
+tags: [structural-biology, machine-learning]
+aliases: {easybuild: AlphaFold3}
+executables: [run_alphafold]
+versions:
+  "3.0.1":
+    rtx: {status: published, digest: "sha256:f7a03377fe33de1e9422d84fbd677c12c95f63c88761def883f606d33f2611d0", test: "run_alphafold --help", built: 2026-10-25}
+    vr: {status: planned}

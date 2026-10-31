@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: ucx
+title: "UCX"
+description: "Unified Communication X: the RDMA/GPU transport layer used by MPI and NCCL."
+homepage: https://openucx.org
+source: spack
+visibility: public
+tags: [networking, library]
+aliases: {spack: ucx, easybuild: UCX}
+executables: [ucx_info]
+versions: {}

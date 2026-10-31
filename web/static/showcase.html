@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>apparadise components</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="img/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/catalog.css">
+  <link rel="stylesheet" href="css/showcase.css">
+  <script src="js/theme.js"></script>
+  <script type="module" src="js/showcase.js"></script>
+</head>
+<body>
+  <main class="sc">
+    <header class="sc-head">
+      <span class="eyebrow">Design system</span>
+      <h1 class="sc-title">Components</h1>
+      <p class="pkgs-count">Developer-only page, not linked from the app. Review every UI change here in light and dark.</p>
+      <div class="row" id="theme-row"></div>
+    </header>
+    <section aria-labelledby="s-tokens"><h2 id="s-tokens">Colour tokens</h2><div class="swatches" id="swatches"></div></section>
+    <section aria-labelledby="s-btn">
+      <h2 id="s-btn">Buttons, chips, status</h2>
+      <div class="row">
+        <button class="btn btn-primary" type="button">Primary</button>
+        <button class="btn" type="button">Default</button>
+        <button class="btn btn-ghost" type="button">Ghost</button>
+        <button class="btn btn-danger" type="button">Danger</button>
+        <button class="btn btn-primary" type="button" disabled>Disabled</button>
+      </div>
+      <div class="row" id="chips"></div>
+      <div class="row" id="statuses"></div>
+    </section>
+    <section aria-labelledby="s-cards"><h2 id="s-cards">Package cards</h2><ul class="pkgs" id="cards"></ul></section>
+    <section aria-labelledby="s-tc"><h2 id="s-tc">Target cards and pipeline rail</h2><div class="tcs" id="tcs"></div></section>
+    <section aria-labelledby="s-code"><h2 id="s-code">Command panel</h2><div id="code"></div></section>
+    <section aria-labelledby="s-misc"><h2 id="s-misc">Notice, empty state, toast</h2><div class="sc-stack" id="misc"></div></section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: osu-micro-benchmarks
+title: "OSU Micro-Benchmarks"
+description: "MPI latency and bandwidth benchmarks, CUDA-aware."
+homepage: https://mvapich.cse.ohio-state.edu/benchmarks/
+source: spack
+visibility: public
+tags: [benchmark, mpi]
+aliases: {spack: osu-micro-benchmarks, easybuild: OSU-Micro-Benchmarks}
+executables: [osu_latency, osu_bw]
+versions: {}

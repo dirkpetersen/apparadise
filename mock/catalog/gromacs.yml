@@ -1,0 +1,17 @@
+name: gromacs
+title: GROMACS
+description: >
+  Molecular dynamics for biomolecular systems, built with CUDA, MPI (PMIx) and
+  NCCL-aware GPU halo exchange.
+homepage: https://www.gromacs.org
+source: spack
+tags: [molecular-dynamics, mpi, chemistry]
+aliases: {spack: gromacs, easybuild: GROMACS, pixi: gromacs}
+executables: [gmx_mpi, gmx]
+versions:
+  "2026.3":
+    rtx: {status: published, digest: "sha256:4164c1732dadb2378eafb20b122258952158e2eb5f04bde54627e3121bda8374", test: "gmx --version; 1 ns lysozyme", built: 2026-10-30}
+    vr: {status: running}
+  "2025.4":
+    rtx: {status: published, digest: "sha256:2b31103cafc06b81fe0b9f16061931ccb3f7108e4dfd97a93dbd2ad035ea1f73", test: "gmx --version", built: 2026-09-12}
+    vr: {status: published, digest: "sha256:e1d90e4600350c34118343fc40b7d3a0dd579437ce425297df8a1ace97c4b398", test: "gmx --version", built: 2026-09-14}

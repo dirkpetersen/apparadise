@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: pytorch
+title: "PyTorch"
+description: "Tensors and dynamic neural networks with GPU acceleration."
+homepage: https://pytorch.org
+source: pixi
+visibility: public
+tags: [machine-learning, python]
+aliases: {pixi: pytorch, spack: py-torch, easybuild: PyTorch}
+executables: [python, torchrun]
+versions: {}

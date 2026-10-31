@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: openmpi
+title: "Open MPI"
+description: "MPI implementation with UCX, PMIx and CUDA-aware transports."
+homepage: https://www.open-mpi.org
+source: spack
+visibility: public
+tags: [mpi, library]
+aliases: {spack: openmpi, easybuild: OpenMPI}
+executables: [mpirun, mpicc]
+versions: {}

@@ -1,0 +1,9 @@
+# Lint config for mock/ and tests/ (web/ and builder/ carry their own in pyproject.toml).
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[lint.isort]
+known-first-party = ["apparadise", "mock"]

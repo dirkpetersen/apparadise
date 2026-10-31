@@ -1,0 +1,12 @@
+name: vllm
+title: vLLM
+description: High-throughput LLM inference and serving engine.
+homepage: https://docs.vllm.ai
+source: pixi
+tags: [machine-learning, inference, python]
+aliases: {pixi: vllm}
+executables: [vllm]
+versions:
+  "0.11.0":
+    rtx: {status: queued}
+    vr: {status: planned}

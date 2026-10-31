@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: jupyterlab
+title: "JupyterLab"
+description: "Notebooks with the platform's CUDA Python stack."
+homepage: https://jupyter.org
+source: pixi
+visibility: public
+tags: [python, notebook]
+aliases: {pixi: jupyterlab}
+executables: [jupyter, jupyter-lab]
+versions: {}

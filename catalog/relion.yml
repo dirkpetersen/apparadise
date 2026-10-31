@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: relion
+title: "RELION"
+description: "Cryo-EM structure determination."
+homepage: https://relion.readthedocs.io
+source: easybuild
+visibility: public
+tags: [cryo-em, imaging]
+aliases: {easybuild: RELION, spack: relion}
+executables: [relion, relion_refine_mpi]
+versions: {}

@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: motioncor3
+title: "MotionCor3"
+description: "GPU beam-induced motion correction for cryo-EM movies."
+homepage: https://github.com/czimaginginstitute/MotionCor3
+source: easybuild
+visibility: public
+tags: [cryo-em, imaging]
+aliases: {easybuild: MotionCor3}
+executables: [MotionCor3]
+versions: {}

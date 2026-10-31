@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: nccl-tests
+title: "NCCL Tests"
+description: "Bandwidth and correctness tests for NCCL collectives."
+homepage: https://github.com/NVIDIA/nccl-tests
+source: spack
+visibility: public
+tags: [benchmark, networking]
+aliases: {spack: nccl-tests}
+executables: [all_reduce_perf]
+versions: {}

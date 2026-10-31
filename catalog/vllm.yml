@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: vllm
+title: "vLLM"
+description: "High-throughput LLM inference and serving."
+homepage: https://docs.vllm.ai
+source: pixi
+visibility: public
+tags: [machine-learning, inference]
+aliases: {pixi: vllm}
+executables: [vllm]
+versions: {}

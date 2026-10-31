@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: gromacs
+title: "GROMACS"
+description: "Molecular dynamics for biomolecular systems."
+homepage: https://www.gromacs.org
+source: spack
+visibility: public
+tags: [molecular-dynamics, mpi]
+aliases: {spack: gromacs, easybuild: GROMACS}
+executables: [gmx_mpi, gmx]
+versions: {}

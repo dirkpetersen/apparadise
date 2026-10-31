@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: alphafold3
+title: "AlphaFold 3"
+description: "Protein structure prediction. Weights are gated, so this package is restricted."
+homepage: https://github.com/google-deepmind/alphafold3
+source: easybuild
+visibility: restricted
+tags: [structural-biology, machine-learning]
+aliases: {easybuild: AlphaFold3}
+executables: [run_alphafold]
+versions: {}

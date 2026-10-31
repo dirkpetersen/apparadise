@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: lammps
+title: "LAMMPS"
+description: "Classical molecular dynamics with Kokkos/CUDA acceleration."
+homepage: https://www.lammps.org
+source: spack
+visibility: public
+tags: [molecular-dynamics, mpi]
+aliases: {spack: lammps, easybuild: LAMMPS}
+executables: [lmp]
+versions: {}

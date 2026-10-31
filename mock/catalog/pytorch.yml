@@ -1,0 +1,12 @@
+name: pytorch
+title: PyTorch
+description: Tensors and dynamic neural networks with strong GPU acceleration, from conda-forge.
+homepage: https://pytorch.org
+source: pixi
+tags: [machine-learning, python]
+aliases: {pixi: pytorch, spack: py-torch, easybuild: PyTorch}
+executables: [python, torchrun]
+versions:
+  "2.9.1":
+    rtx: {status: published, digest: "sha256:4c8d6a4d63e9aab06a4b58d5da27bf514a3defb708978f1d7fb377959858a6c8", test: "import torch; torch.cuda.is_available()", built: 2026-10-28}
+    vr: {status: published, digest: "sha256:9952cdad04e9469c67c81bb739ac783a5f413c5687f6ba6580890b8af04e6474", test: "import torch; torch.cuda.is_available()", built: 2026-10-29}

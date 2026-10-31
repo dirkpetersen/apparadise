@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: cryodrgn
+title: "cryoDRGN"
+description: "Neural reconstruction of heterogeneous cryo-EM structures."
+homepage: https://github.com/ml-struct-bio/cryodrgn
+source: easybuild
+visibility: public
+tags: [cryo-em, machine-learning]
+aliases: {easybuild: cryoDRGN, spack: py-cryodrgn}
+executables: [cryodrgn]
+versions: {}

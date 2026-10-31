@@ -1,0 +1,12 @@
+/* Developer-only showcase layout. */
+.sc { max-width: var(--content-w); margin-inline: auto; padding: var(--sp-6) var(--gutter) var(--sp-8);
+  display: grid; gap: var(--sp-7); }
+.sc-head { display: grid; gap: var(--sp-2); }
+.sc-title { font: 480 var(--fs-3xl) / 1.05 var(--font-display); letter-spacing: -0.02em; }
+.sc h2 { font: 560 var(--fs-xl) / 1.2 var(--font-display); margin-bottom: var(--sp-4); }
+.sc section { display: grid; gap: var(--sp-3); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.sc-stack { display: grid; gap: var(--sp-4); }
+.swatches { display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); }
+.swatch { display: grid; gap: var(--sp-1); font-size: var(--fs-xs); color: var(--text-muted); }
+.swatch-chip { height: 3rem; border-radius: var(--r-md); border: 1px solid var(--border); }

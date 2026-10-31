@@ -1,0 +1,11 @@
+# Tooling config only. appmotel installs from requirements.txt, not from here.
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["../tests/web"]
+pythonpath = [".", ".."]

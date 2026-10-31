@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: kokkos
+title: "Kokkos"
+description: "C++ performance-portability library with a CUDA backend."
+homepage: https://kokkos.org
+source: spack
+visibility: public
+tags: [library, portability]
+aliases: {spack: kokkos, easybuild: Kokkos}
+executables: [kokkos_launch_compiler]
+versions: {}

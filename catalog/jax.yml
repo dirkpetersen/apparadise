@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: jax
+title: "JAX"
+description: "Composable transformations of NumPy programs on GPU."
+homepage: https://docs.jax.dev
+source: pixi
+visibility: public
+tags: [machine-learning, python]
+aliases: {pixi: jax, spack: py-jax, easybuild: jax}
+executables: [python]
+versions: {}

@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: cupy
+title: "CuPy"
+description: "NumPy/SciPy-compatible arrays on CUDA."
+homepage: https://cupy.dev
+source: pixi
+visibility: public
+tags: [python, library]
+aliases: {pixi: cupy, spack: py-cupy, easybuild: CuPy}
+executables: [python]
+versions: {}

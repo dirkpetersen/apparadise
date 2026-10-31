@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: cellpose
+title: "Cellpose"
+description: "Generalist cell segmentation."
+homepage: https://www.cellpose.org
+source: easybuild
+visibility: public
+tags: [imaging, machine-learning]
+aliases: {easybuild: Cellpose, pixi: cellpose}
+executables: [cellpose]
+versions: {}

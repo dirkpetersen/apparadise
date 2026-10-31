@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: rapids-singlecell
+title: "rapids-singlecell"
+description: "GPU-accelerated single-cell analysis compatible with scanpy."
+homepage: https://rapids-singlecell.readthedocs.io
+source: pixi
+visibility: public
+tags: [single-cell, python]
+aliases: {pixi: rapids-singlecell}
+executables: [python]
+versions: {}

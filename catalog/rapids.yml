@@ -1,0 +1,11 @@
+# Phase 1 provisional entry (QUESTIONS.md Q4). The version is chosen at build time.
+name: rapids
+title: "RAPIDS"
+description: "GPU data science: cuDF, cuML, cuGraph."
+homepage: https://rapids.ai
+source: pixi
+visibility: public
+tags: [data-science, python]
+aliases: {pixi: rapids}
+executables: [python]
+versions: {}

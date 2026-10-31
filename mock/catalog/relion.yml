@@ -1,0 +1,12 @@
+name: relion
+title: RELION
+description: Cryo-EM structure determination by regularised likelihood optimisation.
+homepage: https://relion.readthedocs.io
+source: easybuild
+tags: [cryo-em, imaging, mpi]
+aliases: {easybuild: RELION, spack: relion}
+executables: [relion, relion_refine_mpi]
+versions:
+  "5.0.1":
+    rtx: {status: published, digest: "sha256:a56ec1cf9ae1f9f047207731cb249bbd2a14b27522eb9e5abfb1ed42f4288e9c", test: "relion_refine --version", built: 2026-10-20}
+    vr: {status: failed, stage: build}
