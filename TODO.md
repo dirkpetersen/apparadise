@@ -47,9 +47,10 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 - [x] Builder API `/api/builder/...` (register, claim, log stream, report) + per-builder tokens
 - [x] Sysadmin routes: registration tokens, builders, `POST /api/admin/builds` (resolve + render + queue)
 - [x] Failure signatures + log scrubbing (groups e.g. gprofng across binutils versions)
-- [ ] `builder/` agent: pull loop, local-container launcher, Slurm launcher
-- [ ] Harbor client: robot token per job, push, sign
-- [ ] Test stage as low-priority Slurm job via Pyxis
+- [x] `builder/` agent: register, pull loop, podman build/package, srun smoke test, push + digest, log streaming
+- [ ] Launchers (start/stop): local container, `sbatch`, EC2 spot
+- [x] Test stage as low-priority Slurm job via Pyxis (`srun --nice --container-image`); TEST_MODE=none fails closed
+- [ ] Harbor client: robot token per job (claim payload has `registryToken: null` for now)
 
 ## Phase 3: community layer
 

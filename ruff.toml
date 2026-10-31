@@ -6,4 +6,4 @@ target-version = "py312"
 select = ["E", "F", "I", "UP", "B"]
 
 [lint.isort]
-known-first-party = ["apparadise", "mock"]
+known-first-party = ["apparadise", "apparadise_builder", "mock"]

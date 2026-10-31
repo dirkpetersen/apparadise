@@ -82,7 +82,8 @@ containers/     targets.yml (all arch flags: single source of truth) + base/ Con
 recipes/        _templates/ + rendered recipes/<name>/<version>/<target>/
 tools/          stage-sqsh and other single-file operator scripts (bash or stdlib Python)
 mock/           fake directory, sample catalog, demo (mock/demo.py); later fake Harbor/Slurm
-tests/web/      tests for web/ (run from web/: .venv/bin/pytest)
+tests/web/      tests for web/; tests/builder/ drives the builder against the real app
+                (ASGI, fake command runner). Run both from web/: .venv/bin/pytest
 docs/           Markdown for Zensical; docs/stack.md lists versions
 TODO.md  QUESTIONS.md  zensical.toml  ruff.toml (lint config for mock/ and tests/)
 ```
@@ -104,8 +105,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt   # setup
 cp .env.default .env                     # then fill in the REQUIRED values
 .venv/bin/python3 app.py                 # run locally, same as appmotel
 .venv/bin/python3 ../mock/demo.py        # local demo with mocks + fake users, http://127.0.0.1:8000
-.venv/bin/ruff check . ../mock ../tests # lint
-.venv/bin/pytest                         # all tests
+.venv/bin/ruff check . ../mock ../tests ../builder   # lint
+.venv/bin/pytest                         # all tests (tests/web + tests/builder, from web/)
 .venv/bin/pytest ../tests/web/test_catalog.py::test_search   # single test
 .venv/bin/python -m apparadise.modules --catalog ../catalog --module-dir /m --wrapper-dir /w --sqsh-dir /s --dry-run
 .venv/bin/python -m apparadise.recipes spack gromacs 2026.3 rtx --spec gromacs@2026.3+mpi --stdout

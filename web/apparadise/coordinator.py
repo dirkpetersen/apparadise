@@ -12,7 +12,10 @@ All functions are synchronous and run through `db.run(...)` from the API.
 
 from __future__ import annotations
 
+import json
 import re
+import shlex
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +30,13 @@ TARGET_PLATFORMS = {
 BUILDER_STAGES = ("build", "package", "test", "publish")  # resolve/generate run server-side
 LOG_LIMIT = 64 * 1024 * 1024
 DIGEST_RE = re.compile(r"sha256:[0-9a-f]{64}")
+
+
+@cache
+def _targets() -> dict[str, Any]:
+    from .recipes import load_targets
+
+    return load_targets()
 
 
 class JobError(Exception):
@@ -75,9 +85,13 @@ def claim(db: Database, builder: dict[str, Any]) -> dict[str, Any] | None:
         if row is None:
             return None
         job = dict(row)
-        pkg = c.execute("SELECT name, visibility FROM package WHERE id = ?",
+        pkg = c.execute("SELECT name, visibility, executables FROM package WHERE id = ?",
                         (job["package_id"],)).fetchone()
     project = "restricted" if job["restricted"] else "public"
+    cuda = str(_targets()[job["target"]]["cuda_version"])
+    exes = json.loads(pkg["executables"] or "[]")
+    # Smoke test: the GPU is visible inside the container, and the software starts.
+    smoke = "nvidia-smi -L" + (f" && {shlex.quote(exes[0])} --version" if exes else "")
     return {
         "id": job["id"],
         "package": pkg["name"],
@@ -89,6 +103,10 @@ def claim(db: Database, builder: dict[str, Any]) -> dict[str, Any] | None:
         "image": f"{project}/{pkg['name']}:{job['version']}-{job['target']}",
         "cache": f"cache/{job['source']}-{job['target']}",
         "stages": list(BUILDER_STAGES),
+        "baseBuilder": f"cache/base-builder:{cuda}-{job['target']}",
+        "baseRuntime": f"cache/base-runtime:{cuda}-{job['target']}",
+        "executables": exes,
+        "smoke": smoke,
         # Phase 2 TODO: a short-lived Harbor robot token for this one repository.
         "registryToken": None,
     }

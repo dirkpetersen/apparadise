@@ -7,5 +7,5 @@ target-version = "py312"
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
-testpaths = ["../tests/web"]
+testpaths = ["../tests"]
 pythonpath = [".", ".."]

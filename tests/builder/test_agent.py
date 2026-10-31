@@ -1,0 +1,152 @@
+"""The builder agent against the real coordinator (in-process, ASGI), with a fake runner."""
+
+import asyncio
+from pathlib import Path
+
+import httpx
+import pytest
+from fastapi.testclient import TestClient
+
+from apparadise.config import Settings as WebSettings
+from apparadise.db import Database
+from apparadise.index import _item
+from apparadise.main import create_app
+from apparadise_builder.agent import Agent, plan
+from apparadise_builder.config import Settings
+from mock.directory import DemoDirectory
+
+H = {"X-Requested-With": "apparadise"}
+WEB_REQUIRED = {
+    "session_secret": "s", "ldap_url": "ldaps://dc.example.org", "ldap_base_dn": "DC=x",
+    "ldap_bind_dn": "svc", "ldap_bind_password": "p", "ldap_admin_group_dn": "CN=A",
+    "registry_host": "registry.example.org",
+}
+DIGEST = "sha256:" + "e" * 64
+
+
+class FakeRunner:
+    def __init__(self, fail_on: str | None = None):
+        self.calls: list[list[str]] = []
+        self.fail_on = fail_on
+
+    async def __call__(self, argv, cwd, on_output):
+        self.calls.append(argv)
+        await on_output(f"running {argv[0]} {argv[1]}\n".encode())
+        if self.fail_on and self.fail_on in argv:
+            await on_output(b"src/foo.c:12: error: expected identifier before '_Generic'\n")
+            return 2
+        if "--digestfile" in argv:
+            Path(argv[argv.index("--digestfile") + 1]).write_text(DIGEST)
+        return 0
+
+
+@pytest.fixture
+def world(tmp_path):
+    ws = WebSettings(_env_file=None, data_dir=str(tmp_path / "web"), catalog_dir=str(tmp_path),
+                     session_cookie_secure=False, **WEB_REQUIRED)
+    db = Database(":memory:")
+    db.index.replace_source("spack", [_item("spack", "gromacs", ["2026.3"], True, [], False)])
+    db.packages.upsert({"name": "gromacs", "title": "GROMACS", "executables": ["gmx_mpi"]})
+    web = create_app(ws, db=db, authenticator=DemoDirectory(), load_catalog=False)
+    tc = TestClient(web)
+    tc.post("/api/login", json={"login": "dana", "password": "demo"}, headers=H)
+    token = tc.post("/api/admin/builder-tokens", headers=H).json()["token"]
+
+    def settings(**kw):
+        return Settings(_env_file=None, coordinator_url="http://127.0.0.1",
+                        builder_name="x86-1", builder_platform="linux/amd64",
+                        registration_token=token, registry_host="registry.example.org",
+                        data_dir=str(tmp_path / "builder"), work_dir=str(tmp_path / "work"), **kw)
+
+    def agent(runner, **kw):
+        client = httpx.AsyncClient(transport=httpx.ASGITransport(app=web),
+                                   base_url="http://127.0.0.1", headers=H)
+        return Agent(settings(**kw), client=client, runner=runner)
+
+    def queue():
+        r = tc.post("/api/admin/builds", headers=H,
+                    json={"package": "gromacs", "version": "2026.3", "targets": ["rtx"]})
+        assert r.status_code == 200, r.text
+        return r.json()["queued"][0]["id"]
+
+    yield tc, db, agent, queue, tmp_path
+    db.close()
+
+
+async def one_job(agent):
+    await agent.ensure_token()
+    job = await agent.claim()
+    return job, (await agent.execute(job) if job else None)
+
+
+def test_happy_path_publishes(world):
+    tc, db, make_agent, queue, tmp = world
+    bid = queue()
+    runner = FakeRunner()
+    agent = make_agent(runner)
+    job, status = asyncio.run(one_job(agent))
+    assert job["id"] == bid and status == "published"
+    tools = [c[:2] for c in runner.calls]
+    assert tools == [["podman", "build"], ["podman", "build"], ["podman", "push"],
+                     ["srun", "-p"], ["podman", "push"]]
+    srun = runner.calls[3]
+    assert f"--container-image=registry.example.org#cache/test-gromacs:{bid}" in srun
+    assert srun[-1] == "nvidia-smi -L && gmx_mpi --version"
+    row = db.query_one("SELECT status, image_digest, log_path FROM build WHERE id = ?", (bid,))
+    assert row["status"] == "published" and row["image_digest"] == DIGEST
+    assert "running podman build" in Path(row["log_path"]).read_text()
+    # the token file is private and reused on the next start
+    tf = tmp / "builder" / "builder.token"
+    assert tf.stat().st_mode & 0o777 == 0o600
+    cf = (tmp / "work" / str(bid) / "Containerfile").read_text()
+    assert cf.startswith("FROM registry.example.org/cache/base-builder:13.0-rtx AS build")
+
+
+def test_failure_reports_stage_and_error(world):
+    tc, db, make_agent, queue, _ = world
+    bid = queue()
+    job, status = asyncio.run(one_job(make_agent(FakeRunner(fail_on="--target"))))
+    assert status == "failed"
+    row = db.query_one("SELECT status, stage, failure_id FROM build WHERE id = ?", (bid,))
+    assert (row["status"], row["stage"]) == ("failed", "build")
+    f = db.failures.get(row["failure_id"])
+    assert "_Generic" in f["log_excerpt"]
+
+
+def test_test_mode_none_fails_closed(world):
+    tc, db, make_agent, queue, _ = world
+    bid = queue()
+    runner = FakeRunner()
+    job, status = asyncio.run(one_job(make_agent(runner, test_mode="none")))
+    assert status == "failed"
+    assert not any("push" in c for c in runner.calls)  # nothing pushed, nothing published
+    assert db.query_one("SELECT stage FROM build WHERE id = ?", (bid,))["stage"] == "test"
+
+
+def test_empty_queue(world):
+    _, _, make_agent, _, _ = world
+    job, status = asyncio.run(one_job(make_agent(FakeRunner())))
+    assert job is None
+
+
+def test_plan_has_no_shell_except_smoke(world, tmp_path):
+    _, _, make_agent, _, _ = world
+    s = make_agent(FakeRunner()).s
+    job = {"id": 7, "image": "public/x:1-rtx", "package": "x", "version": "1", "target": "rtx",
+           "source": "spack", "platform": "linux/amd64", "smoke": "nvidia-smi -L"}
+    for stage in ("build", "package", "test", "publish"):
+        for argv in plan(job, stage, s, tmp_path):
+            assert argv[0] in {"podman", "srun", "cosign"}
+            if argv[0] != "srun":
+                assert "sh" not in argv
+
+
+def test_settings_validation():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, coordinator_url="http://coordinator.example.org",
+                 builder_name="b", registry_host="r")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, coordinator_url="https://c.example", builder_name="Bad Name",
+                 registry_host="r")
