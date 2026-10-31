@@ -19,23 +19,17 @@ gmx_mpi mdrun ...
 
 ## Automatic delivery (phase 2)
 
-Pipeline builds need no hand step. Run the delivery job from cron on one node of each
-architecture that has Enroot and the CephFS mounts:
+Pipeline builds need no hand step. Delivery has two parts, both run from cron:
 
-```cron
-*/10 * * * * cd /srv/apparadise/web && .venv/bin/python3 -m apparadise.deliver --db data/apparadise.sqlite3 --registry registry.example.org
-```
+| Where | Command | Does |
+|---|---|---|
+| A node of **each** architecture, with Enroot, CephFS and a registered builder token | `python -m apparadise_builder.stage` (in `builder/`) | Asks the coordinator which published builds of its platform still need a `.sqsh`, imports each by digest (`FORCE=1`, so a rebuild replaces the old file), and reports success or failure per build. A failure is retried on the next run. |
+| The apparadise server | `python -m apparadise.deliver --db data/apparadise.sqlite3 --registry ...` (in `web/`) | Pushes the multi-arch `<version>-generic` manifest from the two images' digests once both are published, and again after a rebuild. Then regenerates the modules from the database. |
 
-The job does three things:
-1. It stages the published builds for this host's platform with `tools/stage-sqsh`, by
-   digest.
-2. Once both the `-generic-amd64` and `-generic-arm64` images exist, it joins them into the
-   multi-arch `-generic` manifest.
-3. It regenerates the modules from the database.
-
-A build appears in a module only after its `.sqsh` exists. Generic images get one `.sqsh`
-per architecture (`...-generic-amd64.sqsh`, `...-generic-arm64.sqsh`), and the wrapper
-picks between them at run time.
+The nodes never open the server's database. A release appears in a module only once its
+`.sqsh` exists, and a generic release only once both architectures are staged. Generic
+images get one `.sqsh` per architecture (`...-generic-amd64.sqsh`, `...-generic-arm64.sqsh`),
+and the wrapper picks between them at run time.
 
 ## How a wrapper picks its image
 

@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from . import failures
+from .catalog import release_tag
 from .db import STAGES, Database, now
 
 TARGET_PLATFORMS = {
@@ -37,17 +38,6 @@ def _targets() -> dict[str, Any]:
     from .recipes import load_targets
 
     return load_targets()
-
-
-def arch_of(platform: str) -> str:
-    return platform.split("/", 1)[1]  # linux/amd64 -> amd64
-
-
-def image_tag(version: str, target: str, platform: str) -> str:
-    """vr/rtx: <version>-<target>. generic builds once per platform and pushes
-    <version>-generic-<arch>; delivery then joins both into the multi-arch <version>-generic."""
-    tag = f"{version}-{target}"
-    return f"{tag}-{arch_of(platform)}" if target == "generic" else tag
 
 
 def base_ref(role: str, target: str, cuda: str) -> str:
@@ -123,7 +113,7 @@ def claim(db: Database, builder: dict[str, Any]) -> dict[str, Any] | None:
         "platform": job["platform"],
         "recipe": job["recipe"],
         "image": f"{project}/{pkg['name']}:"
-                 f"{image_tag(job['version'], job['target'], job['platform'])}",
+                 f"{release_tag(job['version'], job['target'], job['platform'])}",
         "cache": f"cache/{job['source']}-{job['target']}",
         "stages": list(BUILDER_STAGES),
         "baseBuilder": base_ref("builder", job["target"], cuda),
@@ -237,3 +227,33 @@ def report(db: Database, data_dir: str | Path, builder: dict[str, Any], build_id
     return db.query_one("SELECT id, stage, status, image_digest, failure_id, harbor_robot_id "
                         "FROM build WHERE id = ?", (build_id,))
 
+
+
+def pending_deliveries(db: Database, builder: dict[str, Any]) -> list[dict[str, Any]]:
+    """Newest published pipeline builds of this builder's platform not yet staged as
+    squashfs. Restricted ones only for on-prem builders. Superseded builds are skipped."""
+    rows = db.query(
+        "SELECT b.id, p.name AS package, b.version, b.target, b.platform, b.image_digest, "
+        "b.restricted, b.delivery_error FROM build b JOIN package p ON p.id = b.package_id "
+        "WHERE b.origin = 'pipeline' AND b.status = 'published' AND b.delivered_at IS NULL "
+        "AND b.platform = ? AND (b.restricted = 0 OR ? = 1) AND b.id = ("
+        " SELECT MAX(b2.id) FROM build b2 WHERE b2.package_id = b.package_id"
+        " AND b2.version = b.version AND b2.target = b.target AND b2.platform = b.platform"
+        " AND b2.status = 'published') ORDER BY b.id",
+        (builder["platform"], builder["onprem"]))
+    for r in rows:
+        r["project"] = "restricted" if r.pop("restricted") else "public"
+    return rows
+
+
+def record_delivery(db: Database, builder: dict[str, Any], build_id: int, ok: bool,
+                    error: str = "") -> None:
+    if not any(r["id"] == build_id for r in pending_deliveries(db, builder)):
+        raise JobError(404, "No such pending delivery for this builder.")
+    with db.tx() as c:
+        if ok:
+            c.execute("UPDATE build SET delivered_at = ?, delivery_error = '' WHERE id = ?",
+                      (now(), build_id))
+        else:  # stays pending: the next run retries it
+            c.execute("UPDATE build SET delivery_error = ? WHERE id = ?",
+                      (error[:500], build_id))

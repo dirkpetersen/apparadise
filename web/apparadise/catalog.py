@@ -198,8 +198,21 @@ def sqsh_path(sqsh_dir: str, name: str, version: str, target: str,
     return f"{sqsh_dir}/{target}/{name}-{version}-{target}{suffix}.sqsh"
 
 
+def arch_of(platform: str) -> str:
+    return platform.split("/", 1)[1]  # linux/amd64 -> amd64
+
+
+def release_tag(version: str, target: str, platform: str | None = None) -> str:
+    """The one naming rule for image tags. vr/rtx: <version>-<target>. A generic build is
+    made once per platform and pushed as <version>-generic-<arch>; the multi-arch manifest
+    that joins them is <version>-generic (platform=None)."""
+    tag = f"{version}-{target}"
+    return f"{tag}-{arch_of(platform)}" if target == "generic" and platform else tag
+
+
 def image_tag(name: str, version: str, target: str) -> str:
-    return f"{name}:{version}-{target}"
+    """name:<release tag>, what users pull (the multi-arch tag for generic)."""
+    return f"{name}:{release_tag(version, target)}"
 
 
 def project_for(visibility: str) -> str:

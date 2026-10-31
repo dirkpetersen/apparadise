@@ -48,7 +48,9 @@ class Settings(BaseSettings):
     # (fail closed: an untested image is never published).
     test_mode: Literal["slurm", "none"] = "slurm"
     test_partition: str = "gpu"
-    sign_key: str = ""  # cosign key reference; empty: images are not signed here
+    sign_key: str = ""
+    # Where `python -m apparadise_builder.stage` writes squashfs images (shared CephFS).
+    sqsh_dir: str = "/shared/containers"  # cosign key reference; empty: images are not signed here
 
     @field_validator("coordinator_url")
     @classmethod

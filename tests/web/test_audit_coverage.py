@@ -16,6 +16,7 @@ ROUTES = {
     ("POST", "/api/builder/register"): "builder.register",
     ("POST", "/api/builder/claim"): "build.claim",
     ("POST", "/api/builder/jobs/{build_id}/report"): "build.report",
+    ("POST", "/api/builder/deliveries/{build_id}"): "build.deliver",
     ("POST", "/api/admin/builder-tokens"): "builder.token.create",
     ("POST", "/api/admin/builders/{builder_id}/disable"): "builder.disable",
     ("POST", "/api/admin/builds"): "build.queue",

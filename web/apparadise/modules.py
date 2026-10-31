@@ -125,9 +125,9 @@ def wrapper_script(r: Release, exe: str, sqsh_dir: str) -> str:
     def case(t: str) -> str:
         if t != "generic":
             return f"    {t}) image={q(sqsh_path(sqsh_dir, r.name, r.version, t))} ;;"
-        # generic has one squashfs per architecture
-        base = sqsh_path(sqsh_dir, r.name, r.version, t, "ARCH")
-        pre, post = base.split("ARCH")
+        # generic has one squashfs per architecture: <path>-<arch>.sqsh, arch chosen at run time
+        pre = sqsh_path(sqsh_dir, r.name, r.version, t).removesuffix(".sqsh") + "-"
+        post = ".sqsh"
         return (f"    {t}) case \"$(uname -m)\" in aarch64) a=arm64 ;; *) a=amd64 ;; esac\n"
                 f"       image={q(pre)}\"$a\"{q(post)} ;;")
     cases = "\n".join(case(t) for t in r.targets)

@@ -206,6 +206,11 @@ MIGRATIONS: list[str] = [
     """
     ALTER TABLE build ADD COLUMN delivered_at TEXT;
     """,
+    # 7: delivery bookkeeping on the build itself (not in the policy settings table)
+    """
+    ALTER TABLE build ADD COLUMN delivery_error TEXT NOT NULL DEFAULT '';
+    ALTER TABLE build ADD COLUMN manifested_at TEXT;
+    """,
 ]
 
 _SECRET_KEY = re.compile(

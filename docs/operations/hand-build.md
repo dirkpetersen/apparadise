@@ -62,6 +62,8 @@ The container must start unprivileged, see the GPU, and pass the smoke test. Fai
 ```bash
 cosign sign --key ... $REGISTRY/public/gromacs@sha256:...
 tools/stage-sqsh $REGISTRY public gromacs 2026.3 rtx sha256:... /shared/containers
+# generic: run once on an x86 node and once on an Arm node, each with that arch's digest;
+# the files become ...-generic-amd64.sqsh and ...-generic-arm64.sqsh
 ```
 
 Then update `catalog/gromacs.yml` (`status: published`, `digest`, `test`, `built`) and

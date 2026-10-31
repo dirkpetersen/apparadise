@@ -156,6 +156,29 @@ async def report(build_id: int, body: ReportBody, request: Request, builder: Bui
     return result
 
 
+@router.get("/deliveries")
+async def deliveries(builder: Builder, db: Annotated[Database, Depends(get_db)]):
+    """Published builds this node should stage as squashfs (its own platform only)."""
+    return {"deliveries": await db.run(coordinator.pending_deliveries, db, builder)}
+
+
+class DeliveryBody(BaseModel):
+    ok: bool
+    error: str = Field("", max_length=500)
+
+
+@router.post("/deliveries/{build_id}")
+async def delivered(build_id: int, body: DeliveryBody, builder: Builder,
+                    db: Annotated[Database, Depends(get_db)]):
+    try:
+        await db.run(coordinator.record_delivery, db, builder, build_id, body.ok, body.error)
+    except coordinator.JobError as e:
+        raise _job_error(e) from None
+    await _audit(db, f"builder:{builder['name']}", "build.deliver", "build", str(build_id),
+                 {"ok": body.ok})
+    return {"ok": True}
+
+
 # -- sysadmin side ------------------------------------------------------------------------
 
 Sysadmin = Annotated[SessionUser, Depends(require_sysadmin)]
