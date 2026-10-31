@@ -113,3 +113,8 @@ export const searchIndex = (q) => api(`/index?q=${enc(q)}`, { announce401: false
 // Sysadmin runtime policy -> {quotaBuildsPerWeek}
 export const getPolicy = () => api("/admin/policy");
 export const setPolicy = (body) => api("/admin/policy", { method: "PUT", json: body });
+
+// Live build log (server-sent events): events "status" ({status, stage}), "log" (lines;
+// the event id is the byte offset, so EventSource resumes by itself) and "end".
+// Sysadmins get the raw log; the requester a scrubbed one. Close it when done.
+export const buildEvents = (id) => new EventSource(`/api/builds/${enc(id)}/events`);

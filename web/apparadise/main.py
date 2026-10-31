@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, builder_api, catalog, coordinator, failures, registry, requests_api, votes
+from . import auth, builder_api, catalog, coordinator, failures, live, registry, requests_api, votes
 from .config import Settings
 from .db import DB_FILENAME, Database
 from .harbor import HarborClient, HarborError, HarborUnavailable
@@ -118,6 +118,8 @@ def create_app(
     # no setting or environment variable can (tests/test_demo.py).
     app.state.demo = False
     app.state.registry_cache = {}  # registry.py: short-lived Harbor answers
+    app.state.sse_poll_seconds = 1.0  # live.py: how often a log stream looks for new lines
+    app.state.sse_max_seconds = 300.0  # then the browser reconnects (Last-Event-ID)
 
     demo_router = APIRouter()
 
@@ -158,6 +160,7 @@ def create_app(
     api.include_router(votes.router)
     api.include_router(requests_api.router)
     api.include_router(requests_api.admin_router)
+    api.include_router(live.router)
     api.include_router(builder_api.router)
     api.include_router(builder_api.admin_router)
     app.include_router(api)

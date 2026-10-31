@@ -61,7 +61,7 @@ function section() {
   if (h === "#/admin") return "admin";
   if (h === "#/registry" || h.startsWith("#/registry/")) return "registry";
   if (h.startsWith("#/failures") || h.startsWith("#/f/")) return "failures";
-  if (h === "#/requests") return "requests";
+  if (h === "#/requests" || h.startsWith("#/b/")) return "requests";
   return h.startsWith("#/p/") ? "" : "catalog";
 }
 

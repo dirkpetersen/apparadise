@@ -7,14 +7,17 @@ import { renderAdmin } from "./views/admin.js";
 import { renderRegistry, renderRepository } from "./views/registry.js";
 import { renderFailure, renderFailures } from "./views/failures.js";
 import { renderRequests } from "./views/requests.js";
+import { liveLog } from "./livelog.js";
 import "./components/confirm-dialog.js";
 import { h } from "./dom.js";
+import { icon } from "./icons.js";
 import { toast } from "./components/toast.js";
 import "./components/code-panel.js";
 
 // Hash routes: "#/" catalog, "#/p/<name>" package page, "#/registry" (and
 // "#/registry/<project>/<repo>") what Harbor holds, "#/failures" (and "#/f/<id>") the
-// public failure database, "#/requests" software requests, "#/admin" build console
+// public failure database, "#/requests" software requests, "#/b/<id>" a live build log,
+// "#/admin" build console
 // (sysadmins; the server enforces the role), "#/login" sign-in.
 // The catalog is public; signing in only matters for sysadmins (restricted
 // packages) and, in later phases, for requests and votes.
@@ -45,9 +48,12 @@ function route() {
   const m = hash.match(/^#\/p\/([^/?#]+)$/);
   const r = hash.match(/^#\/registry\/([^/?#]+)\/([^?#]+)$/);
   const f = hash.match(/^#\/f\/(\d+)$/);
+  const b = hash.match(/^#\/b\/(\d+)$/);
   const query = new URLSearchParams(hash.split("?")[1] || "").get("q") || "";
   const page = hash === "#/admin"
     ? renderAdmin({ me, setTitle })
+    : b
+      ? buildPage(b[1])
     : hash === "#/requests"
       ? renderRequests({ me, setTitle })
     : hash.split("?")[0] === "#/failures"
@@ -62,6 +68,14 @@ function route() {
           ? renderPackage({ name: decodeURIComponent(m[1]), me, setTitle })
           : renderCatalog({ query, setTitle });
   swap(renderShell({ appName, me, onLogout: doLogout, onSignIn, content: page }));
+}
+
+// "#/b/<id>": one build's live log (its requester sees it scrubbed, sysadmins raw).
+function buildPage(id) {
+  setTitle(`Build ${id}`);
+  return h("article", { class: "pkgpage" },
+    h("a", { class: "back", href: "#/requests" }, icon("right", "icon back-icon"), "Requests"),
+    liveLog(id));
 }
 
 function setTitle(t) { document.title = t ? `${t} · ${appName}` : appName; }

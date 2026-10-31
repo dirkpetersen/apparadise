@@ -160,7 +160,11 @@ function requestRow(r, me) {
       h("div", { class: "rq-meta" },
         h("span", { text: r.targets.map((t) => TARGET_LABEL[t] || t).join(" · ") }),
         h("span", { text: `requested ${day(r.created)}${r.requestedBy ? ` by ${r.mine ? "you" : r.requestedBy}` : ""}` }),
-        r.failureId && h("a", { href: `#/f/${r.failureId}`, text: "failure record" }))),
+        r.failureId && h("a", { href: `#/f/${r.failureId}`, text: "failure record" })),
+      r.jobs.length > 0 && h("div", { class: "rq-jobs" }, r.jobs.map((j) => h("a", {
+        href: `#/b/${j.id}`, title: `Build ${j.id}: ${j.status}`,
+        text: `${j.status === "running" || j.status === "queued" ? "Watch" : "Log"}: ${TARGET_LABEL[j.target] || j.target} ${j.platform.replace("linux/", "")}`,
+      })))),
     voteButton({ subject: "request", key: r.id, votes: r.votes, voted: r.voted, me, label: `the request for ${r.package}` }));
 }
 

@@ -68,7 +68,7 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 - [x] Public failure DB: signature grouping, log scrubbing, restricted filtering (`#/failures`, `#/f/<id>`, Q24)
 - [x] Upvotes on packages and failure groups (`PUT/DELETE /api/votes/...`)
 - [ ] Nightly retries when dependencies change upstream
-- [ ] Live build logs (SSE)
+- [x] Live build logs (SSE): `GET /api/builds/{id}/events`, `#/b/<id>`, admin console (Q26)
 
 ## Phase 4: chatbot and auto-repair
 

@@ -242,3 +242,17 @@ with phase 3 code, as Q17 did for phase 2.
   unknown names.
 - Who made a request is visible only to themselves and to sysadmins.
 **Answer:**
+
+## Q26 (2026-10-31): Who can watch a live build log?
+
+**Default:**
+- Sysadmins see the raw log of any build. The user who requested a build sees its log
+  scrubbed (the same scrubbing as the failure database). Restricted builds are visible to
+  sysadmins only.
+- Everyone else gets a 404, so build logs aren't public while a build runs. The public
+  record is the scrubbed failure excerpt.
+- A stream lasts at most 5 minutes, then the browser reconnects by itself and resumes at
+  the byte offset where it stopped.
+
+Making scrubbed live logs public for all public builds would be a one-line change.
+**Answer:**

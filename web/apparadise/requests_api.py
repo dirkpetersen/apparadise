@@ -124,8 +124,12 @@ async def list_requests(request: Request, db: Annotated[Database, Depends(get_db
             "builds": {"active": r["active"], "published": r["published"],
                        "failed": r["failed"]},
             "failureId": r["failure_id"], "restricted": bool(r["restricted"]),
-            # who asked is shown to themselves and to sysadmins only
+            # who asked is shown to themselves and to sysadmins only, and so are the build
+            # jobs (their live logs are theirs to watch: live.py)
             "requestedBy": r["requested_by"] if own or admin else None,
+            "jobs": (await db.run(db.query, "SELECT id, target, platform, status FROM build "
+                                  "WHERE request_id = ? ORDER BY id", (r["id"],)))
+            if own or admin else [],
         })
     return {"requests": out}
 

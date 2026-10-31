@@ -1,9 +1,10 @@
 import { h } from "../dom.js";
 import { icon } from "../icons.js";
-import { createBuilderToken, disableBuilder, getBuildLog, getPolicy, listBuilders, listBuilds, queueBuild, setPolicy } from "../api.js";
+import { createBuilderToken, disableBuilder, getPolicy, listBuilders, listBuilds, queueBuild, setPolicy } from "../api.js";
 import { toast } from "../components/toast.js";
 import { confirmDialog } from "../components/confirm-dialog.js";
 import { STATUS_LABEL, TARGET_LABEL } from "./catalog.js";
+import { liveLog } from "../livelog.js";
 
 // Sysadmin console: queue builds, watch the queue, manage builders.
 const STATUS_FILTERS = [["", "All"], ["queued", "Queued"], ["running", "Running"], ["failed", "Failed"], ["published", "Published"]];
@@ -77,20 +78,10 @@ function buildsPanel() {
         load();
       } } }, label)));
 
-  async function showLog(id) {
+  function showLog(id) {
     open = id;
-    logBox.replaceChildren(h("p", { class: "muted", text: `Loading the log of build ${id}…` }));
-    try {
-      const { log, size } = await getBuildLog(id);
-      const pre = h("pre", { class: "log", tabindex: "0", text: log || "(empty)" });
-      logBox.replaceChildren(h("div", { class: "log-head" },
-        h("strong", { text: `Build ${id}` }), h("span", { class: "muted", text: ` · ${size} bytes, last 64 KiB` }),
-        h("button", { class: "btn btn-ghost btn-icon", type: "button", "aria-label": "Close log",
-          on: { click: () => { open = null; logBox.replaceChildren(); } } }, icon("x"))), pre);
-      pre.scrollTop = pre.scrollHeight;
-    } catch (err) {
-      logBox.replaceChildren(h("p", { class: "form-error", text: err.message }));
-    }
+    // Raw for sysadmins; follows the tail while the build runs (server-sent events).
+    logBox.replaceChildren(liveLog(id, { onClose: () => { open = null; logBox.replaceChildren(); } }));
   }
 
   async function load() {

@@ -44,3 +44,15 @@
 .rq .vote { min-height: 2.75rem; }
 .policy-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-3); }
 .policy-form .input { width: 8rem; }
+
+/* Live build logs (js/livelog.js) */
+.livebox { display: grid; gap: var(--sp-2); }
+.live-log { max-height: 32rem; min-height: 8rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.live-state { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--text-muted); font-size: var(--fs-xs); font-weight: 600; }
+.live-state::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--text-faint); }
+.live-state[data-state="live"]::before { background: var(--success); animation: live-pulse 1.6s ease-in-out infinite; }
+.live-state[data-state="error"]::before { background: var(--danger); }
+@keyframes live-pulse { 50% { opacity: 0.35; } }
+.rq-jobs { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); }
+.rq-jobs a { font-size: var(--fs-xs); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .live-state[data-state="live"]::before { animation: none; } }
