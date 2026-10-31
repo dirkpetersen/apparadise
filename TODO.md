@@ -36,8 +36,12 @@ Code and runbooks are done. What remains needs the hardware, Harbor and a contai
 
 ## Phase 2: automated pipeline
 
-- [ ] Three-way index loader (Spack, EasyBuild, conda-forge linux-64 + linux-aarch64)
-- [ ] Resolver (fixed rule order) with tests per rule
+Offline-testable code is being built ahead of phase 1 hardware (Q17).
+
+
+- [x] Three-way index loader (Spack, EasyBuild, conda-forge linux-64 + linux-aarch64), `python -m apparadise.index`
+- [ ] Nightly refresh job (clone/download upstreams, then run the loader)
+- [x] Resolver (fixed rule order) with tests per rule
 - [ ] Recipe generators: spack.yaml, easystack, pixi.toml (all pinned, base digest pinned)
 - [ ] Coordinator: job queue (`UPDATE ... RETURNING` claim), stages, per-tree EasyBuild lock (Q9)
 - [ ] Builder API `/api/builder/...` (register, claim, log stream, report) + per-builder tokens

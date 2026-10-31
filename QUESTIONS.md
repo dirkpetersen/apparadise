@@ -132,3 +132,19 @@ tell apart.
 against upstream yet, because no container runtime is available on the development host.
 Verify them at the first image build.
 **Answer:**
+
+## Q17 (2026-10-31): May phase 2 code start before phase 1 is fully built?
+
+CLAUDE.md says not to build phase N+1 ahead of phase N. Phase 1's remaining items need
+Harbor, the hardware and a container runtime, and none of those exist on the development host.
+**Default:** yes, for phase 2 code that is testable offline: the index, resolver, recipe
+generation, coordinator and builder API. Nothing user-facing from phase 3 or 4 gets built.
+**Answer:**
+
+## Q18 (2026-10-31): Where does the comparison CSV `cuda_spack_easybuild_pixi.csv` live?
+
+The architecture doc names it as the resolver's lookup table, but I couldn't find it on this
+host. **Default:** `python -m apparadise.index ... --csv` regenerates it from the three
+upstream sources. Its columns are name, spack, easybuild, pixi and sources, with CUDA
+packages only.
+**Answer:**

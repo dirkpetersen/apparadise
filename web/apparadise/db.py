@@ -164,6 +164,12 @@ MIGRATIONS: list[str] = [
     ) STRICT;
     CREATE INDEX audit_ts ON audit_log (ts);
     """,
+    # 2: index lookup by normalised name across sources; Python/ML flag for resolver rule 2
+    """
+    ALTER TABLE index_entry ADD COLUMN norm_name TEXT NOT NULL DEFAULT '';
+    ALTER TABLE index_entry ADD COLUMN is_python INTEGER NOT NULL DEFAULT 0;
+    CREATE INDEX index_norm ON index_entry (norm_name);
+    """,
 ]
 
 _SECRET_KEY = re.compile(
@@ -231,6 +237,7 @@ class Database:
         self.users = Users(self)
         self.packages = Packages(self)
         self.builds = Builds(self)
+        self.index = IndexRepo(self)
         self.audit = AuditLog(self)
 
     # -- plumbing -----------------------------------------------------------
@@ -430,6 +437,55 @@ class Builds(_Repo):
             "ORDER BY b.version DESC, b.target",
             (package_id,),
         )
+
+
+class IndexRepo(_Repo):
+    """The nightly three-way index (Spack, EasyBuild, conda-forge) the resolver reads."""
+
+    def replace_source(self, source: str, items: list[dict[str, Any]]) -> dict[str, int]:
+        """Make the rows of one source match `items` (upsert, then delete the rest)."""
+        ts = now()
+        with self.db.tx() as c:
+            c.execute("CREATE TEMP TABLE IF NOT EXISTS _seen (name TEXT PRIMARY KEY)")
+            c.execute("DELETE FROM _seen")
+            for it in items:
+                c.execute(
+                    "INSERT INTO index_entry (source, upstream_name, norm_name, versions, "
+                    "has_cuda, arches, is_python, refreshed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT (source, upstream_name) DO UPDATE SET "
+                    "norm_name = excluded.norm_name, versions = excluded.versions, "
+                    "has_cuda = excluded.has_cuda, arches = excluded.arches, "
+                    "is_python = excluded.is_python, refreshed_at = excluded.refreshed_at",
+                    (source, it["upstream_name"], it["norm_name"], json.dumps(it["versions"]),
+                     int(it["has_cuda"]), json.dumps(it["arches"]), int(it["is_python"]), ts),
+                )
+                c.execute("INSERT OR IGNORE INTO _seen (name) VALUES (?)", (it["upstream_name"],))
+            removed = c.execute(
+                "DELETE FROM index_entry WHERE source = ? AND upstream_name NOT IN "
+                "(SELECT name FROM _seen)", (source,)).rowcount
+        return {"upserted": len(items), "removed": removed}
+
+    def lookup(self, norm_names: list[str]) -> list[dict[str, Any]]:
+        if not norm_names:
+            return []
+        marks = ", ".join("?" * len(norm_names))
+        rows = self.db.query(
+            f"SELECT * FROM index_entry WHERE norm_name IN ({marks}) "
+            "ORDER BY source, upstream_name", tuple(norm_names))
+        for r in rows:
+            r["versions"] = json.loads(r["versions"])
+            r["arches"] = json.loads(r["arches"])
+            r["has_cuda"] = bool(r["has_cuda"])
+            r["is_python"] = bool(r["is_python"])
+        return rows
+
+    def counts(self) -> dict[str, dict[str, int]]:
+        out: dict[str, dict[str, int]] = {}
+        for r in self.db.query(
+            "SELECT source, COUNT(*) AS n, SUM(has_cuda) AS cuda FROM index_entry GROUP BY source"
+        ):
+            out[r["source"]] = {"packages": r["n"], "cuda": r["cuda"] or 0}
+        return out
 
 
 class AuditLog(_Repo):
