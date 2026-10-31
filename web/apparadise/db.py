@@ -17,6 +17,7 @@ no SKIP LOCKED, logs as files.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -170,6 +171,29 @@ MIGRATIONS: list[str] = [
     ALTER TABLE index_entry ADD COLUMN is_python INTEGER NOT NULL DEFAULT 0;
     CREATE INDEX index_norm ON index_entry (norm_name);
     """,
+    # 3: pull-based builders (CLAUDE.md "Builders pull, and the server never pushes")
+    """
+    CREATE TABLE builder_token (
+        token_hash  TEXT PRIMARY KEY,          -- sha256 of a one-time registration token
+        created_by  TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        expires_at  TEXT NOT NULL,
+        used_at     TEXT
+    ) STRICT;
+    CREATE TABLE builder (
+        id            INTEGER PRIMARY KEY,
+        name          TEXT NOT NULL UNIQUE,
+        platform      TEXT NOT NULL CHECK (platform IN ('linux/amd64', 'linux/arm64')),
+        onprem        INTEGER NOT NULL DEFAULT 1,  -- restricted builds only go on-prem
+        token_hash    TEXT NOT NULL UNIQUE,        -- sha256 of the per-builder bearer token
+        registered_at TEXT NOT NULL,
+        last_seen     TEXT,
+        disabled      INTEGER NOT NULL DEFAULT 0
+    ) STRICT;
+    ALTER TABLE build ADD COLUMN platform TEXT NOT NULL DEFAULT '';
+    ALTER TABLE build ADD COLUMN builder_id INTEGER REFERENCES builder (id);
+    ALTER TABLE build ADD COLUMN restricted INTEGER NOT NULL DEFAULT 0;
+    """,
 ]
 
 _SECRET_KEY = re.compile(
@@ -238,6 +262,8 @@ class Database:
         self.packages = Packages(self)
         self.builds = Builds(self)
         self.index = IndexRepo(self)
+        self.builders = Builders(self)
+        self.failures = Failures(self)
         self.audit = AuditLog(self)
 
     # -- plumbing -----------------------------------------------------------
@@ -486,6 +512,82 @@ class IndexRepo(_Repo):
         ):
             out[r["source"]] = {"packages": r["n"], "cuda": r["cuda"] or 0}
         return out
+
+
+def token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+class Builders(_Repo):
+    """Builder registration. Tokens are stored as sha256 hashes only."""
+
+    def add_registration_token(self, token: str, by: str, expires_at: str) -> None:
+        with self.db.tx() as c:
+            c.execute("INSERT INTO builder_token (token_hash, created_by, created_at, expires_at) "
+                      "VALUES (?, ?, ?, ?)", (token_hash(token), by, now(), expires_at))
+
+    def register(self, registration_token: str, name: str, platform: str, onprem: bool,
+                 builder_token: str) -> int | None:
+        """Consume a one-time token and create (or re-key) a builder. None if the token is
+        unknown, used or expired."""
+        ts = now()
+        with self.db.tx() as c:
+            row = c.execute(
+                "UPDATE builder_token SET used_at = ? WHERE token_hash = ? AND used_at IS NULL "
+                "AND expires_at > ? RETURNING token_hash",
+                (ts, token_hash(registration_token), ts)).fetchone()
+            if row is None:
+                return None
+            return c.execute(
+                "INSERT INTO builder (name, platform, onprem, token_hash, registered_at) "
+                "VALUES (?, ?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET "
+                "platform = excluded.platform, onprem = excluded.onprem, "
+                "token_hash = excluded.token_hash, registered_at = excluded.registered_at, "
+                "disabled = 0 RETURNING id",
+                (name, platform, int(onprem), token_hash(builder_token), ts)).fetchone()[0]
+
+    def by_token(self, token: str) -> dict[str, Any] | None:
+        row = self.db.query_one("SELECT * FROM builder WHERE token_hash = ? AND disabled = 0",
+                                (token_hash(token),))
+        if row:
+            with self.db.tx() as c:
+                c.execute("UPDATE builder SET last_seen = ? WHERE id = ?", (now(), row["id"]))
+        return row
+
+    def list(self) -> list[dict[str, Any]]:
+        return self.db.query("SELECT id, name, platform, onprem, registered_at, last_seen, "
+                             "disabled FROM builder ORDER BY name")
+
+    def disable(self, builder_id: int) -> bool:
+        with self.db.tx() as c:
+            return c.execute("UPDATE builder SET disabled = 1 WHERE id = ?",
+                             (builder_id,)).rowcount > 0
+
+
+class Failures(_Repo):
+    def record(self, build_id: int, signature: str, stage: str, excerpt: str,
+               restricted: bool) -> int:
+        """Attach a failed build to its failure group (by signature), creating the group.
+        Restricted and public failures never share a group: the signature includes the
+        restricted flag (failures.signature), so a restricted log never reaches a public row."""
+        ts = now()
+        with self.db.tx() as c:
+            fid = c.execute(
+                "INSERT INTO failure (signature, stage, first_build_id, last_build_id, "
+                "log_excerpt, restricted, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT (signature) DO UPDATE SET last_build_id = excluded.last_build_id, "
+                "log_excerpt = excluded.log_excerpt, updated_at = excluded.updated_at "
+                "RETURNING id",
+                (signature, stage, build_id, build_id, excerpt, int(restricted), ts, ts),
+            ).fetchone()[0]
+            c.execute("UPDATE build SET failure_id = ? WHERE id = ?", (fid, build_id))
+            return fid
+
+    def get(self, failure_id: int) -> dict[str, Any] | None:
+        row = self.db.query_one(
+            "SELECT f.*, (SELECT COUNT(*) FROM build b WHERE b.failure_id = f.id) AS builds "
+            "FROM failure f WHERE f.id = ?", (failure_id,))
+        return row
 
 
 class AuditLog(_Repo):

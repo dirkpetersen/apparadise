@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, catalog
+from . import auth, builder_api, catalog
 from .config import Settings
 from .db import DB_FILENAME, Database
 from .ldapauth import AdAuthenticator
@@ -105,6 +105,8 @@ def create_app(
     api.include_router(auth.router)
     api.include_router(demo_router)
     api.include_router(catalog.router)
+    api.include_router(builder_api.router)
+    api.include_router(builder_api.admin_router)
     app.include_router(api)
 
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

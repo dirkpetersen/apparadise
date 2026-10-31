@@ -13,7 +13,7 @@ The phased plan from the architecture doc. Tick items as they land. Questions go
 - [x] `mock/` LDAP directory + `mock/demo.py`
 - [x] Frontend shell: tokens.css, dom.js `h()`, api.js, theme, login view, showcase.html
 - [x] Tests enforcing CSP/static rules, `.env.default` parity
-- [ ] `tests/web/test_audit_coverage.py` (once there are mutating routes beyond login/logout)
+- [x] `tests/web/test_audit_coverage.py`
 - [x] Zensical docs skeleton, `docs/stack.md`
 
 ## Phase 1: hand-built catalog
@@ -42,9 +42,11 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 - [x] Three-way index loader (Spack, EasyBuild, conda-forge linux-64 + linux-aarch64), `python -m apparadise.index`
 - [ ] Nightly refresh job (clone/download upstreams, then run the loader)
 - [x] Resolver (fixed rule order) with tests per rule
-- [ ] Recipe generators: spack.yaml, easystack, pixi.toml (all pinned, base digest pinned)
-- [ ] Coordinator: job queue (`UPDATE ... RETURNING` claim), stages, per-tree EasyBuild lock (Q9)
-- [ ] Builder API `/api/builder/...` (register, claim, log stream, report) + per-builder tokens
+- [~] Recipe generators: templates render per target/platform; still to do: pin base digest, real easyconfig lookup
+- [x] Coordinator: job queue (`UPDATE ... RETURNING` claim), stages, per-tree EasyBuild lock (Q9)
+- [x] Builder API `/api/builder/...` (register, claim, log stream, report) + per-builder tokens
+- [x] Sysadmin routes: registration tokens, builders, `POST /api/admin/builds` (resolve + render + queue)
+- [x] Failure signatures + log scrubbing (groups e.g. gprofng across binutils versions)
 - [ ] `builder/` agent: pull loop, local-container launcher, Slurm launcher
 - [ ] Harbor client: robot token per job, push, sign
 - [ ] Test stage as low-priority Slurm job via Pyxis
