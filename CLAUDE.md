@@ -86,6 +86,7 @@ mock/           fake directory, fake Harbor, sample catalog, demo (mock/demo.py)
 tests/web/      tests for web/; tests/builder/ drives the builder against the real app
                 (ASGI, fake command runner). Run both from web/: .venv/bin/pytest
 docs/           Markdown for Zensical; docs/stack.md lists versions
+app.py  requirements.txt  .env.default   repo-root deploy = web app only (see Deployment)
 TODO.md  QUESTIONS.md  zensical.toml  ruff.toml (lint config for mock/ and tests/)
 ```
 
@@ -246,6 +247,11 @@ appear in public catalog, index or failure responses. Test that.
 - appmotel can deploy an app from a subfolder of the repo. It starts each app as
   `.venv/bin/python3 app.py` with that app's folder (`web/` or `builder/`) as the working
   directory, and installs from that folder's `requirements.txt` (not `pyproject.toml`).
+- **The default (repo-root) deploy is the web app only.** The root `app.py` runs `web/app.py`
+  from inside `web/`, the root `requirements.txt` is just `-r web/requirements.txt`, and the root
+  `.env.default` is a symlink to `web/.env.default`. Without `app.py`, appmotel would serve the root
+  `zensical.toml` as a docs site. Never add builder dependencies to the root requirements; the
+  builder is deployed only from `builder/`. `tests/web/test_root_deploy.py` checks this.
 - Set `HEALTH_CHECK_PATH=/health` in `.env.default`. appmotel replaces a `PORT` below 10001 with
   one it assigns itself, so `PORT=8000` stays fine for local development.
 - `MEMORY_LIMIT` (default 512M) covers every process of an app. Set a much larger value in the

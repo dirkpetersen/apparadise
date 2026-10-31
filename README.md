@@ -156,8 +156,9 @@ This project uses the same stack as [Bucketeer](https://github.com/dirkpetersen/
 
 ## Repository layout
 
-- `web/`: FastAPI app, build coordinator and static frontend (appmotel app)
-- `builder/`: pull-based builder agent (separate appmotel app)
+- `web/`: FastAPI app, build coordinator and static frontend (appmotel app). A plain
+  `appmo add` of the repo root deploys this app only (root `app.py` runs `web/app.py`).
+- `builder/`: pull-based builder agent (separate appmotel app, deployed from `builder/`)
 - `mock/`, `tests/`, `docs/`: shared mocks, tests and Zensical docs
 
 See `CLAUDE.md` for development conventions and commands.

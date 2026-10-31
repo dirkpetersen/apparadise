@@ -20,7 +20,12 @@ proxy cache ([Harbor](harbor.md)). Create an admin account that can create syste
 
 ## 3. Web app (appmotel app 1, `web/`)
 
-Fill in `web/.env`:
+Deploy the repo root: `appmo add apparadise dirkpetersen/apparadise`. The root `app.py`,
+`requirements.txt` and `.env.default` (a link to `web/.env.default`) make this install and
+run the web app only, from `web/`. It never installs the builder. Deploying the subfolder
+(`.../tree/main/web`) gives the same result.
+
+Fill in the app's `.env` (`appmo env apparadise`):
 - the REQUIRED settings, and `LDAP_REQUIRED_GROUP_DN` if needed (Q2),
 - `REGISTRY_HOST`,
 - `HARBOR_URL`, `HARBOR_USERNAME` and `HARBOR_PASSWORD`.

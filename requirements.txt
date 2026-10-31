@@ -1,0 +1,3 @@
+# The repo-root deploy is the web app only (see app.py). The builder has its own
+# builder/requirements.txt and is deployed separately from builder/.
+-r web/requirements.txt

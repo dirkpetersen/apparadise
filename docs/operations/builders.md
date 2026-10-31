@@ -13,8 +13,9 @@ or an EC2 spot instance. Restricted builds only go to on-prem builders
    `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`.
 3. Copy `.env.default` to `.env` and set `COORDINATOR_URL`, `BUILDER_NAME`, `REGISTRY_HOST`
    and `REGISTRATION_TOKEN`.
-4. Start it with `.venv/bin/python3 app.py`, or deploy it as its own appmotel app with a large
-   `MEMORY_LIMIT`. On first start it trades the token for a builder token, which it keeps in
+4. Start it with `.venv/bin/python3 app.py`, or deploy it as its own appmotel app from the
+   subfolder (`appmo add apparadise-builder dirkpetersen/apparadise/tree/main/builder`) with a
+   large `MEMORY_LIMIT`. A plain deploy of the repo root installs the web app only. On first start it trades the token for a builder token, which it keeps in
    `data/builder.token` (mode 0600). After that you can remove `REGISTRATION_TOKEN`.
 
 To retire a builder, use **Disable** on the admin page. It can no longer claim jobs.
