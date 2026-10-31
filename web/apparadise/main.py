@@ -8,10 +8,22 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import anthropic
 from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, builder_api, catalog, coordinator, failures, live, registry, requests_api, votes
+from . import (
+    auth,
+    builder_api,
+    catalog,
+    chatbot,
+    coordinator,
+    failures,
+    live,
+    registry,
+    requests_api,
+    votes,
+)
 from .config import Settings
 from .db import DB_FILENAME, Database
 from .harbor import HarborClient, HarborError, HarborUnavailable
@@ -73,6 +85,7 @@ def create_app(
     load_catalog: bool = True,
     harbor: HarborClient | None = None,
     background: bool = True,
+    anthropic_client: anthropic.AsyncAnthropic | None = None,
 ) -> FastAPI:
     """`db`: an already-open database (e.g. in-memory), which the caller then closes;
     `authenticator`: a fake-LDAP one; `clock` drives session expiry and the login
@@ -82,7 +95,7 @@ def create_app(
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     # httpx logs every request URL at INFO, which names internal hosts (Harbor, Slurm).
-    for noisy in ("httpx", "httpcore"):
+    for noisy in ("httpx", "httpcore", "httpx2", "anthropic"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
     @asynccontextmanager
@@ -102,6 +115,8 @@ def create_app(
             await asyncio.gather(*tasks, return_exceptions=True)
             if _app.state.harbor is not None:
                 await _app.state.harbor.aclose()
+            if _app.state.anthropic is not None:
+                await _app.state.anthropic.close()
             if owned:
                 _app.state.db.close()
 
@@ -118,6 +133,12 @@ def create_app(
     # no setting or environment variable can (tests/test_demo.py).
     app.state.demo = False
     app.state.registry_cache = {}  # registry.py: short-lived Harbor answers
+    # The chatbot's Claude client (one per app; None without ANTHROPIC_API_KEY) and its
+    # in-process conversations.
+    key = settings.anthropic_api_key.get_secret_value()
+    app.state.anthropic = anthropic_client or (anthropic.AsyncAnthropic(api_key=key) if key
+                                               else None)
+    app.state.chat = chatbot.ChatState(clock)
     app.state.sse_poll_seconds = 1.0  # live.py: how often a log stream looks for new lines
     app.state.sse_max_seconds = 300.0  # then the browser reconnects (Last-Event-ID)
 
@@ -161,6 +182,7 @@ def create_app(
     api.include_router(requests_api.router)
     api.include_router(requests_api.admin_router)
     api.include_router(live.router)
+    api.include_router(chatbot.router)
     api.include_router(builder_api.router)
     api.include_router(builder_api.admin_router)
     app.include_router(api)

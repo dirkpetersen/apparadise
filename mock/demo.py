@@ -9,6 +9,8 @@ Runs the real app (real login flow, throttle, sessions, CSRF) on 127.0.0.1 with:
 - the sample catalog in mock/catalog/ (published, building, failed and restricted entries);
 - a fake Harbor (mock/harbor_mock.py, in-process) seeded from that catalog, for the Registry
   page and the per-job robot accounts;
+- a fake Claude (mock/claude_mock.py: keyword rules, no API key) behind the Ask page, which
+  still runs the real tool loop;
 - a temporary DATA_DIR, removed on exit unless --keep-data.
 
 Dev tooling only: nothing in web/apparadise imports this, and no setting or environment
@@ -123,7 +125,8 @@ def seed_failures(db) -> None:
                            error_line=failures.scrub(line))
 
 
-def build_demo_app(settings: Settings, db=None, directory: DemoDirectory | None = None):
+def build_demo_app(settings: Settings, db=None, directory: DemoDirectory | None = None,
+                   anthropic_client=None):
     from apparadise.db import DB_FILENAME, Database
 
     if db is None:
@@ -138,7 +141,17 @@ def build_demo_app(settings: Settings, db=None, directory: DemoDirectory | None 
     fake_harbor = create_harbor()
     seed_from_catalog(fake_harbor, settings.catalog_dir)
     harbor = HarborClient(settings, transport=httpx.ASGITransport(app=fake_harbor))
-    app = create_app(settings, db=db, authenticator=directory or DemoDirectory(), harbor=harbor)
+    if anthropic_client is None:  # the keyword-rule stand-in, never the real API
+        import anthropic
+        import httpx2
+
+        from mock.claude_mock import FakeClaude
+
+        anthropic_client = anthropic.AsyncAnthropic(
+            api_key="demo", max_retries=0, http_client=anthropic.DefaultAsyncHttpxClient(
+                transport=httpx2.MockTransport(FakeClaude().handler)))
+    app = create_app(settings, db=db, authenticator=directory or DemoDirectory(), harbor=harbor,
+                     anthropic_client=anthropic_client)
     # The catalog loads at startup, and failures need its packages: seed after it.
     from apparadise.catalog import load_and_sync
 

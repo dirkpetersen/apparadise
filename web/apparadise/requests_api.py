@@ -46,12 +46,11 @@ def _restricted_names(db: Database) -> set[str]:
     return out
 
 
-@router.get("/index")
-async def search_index(request: Request, db: Annotated[Database, Depends(get_db)],
-                       q: Annotated[str, Query(min_length=2, max_length=64)]) -> dict[str, Any]:
-    user = current_user(request)
-    rows = await db.run(db.index.search, q.strip())
-    hidden = set() if user and user.is_admin else await db.run(_restricted_names, db)
+def index_search(db: Database, q: str, admin: bool) -> list[dict[str, Any]]:
+    """Index matches grouped by normalised name, with the resolver's pick. Shared with the
+    chatbot's search_index tool. Restricted names are hidden unless `admin`."""
+    rows = db.index.search(q.strip())
+    hidden = set() if admin else _restricted_names(db)
     groups: dict[str, list[dict[str, Any]]] = {}
     for r in rows:
         if r["norm_name"] not in hidden:
@@ -67,7 +66,14 @@ async def search_index(request: Request, db: Annotated[Database, Depends(get_db)
             "resolution": {"source": res.source, "rule": res.rule, "reason": res.reason,
                            "cudaPort": res.cuda_port, "versions": list(res.versions[:6])},
         })
-    return {"results": out}
+    return out
+
+
+@router.get("/index")
+async def search_index(request: Request, db: Annotated[Database, Depends(get_db)],
+                       q: Annotated[str, Query(min_length=2, max_length=64)]) -> dict[str, Any]:
+    user = current_user(request)
+    return {"results": await db.run(index_search, db, q, bool(user and user.is_admin))}
 
 
 @router.get("/quota")
@@ -80,28 +86,39 @@ async def my_quota(user: Annotated[SessionUser, Depends(require_user)],
     return {"unlimited": False, "limit": limit, "used": used, "left": max(limit - used, 0)}
 
 
+async def submit_request(db: Database, settings: Any, user: SessionUser, *, name: str,
+                         version: str = "", targets: list[str] | None = None,
+                         source: str | None = None, via: str = "web") -> dict[str, Any]:
+    """Queue a user's request within their quota. Raises QueueError. Shared with the
+    chatbot's create_request tool (`via="chatbot"`)."""
+    targets = list(targets or DEFAULT_TARGETS)
+    res = await db.run(queue_builds, db, settings, package=name, version=version,
+                       targets=targets, source=source, requested_by=user.username,
+                       admin=user.is_admin, skip_existing=True, enforce_quota=True)
+    rid = None
+    if res["queued"]:
+        queued_targets = list(dict.fromkeys(q["target"] for q in res["queued"]))
+        rid = await db.run(db.requests.create, res["packageId"], res["version"],
+                           queued_targets, user.username, res["restricted"],
+                           [q["id"] for q in res["queued"]])
+    await db.run(db.audit.add, user.username, "request.create", "package", name,
+                 {"request": rid, "version": res["version"], "source": res["source"],
+                  "queued": [q["id"] for q in res["queued"]], "via": via})
+    return {"request": rid, **{k: res[k] for k in ("package", "version", "source", "rule",
+                                                    "reason", "cudaPort", "queued",
+                                                    "skipped")}}
+
+
 @router.post("/requests")
 async def create_request(body: RequestBody, request: Request,
                          user: Annotated[SessionUser, Depends(require_user)],
                          db: Annotated[Database, Depends(get_db)]) -> dict[str, Any]:
     try:
-        res = await db.run(queue_builds, db, request.app.state.settings, package=body.name,
-                           version=body.version, targets=body.targets, source=body.source,
-                           requested_by=user.username, admin=user.is_admin,
-                           skip_existing=True, enforce_quota=True)
+        return await submit_request(db, request.app.state.settings, user, name=body.name,
+                                    version=body.version, targets=body.targets,
+                                    source=body.source)
     except QueueError as e:
         raise HTTPException(e.status, e.message) from None
-    rid = None
-    if res["queued"]:
-        targets = list(dict.fromkeys(q["target"] for q in res["queued"]))
-        rid = await db.run(db.requests.create, res["packageId"], res["version"], targets,
-                           user.username, res["restricted"], [q["id"] for q in res["queued"]])
-    await db.run(db.audit.add, user.username, "request.create", "package", body.name,
-                 {"request": rid, "version": res["version"], "source": res["source"],
-                  "queued": [q["id"] for q in res["queued"]]})
-    return {"request": rid, **{k: res[k] for k in ("package", "version", "source", "rule",
-                                                    "reason", "cudaPort", "queued",
-                                                    "skipped")}}
 
 
 @router.get("/requests")

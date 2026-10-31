@@ -256,3 +256,19 @@ with phase 3 code, as Q17 did for phase 2.
 
 Making scrubbed live logs public for all public builds would be a one-line change.
 **Answer:**
+
+## Q27 (2026-10-31): Chatbot defaults
+
+**Default:**
+- Model `claude-opus-5-5` (`CHAT_MODEL`), effort `medium`, with the server-side refusal
+  fallback (`fallbacks: "default"`). With no `ANTHROPIC_API_KEY` the page says the assistant
+  is switched off.
+- `create_request` and `start_build` only *propose*. The user confirms with a button, which
+  calls the normal request or queue API (quota, CSRF, audit). Text that comes from recipes,
+  indexes or build logs can therefore never spend anyone's quota through the model (prompt
+  injection).
+- Conversations are kept in the server's memory for 2 hours: 30 messages per conversation,
+  40 messages per user per hour. They are lost on restart. The audit log records that a
+  message was sent and which tools ran, never the text.
+- The demo uses a keyword-rule stand-in (`mock/claude_mock.py`), never the real API.
+**Answer:**

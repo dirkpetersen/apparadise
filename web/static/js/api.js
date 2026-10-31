@@ -118,3 +118,10 @@ export const setPolicy = (body) => api("/admin/policy", { method: "PUT", json: b
 // the event id is the byte offset, so EventSource resumes by itself) and "end".
 // Sysadmins get the raw log; the requester a scrubbed one. Close it when done.
 export const buildEvents = (id) => new EventSource(`/api/builds/${enc(id)}/events`);
+
+// Request chatbot (phase 4). status -> {enabled, model}. send -> {conversation, reply,
+// proposals: [{kind: "request"|"build", name, version, targets, source, resolution?}], tools}.
+// Proposals never act on their own: the page confirms them with createRequest / queueBuild.
+export const getChatStatus = () => api("/chat", { announce401: false });
+export const sendChat = (message, conversation) =>
+  api("/chat", { method: "POST", json: { message, conversation } });

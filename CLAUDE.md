@@ -99,7 +99,7 @@ resolve/render/queue path + quota), requests_api (`/api/requests`, `/api/index`,
 `/api/admin/policy`), live (`/api/builds/{id}/events`, SSE live logs), retry (nightly re-queue of failed builds),
 registry (`/api/registry`, the
 Registry page: `public` for everyone, `restricted` and `cache` for sysadmins, 30 s cache). `builder/apparadise_builder/`: config, agent, launchers, scale.
-chatbot, slurm and runai are still to come. Frontend views: catalog, package, registry,
+chatbot (`/api/chat`: five tools; create_request/start_build only propose, the user confirms). slurm and runai are still to come. Frontend views: catalog, package, registry,
 requests, failures, admin, login; `js/vote.js` is the upvote button; use `replace(el, [...])` from
 `dom.js`, not native `replaceChildren`, when children may be `cond && node`.
 **appmotel gotcha:** a top-level directory named `frontend`, `backend`, `api`, `worker`, `db` or

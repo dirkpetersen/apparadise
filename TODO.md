@@ -72,6 +72,6 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 
 ## Phase 4: chatbot and auto-repair
 
-- [ ] Chatbot page with the five tools (Q12)
+- [x] Chatbot page with the five tools (`#/ask`; Q12, Q27): Claude via the SDK, proposals confirmed by the user, keyword stand-in in the demo
 - [ ] Bounded auto-repair with a known-patch library (seeded from `docs/lessons/`)
 - [ ] Upstream PR offers

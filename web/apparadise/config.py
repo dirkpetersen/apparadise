@@ -74,6 +74,11 @@ class Settings(BaseSettings):
     # send a heartbeat every minute while working).
     builder_stale_minutes: int = Field(30, ge=5)
 
+    # Request chatbot (phase 4). Empty ANTHROPIC_API_KEY: the chatbot page says it is off.
+    # The key stays on the server; the browser never sees it.
+    anthropic_api_key: SecretStr = SecretStr("")
+    chat_model: str = Field("claude-opus-5-5", min_length=1)
+
     @field_validator("ldap_url", mode="before")
     @classmethod
     def _split_urls(cls, v):

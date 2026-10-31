@@ -62,6 +62,7 @@ function section() {
   if (h === "#/registry" || h.startsWith("#/registry/")) return "registry";
   if (h.startsWith("#/failures") || h.startsWith("#/f/")) return "failures";
   if (h === "#/requests" || h.startsWith("#/b/")) return "requests";
+  if (h === "#/ask") return "ask";
   return h.startsWith("#/p/") ? "" : "catalog";
 }
 
@@ -81,6 +82,7 @@ export function renderShell({ appName, me, onLogout, onSignIn, content }) {
         h("nav", { class: "hdr-nav", "aria-label": "Main" },
           h("a", { href: "#/", text: "Catalog", "aria-current": section() === "catalog" ? "page" : null }),
           h("a", { href: "#/registry", text: "Registry", "aria-current": section() === "registry" ? "page" : null }),
+          h("a", { href: "#/ask", text: "Ask", "aria-current": section() === "ask" ? "page" : null }),
           h("a", { href: "#/requests", text: "Requests", "aria-current": section() === "requests" ? "page" : null }),
           h("a", { href: "#/failures", text: "Failures", "aria-current": section() === "failures" ? "page" : null }),
           me?.isSysadmin && h("a", { href: "#/admin", text: "Admin", "aria-current": section() === "admin" ? "page" : null })),

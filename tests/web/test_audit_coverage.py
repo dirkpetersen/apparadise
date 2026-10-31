@@ -24,12 +24,14 @@ ROUTES = {
     ("DELETE", "/api/votes/{subject}/{key}"): "vote.remove",
     ("POST", "/api/requests"): "request.create",
     ("PUT", "/api/admin/policy"): "policy.update",
+    ("POST", "/api/chat"): "chat.message",
 }
 NOT_AUDITED = {
     # High-volume log streaming; the build row and the log file are the record.
     ("POST", "/api/builder/jobs/{build_id}/log"),
 }
-SOURCES = ["auth.py", "builder_api.py", "votes.py", "requests_api.py"]
+SOURCES = ["auth.py", "builder_api.py", "votes.py", "requests_api.py",
+           "chatbot.py"]
 
 
 def mutating_routes(tmp_path):

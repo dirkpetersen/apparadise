@@ -7,6 +7,7 @@ import { renderAdmin } from "./views/admin.js";
 import { renderRegistry, renderRepository } from "./views/registry.js";
 import { renderFailure, renderFailures } from "./views/failures.js";
 import { renderRequests } from "./views/requests.js";
+import { renderChat } from "./views/chat.js";
 import { liveLog } from "./livelog.js";
 import "./components/confirm-dialog.js";
 import { h } from "./dom.js";
@@ -16,7 +17,7 @@ import "./components/code-panel.js";
 
 // Hash routes: "#/" catalog, "#/p/<name>" package page, "#/registry" (and
 // "#/registry/<project>/<repo>") what Harbor holds, "#/failures" (and "#/f/<id>") the
-// public failure database, "#/requests" software requests, "#/b/<id>" a live build log,
+// public failure database, "#/ask" the request chatbot, "#/requests" software requests, "#/b/<id>" a live build log,
 // "#/admin" build console
 // (sysadmins; the server enforces the role), "#/login" sign-in.
 // The catalog is public; signing in only matters for sysadmins (restricted
@@ -54,6 +55,8 @@ function route() {
     ? renderAdmin({ me, setTitle })
     : b
       ? buildPage(b[1])
+    : hash === "#/ask"
+      ? renderChat({ me, setTitle })
     : hash === "#/requests"
       ? renderRequests({ me, setTitle })
     : hash.split("?")[0] === "#/failures"
