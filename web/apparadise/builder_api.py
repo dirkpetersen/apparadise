@@ -82,6 +82,12 @@ async def register(body: RegisterBody, db: Annotated[Database, Depends(get_db)])
     return {"id": bid, "token": builder_token}
 
 
+@router.get("/queue")
+async def queue_depth(_: Builder, db: Annotated[Database, Depends(get_db)]):
+    """Counts per platform for autoscalers: {queued: {platform: n}, running: {...}}."""
+    return await db.run(db.builds.queue_counts)
+
+
 @router.post("/claim")
 async def claim(builder: Builder, request: Request, response: Response,
                 db: Annotated[Database, Depends(get_db)]):

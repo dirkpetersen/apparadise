@@ -474,6 +474,15 @@ class Builds(_Repo):
                     ),
                 )
 
+    def queue_counts(self) -> dict[str, dict[str, int]]:
+        """Queued and running pipeline builds per platform (counts only, no names)."""
+        out: dict[str, dict[str, int]] = {"queued": {}, "running": {}}
+        for r in self.db.query("SELECT status, platform, COUNT(*) AS n FROM build "
+                               "WHERE origin = 'pipeline' AND status IN ('queued', 'running') "
+                               "GROUP BY status, platform"):
+            out[r["status"]][r["platform"]] = r["n"]
+        return out
+
     def recent(self, *, status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         """Pipeline builds, newest first, for the sysadmin queue view."""
         where = "WHERE b.origin = 'pipeline'" + (" AND b.status = ?" if status else "")

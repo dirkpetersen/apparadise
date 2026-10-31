@@ -235,3 +235,12 @@ def test_reaper_fails_jobs_of_silent_builders(env):
     # the builder can no longer report on it
     r = c.post(f"/api/builder/jobs/{jid}/report", headers=bh, json={"stage": "build", "ok": True})
     assert r.status_code == 409
+
+
+def test_queue_counts_for_builders(env):
+    c, _, _ = env
+    bh, _ = new_builder(c)
+    assert c.get("/api/builder/queue").status_code == 401
+    queue(c, package="gromacs", version="2026.3", targets=["rtx"])
+    assert c.get("/api/builder/queue", headers=bh).json() == {
+        "queued": {"linux/amd64": 1}, "running": {}}
