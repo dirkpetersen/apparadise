@@ -104,7 +104,9 @@ function buildsPanel() {
         h("td", { class: "mono", text: `${b.target} · ${b.platform.replace("linux/", "")}` }),
         h("td", { text: b.source }),
         h("td", {}, h("span", { class: "status", "data-status": b.status, text: STATUS_LABEL[b.status] || b.status }),
-          b.stage ? h("span", { class: "muted", text: ` ${b.stage}` }) : null),
+          // The stage matters while running (where it is) and on failure (where it broke).
+          b.stage && (b.status === "running" || b.status === "failed")
+            ? h("span", { class: "muted", text: ` ${b.status === "failed" ? "at " : ""}${b.stage}` }) : null),
         h("td", { class: "muted", text: b.builder || "—" }),
         h("td", { class: "muted", text: time(b.finished_at || b.started_at || b.created_at) }),
         h("td", {}, b.hasLog ? h("button", { class: "btn btn-ghost", type: "button", on: { click: () => showLog(b.id) } }, "Log") : null)))
