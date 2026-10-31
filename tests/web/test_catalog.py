@@ -161,3 +161,18 @@ def test_list_summary(client):
 
 def test_unknown_package_404(client):
     assert client.get("/api/catalog/nope").status_code == 404
+
+
+def test_removing_catalog_file_keeps_pipeline_history():
+    from apparadise import coordinator
+
+    db = Database(":memory:")
+    sync(db, [parse_entry(entry())])
+    pid = db.packages.get("gromacs")["id"]
+    coordinator.enqueue(db, pid, "2026.4", "spack", "rtx", "linux/amd64", "r",
+                        requested_by="dana", restricted=False)
+    sync(db, [])
+    pkg = db.packages.get("gromacs")
+    assert pkg is not None and pkg["origin"] == "request"
+    builds = db.builds.for_package(pkg["id"])
+    assert [(b["version"], b["origin"]) for b in builds] == [("2026.4", "pipeline")]

@@ -165,7 +165,7 @@ def sync(db: Database, entries: list[dict[str, Any]]) -> dict[str, int]:
     removed = 0
     for name in db.packages.names("catalog"):
         if name not in wanted:
-            db.packages.delete(name)
+            db.packages.retire_from_catalog(name)  # keeps pipeline build history
             removed += 1
     for e in entries:
         pid = db.packages.upsert({**e, "origin": "catalog"})

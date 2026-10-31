@@ -383,7 +383,8 @@ class Packages(_Repo):
                 "title = excluded.title, description = excluded.description, "
                 "homepage = excluded.homepage, visibility = excluded.visibility, "
                 "aliases = excluded.aliases, executables = excluded.executables, "
-                "tags = excluded.tags, updated_at = excluded.updated_at RETURNING id",
+                "tags = excluded.tags, origin = excluded.origin, "
+                "updated_at = excluded.updated_at RETURNING id",
                 (
                     pkg["name"], pkg["title"], pkg.get("description", ""),
                     pkg.get("homepage", ""), pkg.get("visibility", "public"),
@@ -431,6 +432,21 @@ class Packages(_Repo):
     def delete(self, name: str) -> bool:
         with self.db.tx() as c:
             return c.execute("DELETE FROM package WHERE name = ?", (name,)).rowcount > 0
+
+    def retire_from_catalog(self, name: str) -> str:
+        """A catalog file was removed. Delete the package unless pipeline builds reference it;
+        then keep it (and its build history) as a request-origin package."""
+        with self.db.tx() as c:
+            row = c.execute("SELECT id FROM package WHERE name = ?", (name,)).fetchone()
+            if row is None:
+                return "missing"
+            c.execute("DELETE FROM build WHERE package_id = ? AND origin = 'catalog'", (row[0],))
+            if c.execute("SELECT 1 FROM build WHERE package_id = ? LIMIT 1", (row[0],)).fetchone():
+                c.execute("UPDATE package SET origin = 'request', updated_at = ? WHERE id = ?",
+                          (now(), row[0]))
+                return "kept"
+            c.execute("DELETE FROM package WHERE id = ?", (row[0],))
+            return "deleted"
 
 
 class Builds(_Repo):
