@@ -35,9 +35,8 @@ _SCRUB = [
     (re.compile(r"(?i)\b(token|password|passwd|secret|api[_-]?key)=\S+"), r"\1=[redacted]"),
     (re.compile(r"(?i)(https?://)[^/\s:@]+:[^/\s@]+@"), r"\1[redacted]@"),
     (re.compile(r"/(home|users|scratch|storage|gpfs|fh|fast|tmp)/[^\s:'\"]*"), "/<path>"),
-    # the whole host name, node part included: gpu-n12.cluster.fredhutch.org -> <host>
-    (re.compile(r"\b(?:[\w-]+\.)+(?:fhcrc|fredhutch|osu|internal|local|lan)(?:\.\w+)?\b",
-                re.I), "<host>"),
+    # internal host names are handled by _hosts() below (linear time, unlike a regex with
+    # nested repetition, which a long dotted token in a log made quadratic)
     (re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"), "<ip>"),
 ]
 EXCERPT_LINES = 30
@@ -63,10 +62,22 @@ def signature(stage: str, error_line: str, restricted: bool = False) -> str:
     return hashlib.sha256(key.encode()).hexdigest()[:32]
 
 
+# A dotted token, tried only at a token start and matched possessively (never re-tried):
+# linear in the input.
+_DOTTED = re.compile(r"(?<![\w.-])[\w-]++(?:\.[\w-]++)+")
+_INTERNAL = {"fhcrc", "fredhutch", "osu", "internal", "local", "lan"}
+
+
+def _hosts(m: re.Match) -> str:
+    """The whole host name, node part included: gpu-n12.cluster.fredhutch.org -> <host>."""
+    labels = m.group(0).lower().split(".")
+    return "<host>" if _INTERNAL & set(labels[1:]) else m.group(0)
+
+
 def scrub(text: str) -> str:
     for rx, repl in _SCRUB:
         text = rx.sub(repl, text)
-    return text
+    return _DOTTED.sub(_hosts, text)
 
 
 def excerpt(log: str, around: str | None = None, lines: int = EXCERPT_LINES) -> str:

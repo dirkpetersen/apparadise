@@ -215,8 +215,12 @@ def merge_platforms(builds: list[dict[str, Any]]) -> list[dict[str, Any]]:
         cat = [r for r in rows if r.get("origin") == "catalog"]
         pipe = [r for r in rows if r.get("origin") != "catalog"]
         if cat and pipe:
-            keep_catalog = cat[0]["status"] == "published" and not any(
-                r["status"] == "published" for r in pipe)
+            # The pipeline release counts as published only when every platform it needs
+            # is (generic: amd64 and arm64), or a half-done rebuild would hide a release.
+            need = {"linux/amd64", "linux/arm64"} if cat[0]["target"] == "generic" else set()
+            done = {r.get("platform") for r in pipe if r["status"] == "published"}
+            pipe_published = bool(done) and need <= done
+            keep_catalog = cat[0]["status"] == "published" and not pipe_published
             rows = cat if keep_catalog else pipe
         if len(rows) == 1 or rows[0]["target"] != "generic":
             out.append(max(rows, key=lambda r: r["id"]))  # newest wins (e.g. a rebuild)

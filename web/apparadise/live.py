@@ -30,6 +30,7 @@ from .failures import scrub
 router = APIRouter(tags=["builds"])  # mounted under /api/ in main.create_app
 INITIAL_TAIL = 64 * 1024     # a new viewer starts with the last 64 KiB
 READ_LIMIT = 256 * 1024      # bytes read per tick
+LINE_LIMIT = 16 * 1024       # a "line" longer than this (no newline at all) is cut and sent
 ACTIVE = ("queued", "running")
 
 
@@ -39,6 +40,20 @@ def _event(kind: str, data: str, event_id: int | None = None) -> bytes:
         out.append(f"id: {event_id}")
     out += [f"data: {line}" for line in data.split("\n")]
     return ("\n".join(out) + "\n\n").encode()
+
+
+def _line_start(path, offset: int) -> int:
+    """The start of the line that contains byte `offset`. A client-chosen offset could
+    otherwise begin mid-line, so scrubbing would see half a token (`token=s3cr3t` read from
+    after the `=`)."""
+    if offset <= 0 or not path.exists():
+        return 0
+    lo = max(0, offset - LINE_LIMIT)
+    with path.open("rb") as fh:
+        fh.seek(lo)
+        before = fh.read(offset - lo).replace(b"\r", b"\n")
+    nl = before.rfind(b"\n")
+    return lo + nl + 1 if nl >= 0 else lo
 
 
 def _start_offset(path, size: int) -> int:
@@ -81,18 +96,26 @@ async def stream(request: Request, db: Database, build_id: int, offset: int | No
                     fh.seek(offset)
                     data = fh.read(min(size - offset, READ_LIMIT))
         if data:
-            pending += data
+            # A bare \r (progress bars) ends a line too, so they never pile up unsent.
+            pending += data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
             offset += len(data)
             whole, sep, rest = pending.rpartition(b"\n")
             if sep:
                 pending = rest
-                text = whole.decode(errors="replace").replace("\r", "")
-                yield _event("log", clean(text), offset - len(pending))
+            elif len(pending) > LINE_LIMIT:  # no line end in sight: cut, don't hoard
+                whole, pending = pending, b""
+            if whole:
+                text = whole.decode(errors="replace")
+                text = "\n".join(ln if len(ln) <= LINE_LIMIT else ln[:LINE_LIMIT] + " [cut]"
+                                  for ln in text.split("\n"))
+                # Scrubbing up to 256 KiB is CPU work: keep it off the event loop.
+                yield _event("log", await asyncio.to_thread(clean, text),
+                             offset - len(pending))
         finished = row["status"] not in ACTIVE
         if finished and not data:
             if pending:  # the last line had no newline
-                text = pending.decode(errors="replace").replace("\r", "")
-                yield _event("log", clean(text), offset)
+                text = pending.decode(errors="replace")[:LINE_LIMIT]
+                yield _event("log", await asyncio.to_thread(clean, text), offset)
             yield _event("end", row["status"])
             return
         if data and len(data) == READ_LIMIT:
@@ -109,15 +132,25 @@ async def build_events(
     last_event_id: Annotated[str | None, Header()] = None,
 ) -> StreamingResponse:
     user = current_user(request)
+    # Visibility is read now, from the package, not copied when the build was queued: a
+    # package made restricted later hides its old builds too. A nightly retry is queued by
+    # `system` but belongs to whoever made the original request.
     row: dict[str, Any] | None = await db.run(
-        db.query_one, "SELECT requested_by, restricted FROM build WHERE id = ?", (build_id,))
+        db.query_one,
+        "SELECT b.requested_by, b.restricted, p.visibility, r.requested_by AS asked_by "
+        "FROM build b JOIN package p ON p.id = b.package_id "
+        "LEFT JOIN request r ON r.id = b.request_id WHERE b.id = ?", (build_id,))
     admin = bool(user and user.is_admin)
-    own = bool(user and row and row["requested_by"] == user.username)
-    if row is None or not (admin or (own and not row["restricted"])):
+    own = bool(user and row and user.username in (row["requested_by"], row["asked_by"]))
+    hidden = bool(row and (row["restricted"] or row["visibility"] != "public"))
+    if row is None or not (admin or (own and not hidden)):
         raise HTTPException(404, "No such build.")
     offset = from_
     if last_event_id and last_event_id.isdigit():
         offset = int(last_event_id)
+    path = log_path(request.app.state.settings.data_dir, build_id)
+    if offset is not None and not admin:
+        offset = await asyncio.to_thread(_line_start, path, offset)
     clean = (lambda s: s) if admin else scrub
     return StreamingResponse(stream(request, db, build_id, offset, clean),
                              media_type="text/event-stream",

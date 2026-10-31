@@ -77,6 +77,7 @@ def retry(db: Database, settings: Settings, now: datetime | None = None) -> dict
         try:
             res = queue_builds(db, settings, package=b["name"], version=b["version"],
                                targets=[b["target"]], source=b["source"],
+                               spec=b["spec"], easyconfig=b["easyconfig"],
                                requested_by="system", admin=True, skip_existing=True,
                                request_id=b["request_id"], platforms=[b["platform"]])
         except QueueError as e:  # e.g. the recipe is gone from the index now

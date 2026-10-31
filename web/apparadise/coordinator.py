@@ -61,7 +61,7 @@ class JobError(Exception):
 
 def enqueue(db: Database, package_id: int, version: str, source: str, target: str,
             platform: str, recipe: str, *, requested_by: str, restricted: bool,
-            request_id: int | None = None) -> int:
+            request_id: int | None = None, spec: str = "", easyconfig: str = "") -> int:
     """Queue one build of one (target, platform); `generic` is queued once per platform."""
     if platform not in TARGET_PLATFORMS[target]:
         raise ValueError(f"{target} does not build for {platform}")
@@ -69,11 +69,12 @@ def enqueue(db: Database, package_id: int, version: str, source: str, target: st
     with db.tx() as c:
         return c.execute(
                 "INSERT INTO build (package_id, version, source, target, platform, origin, "
-                "request_id, requested_by, recipe, stage, status, restricted, created_at) "
-                "VALUES (?, ?, ?, ?, ?, 'pipeline', ?, ?, ?, 'concretize', 'queued', ?, ?) "
+                "request_id, requested_by, recipe, stage, status, restricted, created_at, "
+                "spec, easyconfig) "
+                "VALUES (?, ?, ?, ?, ?, 'pipeline', ?, ?, ?, 'concretize', 'queued', ?, ?, ?, ?) "
                 "RETURNING id",
                 (package_id, version, source, target, platform, request_id, requested_by,
-             recipe, int(restricted), ts),
+                 recipe, int(restricted), ts, spec, easyconfig),
         ).fetchone()[0]
 
 
@@ -221,15 +222,16 @@ def report(db: Database, data_dir: str | Path, builder: dict[str, Any], build_id
                 log = fh.read().decode(errors="replace")
         line = error or failures.first_error_line(log)
         restricted = bool(row["restricted"])
+        # Scrubbing reads up to 256 KiB of untrusted text: do it before taking the lock.
+        excerpt = failures.excerpt(log or line, around=line[:80] or None)
+        if error and error not in excerpt:  # the builder's own diagnosis, e.g. no digest
+            excerpt = f"{excerpt}\n{failures.scrub(error)}".strip()
+        error_line = failures.scrub(line[:2000])[:500]
         with db.tx() as c:
             c.execute("UPDATE build SET stage = ?, status = 'failed', finished_at = ? "
                       "WHERE id = ?", (stage, ts, build_id))
-            excerpt = failures.excerpt(log or line, around=line[:80] or None)
-            if error and error not in excerpt:  # the builder's own diagnosis, e.g. no digest
-                excerpt = f"{excerpt}\n{failures.scrub(error)}".strip()
             db.failures.record(build_id, failures.signature(stage, line, restricted), stage,
-                               excerpt, restricted,
-                               error_line=failures.scrub(line)[:500])
+                               excerpt, restricted, error_line=error_line)
     return db.query_one("SELECT id, stage, status, image_digest, failure_id, harbor_robot_id "
                         "FROM build WHERE id = ?", (build_id,))
 

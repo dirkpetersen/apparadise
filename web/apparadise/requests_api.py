@@ -18,10 +18,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from .auth import SessionUser, current_user, require_sysadmin, require_user
-from .buildqueue import QUOTA_KEY, QueueError, queue_builds, quota, used_this_week
+from .buildqueue import QUOTA_KEY, QueueError, queue_builds, quota, restricted_names, used_this_week
 from .catalog import NAME_RE, VERSION_RE
 from .db import Database, get_db
-from .index import normalise
 from .resolver import resolve
 
 router = APIRouter(tags=["requests"])  # mounted under /api/ in main.create_app
@@ -37,20 +36,11 @@ class RequestBody(BaseModel):
     source: Literal["spack", "easybuild", "pixi"] | None = None
 
 
-def _restricted_names(db: Database) -> set[str]:
-    out = set()
-    for p in db.packages.list(include_restricted=True):
-        if p["visibility"] == "restricted":
-            out.add(normalise(p["name"]))
-            out.update(normalise(v, s) for s, v in p["aliases"].items())
-    return out
-
-
 def index_search(db: Database, q: str, admin: bool) -> list[dict[str, Any]]:
     """Index matches grouped by normalised name, with the resolver's pick. Shared with the
     chatbot's search_index tool. Restricted names are hidden unless `admin`."""
     rows = db.index.search(q.strip())
-    hidden = set() if admin else _restricted_names(db)
+    hidden = set() if admin else restricted_names(db)
     groups: dict[str, list[dict[str, Any]]] = {}
     for r in rows:
         if r["norm_name"] not in hidden:

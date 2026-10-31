@@ -26,8 +26,10 @@ def _visible(db: Database, subject: str, key: str, admin: bool) -> int | None:
     if not key.isdigit():
         return None
     if subject == "request":
-        r = db.requests.get(int(key))
-        return r["id"] if r and (admin or not r["restricted"]) else None
+        r = db.query_one("SELECT r.id, r.restricted, p.visibility FROM request r "
+                         "JOIN package p ON p.id = r.package_id WHERE r.id = ?", (int(key),))
+        public = bool(r and not r["restricted"] and r["visibility"] == "public")
+        return r["id"] if r and (admin or public) else None
     f = db.failures.get(int(key), include_restricted=admin)
     return f["id"] if f else None
 

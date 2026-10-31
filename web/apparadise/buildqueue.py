@@ -19,7 +19,7 @@ from .config import Settings
 from .db import Database
 from .index import normalise
 from .recipes import RecipeError, render
-from .resolver import resolve_name
+from .resolver import candidates, resolve, resolve_name
 
 QUOTA_KEY = "quota.builds_per_week"
 QUOTA_DEFAULT = 6
@@ -55,22 +55,58 @@ def _existing(db: Database, package_id: int, version: str, target: str,
     return row["status"] if row else None
 
 
+def restricted_names(db: Database) -> set[str]:
+    """Normalised names and aliases of every restricted package."""
+    out = set()
+    for p in db.packages.list(include_restricted=True):
+        if p["visibility"] == "restricted":
+            out.add(normalise(p["name"]))
+            out.update(normalise(v, s) for s, v in p["aliases"].items())
+    return out
+
+
+def find_package(db: Database, name: str) -> dict[str, Any] | None:
+    """The package called `name`, or the one that has `name` as an alias, so `torch` finds
+    `pytorch` and a request never creates a second package for the same software."""
+    pkg = db.packages.get(name, include_restricted=True)
+    if pkg:
+        return pkg
+    wanted = set(candidates(name))
+    for p in db.packages.list(include_restricted=True):
+        if normalise(p["name"]) in wanted or wanted & {normalise(v, s)
+                                                       for s, v in p["aliases"].items()}:
+            return p
+    return None
+
+
+def _no_recipe(source: str | None) -> QueueError:
+    # Exactly what an unknown name gets, so a refusal never tells a restricted name apart.
+    return QueueError(422, f"No recipe: {resolve([], source).reason}.")
+
+
 def queue_builds(db: Database, settings: Settings, *, package: str, version: str,
                  targets: list[str], requested_by: str, admin: bool,
                  source: str | None = None, easyconfig: str = "", spec: str = "",
                  request_id: int | None = None, skip_existing: bool = False,
                  enforce_quota: bool = False,
                  platforms: list[str] | None = None) -> dict[str, Any]:
-    """-> {package, version, source, rule, reason, cudaPort, queued, skipped}.
-    Raises QueueError(422) for no recipe, (429) when over quota."""
-    pkg = db.packages.get(package, include_restricted=True)
-    if pkg and pkg["visibility"] == "restricted" and not admin:
-        # Same answer as for a name nobody knows: a restricted package does not exist here.
-        raise QueueError(422, "No recipe: no recipe in Spack, EasyBuild or conda-forge.")
-    aliases = pkg["aliases"] if pkg else {}
-    res = resolve_name(db, package, aliases, source)
+    """-> {package, version, source, rule, reason, cudaPort, queued, skipped, packageId,
+    restricted}. Raises QueueError(422) for no recipe or an unknown version, (429) over quota.
+
+    Rendering happens first, outside the lock. The duplicate check, the quota count, creating
+    the package and queueing then happen in one transaction, so concurrent requests can
+    neither exceed the quota nor queue the same release twice, and a refused request leaves
+    nothing behind."""
+    pkg = find_package(db, package)
+    if not admin and (
+            (pkg and pkg["visibility"] == "restricted")
+            or set(candidates(package)) & restricted_names(db)):
+        raise _no_recipe(source)  # a restricted package does not exist for non-sysadmins
+    if pkg:
+        package = pkg["name"]
+    res = resolve_name(db, package, pkg["aliases"] if pkg else {}, source)
     if res.failed:
-        raise QueueError(422, f"No recipe: {res.reason}.")
+        raise _no_recipe(source)
     known_ecs: dict[str, str] = {}
     if res.source == "easybuild":
         rows = db.index.lookup([normalise(res.upstream_name, "easybuild")])
@@ -78,11 +114,17 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
                           if r["source"] == "easybuild"
                           and r["upstream_name"] == res.upstream_name), {})
     if not version:  # the newest release; for EasyBuild, the newest with a CUDA easyconfig
-        candidates = [v for v in res.versions if res.source != "easybuild" or v in known_ecs]
-        if not candidates:
+        versions = [v for v in res.versions if res.source != "easybuild" or v in known_ecs]
+        if not versions:
             raise QueueError(422, f"{res.source} lists no release of {res.upstream_name} "
                                   "to build; name a version.")
-        version = candidates[0]
+        version = versions[0]
+    elif not admin and version not in res.versions:
+        # Users build releases the index lists; sysadmins may name anything (a branch, a
+        # patched version) and own the result.
+        shown = ", ".join(res.versions[:6]) or "none"
+        raise QueueError(422, f"{res.source} has no release {version} of "
+                              f"{res.upstream_name}. Known releases: {shown}.")
     if res.source == "easybuild" and not easyconfig:
         easyconfig = known_ecs.get(version, "")
         if not easyconfig:
@@ -94,22 +136,16 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
         marker = next((r["details"].get("cuda_build_marker", True) for r in rows
                        if r["source"] == "pixi" and r["upstream_name"] == res.upstream_name),
                       True)
-    if pkg is None:
-        pid = db.packages.upsert({"name": package, "title": package, "origin": "request"})
-        restricted = False
-    else:
-        pid, restricted = pkg["id"], pkg["visibility"] == "restricted"
+    restricted = bool(pkg and pkg["visibility"] == "restricted")
+
+    def existing(target: str, platform: str) -> str | None:
+        return _existing(db, pkg["id"], version, target, platform) if pkg else None
 
     plan, skipped = [], []
     for target in dict.fromkeys(targets):
         for platform in coordinator.TARGET_PLATFORMS[target]:
             if platforms is not None and platform not in platforms:
                 continue  # e.g. a retry of only the arm64 half of a generic release
-            if skip_existing and (st := _existing(db, pid, version, target, platform)):
-                skipped.append({"target": target, "platform": platform,
-                                "reason": "already available" if st == "published"
-                                else "already queued"})
-                continue
             try:
                 recipe = render(res.source, package, version, target,
                                 registry=settings.registry_host, platform=platform,
@@ -120,19 +156,33 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
                 skipped.append({"target": target, "platform": platform, "reason": str(e)})
                 continue
             plan.append((target, platform, recipe))
-    if enforce_quota and not admin and plan:
-        left = quota(db) - used_this_week(db, requested_by)
-        if len(plan) > left:
-            raise QueueError(429, f"This needs {len(plan)} build job"
-                                  f"{'s' if len(plan) != 1 else ''}, and your weekly quota "
-                                  f"has {max(left, 0)} left. Upvote an existing request, or "
-                                  "ask the research computing team.")
+
     queued = []
-    for target, platform, recipe in plan:
-        bid = coordinator.enqueue(db, pid, version, res.source, target, platform, recipe,
-                                  requested_by=requested_by, restricted=restricted,
-                                  request_id=request_id)
-        queued.append({"id": bid, "target": target, "platform": platform})
+    with db.tx():  # check and act under one lock (see the docstring)
+        todo = []
+        for target, platform, recipe in plan:
+            if skip_existing and (st := existing(target, platform)):
+                skipped.append({"target": target, "platform": platform,
+                                "reason": "already available" if st == "published"
+                                else "already queued"})
+            else:
+                todo.append((target, platform, recipe))
+        if enforce_quota and not admin and todo:
+            left = quota(db) - used_this_week(db, requested_by)
+            if len(todo) > left:
+                raise QueueError(429, f"This needs {len(todo)} build job"
+                                      f"{'s' if len(todo) != 1 else ''}, and your weekly "
+                                      f"quota has {max(left, 0)} left. Upvote an existing "
+                                      "request, or ask the research computing team.")
+        pid = pkg["id"] if pkg else None
+        if todo and pid is None:
+            pid = db.packages.upsert({"name": package, "title": package, "origin": "request"})
+        for target, platform, recipe in todo:
+            bid = coordinator.enqueue(db, pid, version, res.source, target, platform, recipe,
+                                      requested_by=requested_by, restricted=restricted,
+                                      request_id=request_id, spec=spec,
+                                      easyconfig=easyconfig)
+            queued.append({"id": bid, "target": target, "platform": platform})
     return {"package": package, "version": version, "source": res.source, "rule": res.rule,
             "reason": res.reason, "cudaPort": res.cuda_port, "queued": queued,
             "skipped": skipped, "packageId": pid, "restricted": restricted}

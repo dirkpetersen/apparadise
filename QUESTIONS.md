@@ -272,3 +272,13 @@ Making scrubbed live logs public for all public builds would be a one-line chang
   message was sent and which tools ran, never the text.
 - The demo uses a keyword-rule stand-in (`mock/claude_mock.py`), never the real API.
 **Answer:**
+
+## Q28 (2026-10-31): Is it acceptable that a restricted name can be inferred?
+
+A non-sysadmin who asks for a restricted package gets exactly the answer an unknown name
+gets: "no recipe", with or without a source, and under any alias. But Spack, EasyBuild and
+conda-forge listings are public. Anyone who knows that `AlphaFold3` has a CUDA easyconfig
+upstream, and still sees "no recipe" here, can infer that it is restricted on this site.
+**Default:** accepted. Hiding it would mean building it, or pretending to, for people who
+mustn't have it.
+**Answer:**

@@ -221,6 +221,15 @@ MIGRATIONS: list[str] = [
     ALTER TABLE index_entry ADD COLUMN changed_at TEXT NOT NULL DEFAULT '';
     UPDATE index_entry SET changed_at = refreshed_at;
     """,
+    # 10: retries keep a build's own inputs; and migration 9's backfill made every old
+    # failure look "changed upstream" (refreshed_at is newer than almost every failure).
+    # Pre-existing rows have no known change time. (Both landed the same day, before any
+    # deployment ran a nightly refresh in between.)
+    """
+    ALTER TABLE build ADD COLUMN spec TEXT NOT NULL DEFAULT '';
+    ALTER TABLE build ADD COLUMN easyconfig TEXT NOT NULL DEFAULT '';
+    UPDATE index_entry SET changed_at = '';
+    """,
 ]
 
 _SECRET_KEY = re.compile(
@@ -679,10 +688,16 @@ class Failures(_Repo):
         "(SELECT COUNT(*) FROM vote v WHERE v.subject_type = 'failure' "
         " AND v.subject_id = f.id) AS votes")
 
+    # A group is public only while every package it hit is public *now*: visibility is the
+    # package's current setting, not a flag copied when a build failed.
+    _PUBLIC = ("f.restricted = 0 AND NOT EXISTS (SELECT 1 FROM build hb "
+               "JOIN package hp ON hp.id = hb.package_id WHERE hb.failure_id = f.id "
+               "AND hp.visibility <> 'public')")
+
     def get(self, failure_id: int, *, include_restricted: bool = True) -> dict[str, Any] | None:
         sql = f"SELECT f.*, {self._COUNTS} FROM failure f WHERE f.id = ?"
         if not include_restricted:
-            sql += " AND f.restricted = 0"
+            sql += f" AND {self._PUBLIC}"
         return self.db.query_one(sql, (failure_id,))
 
     def list(self, *, include_restricted: bool = False, q: str = "", stage: str = "",
@@ -690,7 +705,7 @@ class Failures(_Repo):
         """Failure groups, most recently seen first, each with the packages it hit."""
         conds, params = [], []
         if not include_restricted:
-            conds.append("f.restricted = 0")
+            conds.append(self._PUBLIC)
         if stage:
             conds.append("f.stage = ?")
             params.append(stage)
@@ -750,8 +765,8 @@ class Requests(_Repo):
              mine: bool = False, limit: int = 200) -> list[dict[str, Any]]:
         """Newest first, with build counts and the derived status."""
         conds, params = [], []
-        if not include_restricted:
-            conds.append("r.restricted = 0")
+        if not include_restricted:  # the package's visibility now, not when requested
+            conds.append("r.restricted = 0 AND p.visibility = 'public'")
         if mine:
             conds.append("r.requested_by = ?")
             params.append(username)
