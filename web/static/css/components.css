@@ -77,7 +77,7 @@ code-panel { display: block; container-type: inline-size; }
   .cp-actions { margin-left: auto; }
   .cp-tab::after { inset-inline: var(--sp-2); }
 }
-.syn-comment { color: var(--syn-comment); font-style: italic; }
+.syn-comment { color: var(--syn-comment); }
 .syn-section { color: var(--syn-section); font-weight: 600; }
 .syn-key { color: var(--syn-key); }
 .syn-punct { color: var(--syn-punct); }

@@ -112,3 +112,16 @@ def test_dom_h_assigns_custom_element_props_as_properties():
     # h() must not turn string props on custom elements into attributes (secrets).
     src = (STATIC_DIR / "js" / "dom.js").read_text()
     assert 'el.localName.includes("-")' in src and "el[k] = v" in src
+
+
+def test_frontend_csrf_and_event_names_match_the_server():
+    """api.js must send the exact CSRF value the server checks, and announce 401s under the
+    event name app.js listens for (both were left over from Bucketeer once)."""
+    from apparadise import auth
+
+    api = (STATIC_DIR / "js" / "api.js").read_text()
+    app = (STATIC_DIR / "js" / "app.js").read_text()
+    assert f'"{auth.CSRF_HEADER}": "{auth.CSRF_VALUE}"' in api
+    assert "apparadise:unauthorized" in api and "apparadise:unauthorized" in app
+    for f in STATIC_DIR.rglob("*.js"):
+        assert "bucketeer" not in f.read_text().lower(), f

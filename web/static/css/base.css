@@ -18,6 +18,9 @@ body {
   font: 400 var(--fs-md) / var(--lh-body) var(--font-sans);
   font-feature-settings: "cv11", "ss03";
   -webkit-font-smoothing: antialiased;
+  /* No fake italics or bold: the self-hosted variable fonts have no italic face, and
+     synthesised obliques of them look poor (and crash some headless Chromium builds). */
+  font-synthesis: none;
   overflow-wrap: break-word;
 }
 h1, h2, h3, p { margin: 0; }

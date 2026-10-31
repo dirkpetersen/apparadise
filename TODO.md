@@ -33,7 +33,8 @@ Code and runbooks are done. What remains needs the hardware, Harbor and a contai
 - [ ] Read Rubin's compute capability on the NVL72 and fill in `containers/targets.yml` (Q13)
 - [ ] Concretize a rendered `spack.yaml` with real Spack (`spack -e <dir> concretize`); not run here, since executing a freshly cloned Spack was outside this session's permissions
 - [ ] Top 20 packages built on both targets (Q4)
-- [ ] Visual check of the UI in a real browser (headless Chromium crashes on this dev host)
+- [x] Visual check in Chromium (catalog, package, login, admin; light/dark; desktop/phone). Found and fixed the CSRF header and 401 event name left over from Bucketeer (browser sign-in was broken)
+- [ ] Re-check in a normal desktop browser: this host's sandboxed Chromium crashes shaping the Fraunces display font and drops monospace text at phone width, both most likely a library mismatch in the sandbox
 
 ## Phase 2: automated pipeline
 

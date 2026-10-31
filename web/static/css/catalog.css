@@ -27,7 +27,7 @@
 
 /* ---- hero + search ------------------------------------------------------------ */
 .catalog { display: grid; gap: var(--sp-5); }
-.hero h1 em { font-style: italic; color: var(--accent-text); }
+.hero h1 em { font-style: normal; font-weight: 560; color: var(--accent-text); }
 .search { position: relative; max-width: 36rem; margin-top: var(--sp-3); }
 .search-icon { position: absolute; inset-inline-start: var(--sp-4); top: 50%; translate: 0 -50%;
   color: var(--text-faint); pointer-events: none; }
@@ -68,7 +68,7 @@
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .pkg-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
 .pkg-ver { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); }
-.pkg-ver-none { font-family: var(--font-sans); color: var(--text-faint); font-style: italic; }
+.pkg-ver-none { font-family: var(--font-sans); color: var(--text-faint); }
 .pkg-skel { min-height: 10.5rem; border-radius: var(--r-lg); border: 1px solid var(--border);
   background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
   background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }

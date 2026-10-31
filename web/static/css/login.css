@@ -29,7 +29,7 @@
   animation: rise var(--dur-slow) var(--ease-out) both; }
 @keyframes rise { from { opacity: 0; translate: 0 1rem; } }
 
-.brand { display: flex; align-items: center; gap: var(--sp-3); }
+.brand { display: flex; align-items: center; gap: var(--sp-3); text-decoration: none; }
 .brand img { width: 2.25rem; height: 2.25rem; border-radius: 0.6rem; box-shadow: 0 6px 24px rgb(79 70 229 / 0.45); }
 .brand-name { font: 560 var(--fs-xl) / 1 var(--font-display); letter-spacing: -0.01em; font-variation-settings: "opsz" 48; }
 .login .brand-name { color: var(--stage-text); }
@@ -59,6 +59,8 @@
 }
 .form-error .icon { margin-top: 0.1rem; }
 .login-foot { color: var(--stage-muted); font-size: var(--fs-xs); text-align: center; }
+/* The stage is always dark, whatever the theme: links use the stage text colour. */
+.login-foot a { color: var(--stage-text); }
 
 @media (prefers-reduced-motion: reduce) {
   .login::before { animation: none; }

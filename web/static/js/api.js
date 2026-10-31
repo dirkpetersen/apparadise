@@ -1,7 +1,7 @@
 // The ONLY way the frontend talks to /api. It always sends the CSRF header
-// (`X-Requested-With: bucketeer`, required on state-changing requests) and the
+// (`X-Requested-With: apparadise`, required on state-changing requests) and the
 // session cookie, and turns failures into ApiError. A 401 on any call except
-// login announces "bucketeer:unauthorized" so app.js can show the login view.
+// login announces "apparadise:unauthorized" so app.js can show the login view.
 
 export class ApiError extends Error {
   constructor(status, message, { retryAfter = null, body = null } = {}) {
@@ -14,7 +14,7 @@ export class ApiError extends Error {
 }
 
 export async function api(path, { method = "GET", json, signal, announce401 = true } = {}) {
-  const headers = { "X-Requested-With": "bucketeer", Accept: "application/json" };
+  const headers = { "X-Requested-With": "apparadise", Accept: "application/json" };
   const init = { method, headers, credentials: "same-origin", signal };
   if (json !== undefined) {
     headers["Content-Type"] = "application/json";
@@ -35,7 +35,7 @@ export async function api(path, { method = "GET", json, signal, announce401 = tr
   }
   if (res.ok) return body;
   if (res.status === 401 && announce401) {
-    window.dispatchEvent(new CustomEvent("bucketeer:unauthorized"));
+    window.dispatchEvent(new CustomEvent("apparadise:unauthorized"));
   }
   const detail = typeof body?.detail === "string" ? body.detail : `Request failed (${res.status}).`;
   const ra = Number.parseInt(res.headers.get("Retry-After") ?? "", 10);
