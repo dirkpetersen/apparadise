@@ -13,8 +13,8 @@ need root, and never need to know whether a package came from Spack, EasyBuild o
 >   robots) is built and tested offline.
 > - **Not yet:** nothing has run on real hardware, Harbor or a container runtime.
 >
-> See `TODO.md` for what's left and `QUESTIONS.md` for open decisions and the defaults in
-> use.
+> See `docs/operations/go-live.md` for the order to bring it up, `TODO.md` for what's
+> left, and `QUESTIONS.md` for open decisions and the defaults in use.
 
 ## Quick start
 

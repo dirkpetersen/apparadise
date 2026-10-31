@@ -9,6 +9,7 @@ nav = [
   { "Software stack" = "stack.md" },
   { "Development" = "development.md" },
   { "Operations" = [
+    { "Go-live checklist" = "operations/go-live.md" },
     { "Harbor registry" = "operations/harbor.md" },
     { "Base images" = "operations/base-images.md" },
     { "Hand-building a package" = "operations/hand-build.md" },
