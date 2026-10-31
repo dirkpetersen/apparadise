@@ -73,3 +73,11 @@ export const listBuilders = () => api("/admin/builders");
 export const disableBuilder = (id) => api(`/admin/builders/${enc(id)}/disable`, { method: "POST" });
 // -> {token, expiresAt}: shown once, a one-time secret; keep it in memory only.
 export const createBuilderToken = () => api("/admin/builder-tokens", { method: "POST" });
+
+// The registry (Harbor, read-only). overview -> {configured, host, projects: [{name,
+// repositories: [{name, artifacts, pulls, updated, package}]}]}; `restricted` and `cache`
+// only for sysadmins. repository -> {project, name, host, package, artifacts: [{digest, tags,
+// size, pushed, platforms, index, signed, commands: {podman, srun, enroot}}]}.
+export const getRegistry = () => api("/registry", { announce401: false });
+export const getRepository = (project, name) =>
+  api(`/registry/${enc(project)}/${name.split("/").map(enc).join("/")}`, { announce401: false });

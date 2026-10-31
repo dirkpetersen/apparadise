@@ -120,6 +120,7 @@ export function renderPackage({ name, setTitle }) {
           pkg.tags.map((t) => h("a", { class: "chip chip-tag", href: `#/?q=${encodeURIComponent(t)}`, text: t })),
           targetDots(pkg.targets)),
         h("dl", { class: "facts" },
+          pkg.published && [h("dt", { text: "Registry" }), h("dd", {}, h("a", { href: `#/registry/${pkg.visibility === "restricted" ? "restricted" : "public"}/${encodeURIComponent(pkg.name)}`, text: "All images and tags" }))],
           pkg.homepage && [h("dt", { text: "Homepage" }), h("dd", {}, h("a", { href: pkg.homepage, rel: "noopener noreferrer", target: "_blank", text: pkg.homepage.replace(/^https:\/\//, "") }))],
           pkg.executables.length > 0 && [h("dt", { text: "Commands" }), h("dd", {}, pkg.executables.map((e) => h("code", { class: "exe", text: e })))],
           upstream.length > 0 && [h("dt", { text: "Upstream names" }), h("dd", {}, upstream.map(([s, n]) => h("span", { class: "alias" }, h("span", { class: "muted", text: `${s} ` }), h("code", { text: n }))))])),

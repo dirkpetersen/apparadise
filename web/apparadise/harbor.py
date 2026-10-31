@@ -21,6 +21,8 @@ from .config import Settings
 
 log = logging.getLogger(__name__)
 PROJECT_RE = re.compile(r"^(public|restricted|cache)$")
+# Our repositories are package names; `cache` (the NGC proxy) also has nvidia/cuda-style paths.
+REPO_RE = re.compile(r"^[a-z0-9][a-z0-9._/-]{0,254}\Z")
 
 
 class HarborError(Exception):
@@ -76,6 +78,61 @@ class HarborClient:
         r = await self._call("POST", "/robots", json=body)
         data = r.json()
         return {"id": data["id"], "name": data["name"], "secret": data["secret"]}
+
+    # --- read-only registry browsing (the Registry page) ---
+
+    async def _pages(self, path: str, params: dict[str, Any], limit: int) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        page = 1
+        while len(out) < limit:
+            r = await self._call("GET", path, params={**params, "page": page, "page_size": 100})
+            batch = r.json() or []
+            out += batch
+            if len(batch) < 100:
+                break
+            page += 1
+        return out[:limit]
+
+    async def list_repositories(self, project: str) -> list[dict[str, Any]]:
+        """-> [{name, artifacts, pulls, updated}], `name` without the project prefix."""
+        if not PROJECT_RE.match(project):
+            raise ValueError(f"bad project {project!r}")
+        rows = await self._pages("/" + _path("projects", project, "repositories"), {}, 1000)
+        prefix = f"{project}/"
+        return [{"name": r["name"].removeprefix(prefix),
+                 "artifacts": r.get("artifact_count", 0), "pulls": r.get("pull_count", 0),
+                 "updated": r.get("update_time")} for r in rows]
+
+    async def list_artifacts(self, project: str, repo: str) -> list[dict[str, Any]]:
+        """-> [{digest, tags, size, pushed, platforms, index, signed}], newest first."""
+        if not PROJECT_RE.match(project) or not REPO_RE.match(repo) or ".." in repo:
+            raise ValueError("bad repository")
+        # Harbor wants a repository name with slashes encoded twice (a/b -> a%252Fb).
+        path = "/" + _path("projects", project, "repositories", quote(repo, safe=""),
+                           "artifacts")
+        rows = await self._pages(path, {"with_tag": "true", "with_accessory": "true"}, 500)
+        out = []
+        for a in rows:
+            refs = a.get("references") or []
+            if refs:
+                plats = [f"{(r.get('platform') or {}).get('os', 'linux')}/"
+                         f"{(r.get('platform') or {}).get('architecture', '?')}" for r in refs]
+            else:
+                ex = a.get("extra_attrs") or {}
+                plats = [f"{ex.get('os', 'linux')}/{ex['architecture']}"] \
+                    if ex.get("architecture") else []
+            out.append({
+                "digest": a["digest"],
+                "tags": sorted(t["name"] for t in (a.get("tags") or [])),
+                "size": a.get("size", 0),
+                "pushed": a.get("push_time"),
+                "platforms": sorted(set(plats)),
+                "index": bool(refs),
+                "signed": any(str(x.get("type", "")).startswith("signature")
+                              for x in (a.get("accessories") or [])),
+            })
+        out.sort(key=lambda a: a["pushed"] or "", reverse=True)
+        return out
 
     async def delete_robot(self, robot_id: int) -> None:
         try:

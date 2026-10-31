@@ -55,6 +55,14 @@ function userMenu(me, onLogout) {
     h("span", { class: "avatar", "aria-hidden": "true", text: initials(me.displayName || me.username) }), mb);
 }
 
+// Which nav item is current. A package page belongs to no section (it is reached from both).
+function section() {
+  const h = location.hash || "#/";
+  if (h === "#/admin") return "admin";
+  if (h === "#/registry" || h.startsWith("#/registry/")) return "registry";
+  return h.startsWith("#/p/") ? "" : "catalog";
+}
+
 export function renderShell({ appName, me, onLogout, onSignIn, content }) {
   const right = me
     ? userMenu(me, onLogout)
@@ -69,8 +77,9 @@ export function renderShell({ appName, me, onLogout, onSignIn, content }) {
           h("img", { src: "img/mark.svg", alt: "", width: 30, height: 30 }),
           h("span", { class: "brand-name", text: appName })),
         h("nav", { class: "hdr-nav", "aria-label": "Main" },
-          h("a", { href: "#/", text: "Catalog", "aria-current": location.hash === "#/admin" || location.hash.startsWith("#/p/") ? null : "page" }),
-          me?.isSysadmin && h("a", { href: "#/admin", text: "Admin", "aria-current": location.hash === "#/admin" ? "page" : null })),
+          h("a", { href: "#/", text: "Catalog", "aria-current": section() === "catalog" ? "page" : null }),
+          h("a", { href: "#/registry", text: "Registry", "aria-current": section() === "registry" ? "page" : null }),
+          me?.isSysadmin && h("a", { href: "#/admin", text: "Admin", "aria-current": section() === "admin" ? "page" : null })),
         themeButton(),
         right)),
     h("main", { class: "main", id: "main", tabindex: "-1" }, content),

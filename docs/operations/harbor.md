@@ -26,6 +26,14 @@ internet. Base images are derived from NGC through it.
 - **Phase 1 hand builds:** one robot account per operator, with push to `public/*` and
   `cache/*`. Use `restricted/*` only from on-prem builders.
 
+## Registry page
+
+The web app's Registry page (`#/registry`) reads repositories and artifacts through the same
+`HARBOR_*` account, server-side, and caches each answer for 30 seconds. Everyone sees
+`public`. Only RCO-Admins see `restricted` and `cache`. A signature shows as "Signed" when
+Harbor lists a cosign accessory on the artifact. Without `HARBOR_URL` the page says the
+registry is not configured (Q23).
+
 ## Signing and scanning
 
 Enable Trivy scanning on push. Sign every image after its smoke test passes

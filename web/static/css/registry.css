@@ -1,0 +1,38 @@
+/* Registry page (#/registry) and repository page (#/registry/<project>/<repo>). */
+.registry { display: grid; gap: var(--sp-6); }
+.hero-compact { padding-block-end: 0; }
+.reg-host { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--text-muted); font-size: var(--fs-sm); }
+.reg-host .icon { width: 0.9rem; height: 0.9rem; }
+.reg-body { display: grid; gap: var(--sp-7); }
+.reg-project { display: grid; gap: var(--sp-3); }
+.reg-project-head { display: grid; gap: var(--sp-1); }
+.reg-project-head .section-h { display: flex; align-items: center; gap: var(--sp-2); }
+.reg-project-head .muted { font-size: var(--fs-sm); }
+.reg-none { color: var(--text-faint); font-size: var(--fs-sm); }
+
+.repos { list-style: none; margin: 0; padding: 0; display: grid; border: 1px solid var(--border);
+  border-radius: var(--r-md); background: var(--surface); overflow: hidden; }
+.repo + .repo { border-top: 1px solid var(--border); }
+.repo-link { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-4);
+  padding: var(--sp-3) var(--sp-4); color: inherit; text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out); }
+.repo-link:hover { background: var(--surface-sunken); }
+.repo-link:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: -2px; }
+.repo-name { font-weight: 600; margin-inline-end: auto; }
+.repo-stats { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); color: var(--text-faint); font-size: var(--fs-xs); }
+.repo-go { width: 1rem; height: 1rem; color: var(--text-faint); }
+.repo-link:hover .repo-go { color: var(--accent); }
+
+.reg-title { overflow-wrap: anywhere; }
+.reg-project-name { color: var(--text-faint); font-weight: 400; }
+.reg-tag { display: inline-block; font-family: var(--font-mono); font-size: var(--fs-xs);
+  padding: 0.05rem 0.35rem; border-radius: var(--r-sm); background: var(--surface-sunken); }
+.reg-tag + .reg-tag { margin-inline-start: var(--sp-1); }
+.reg-plat { padding: 0.05rem 0.4rem; text-transform: none; letter-spacing: 0; }
+.reg-plat + .reg-plat { margin-inline-start: var(--sp-1); }
+.reg-index { margin-inline-start: var(--sp-2); font-size: var(--fs-xs); }
+.reg-signed { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--success); font-weight: 560; }
+.reg-signed .icon { width: 0.9rem; height: 0.9rem; }
+.reg-tbl .num { font-variant-numeric: tabular-nums; }
+.reg-tbl tr[aria-selected="true"] td { background: var(--accent-soft); }
+.reg-tbl tr[aria-selected="true"] td:first-child { box-shadow: inset 3px 0 0 var(--accent); }

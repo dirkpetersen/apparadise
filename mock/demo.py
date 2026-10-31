@@ -7,6 +7,8 @@ Runs the real app (real login flow, throttle, sessions, CSRF) on 127.0.0.1 with:
 - `DemoDirectory` (mock/directory.py) in place of AD, injected via create_app(authenticator=...);
   users alice and bob are normal users, dana is a sysadmin (RCO-Admins);
 - the sample catalog in mock/catalog/ (published, building, failed and restricted entries);
+- a fake Harbor (mock/harbor_mock.py, in-process) seeded from that catalog, for the Registry
+  page and the per-job robot accounts;
 - a temporary DATA_DIR, removed on exit unless --keep-data.
 
 Dev tooling only: nothing in web/apparadise imports this, and no setting or environment
@@ -55,6 +57,10 @@ def demo_settings(*, port: int, data_dir: str, catalog_dir: str = str(DEMO_CATAL
         ldap_admin_group_dn="CN=RCO-Admins,OU=Groups,DC=demo,DC=example",
         catalog_dir=catalog_dir,
         registry_host="registry.example.org",
+        # mock/harbor_mock.py, reached in-process; nothing listens on this name
+        harbor_url="https://harbor.demo.invalid",
+        harbor_username="admin",
+        harbor_password="harbor",
     )
 
 
@@ -83,7 +89,17 @@ def build_demo_app(settings: Settings, db=None, directory: DemoDirectory | None 
     if db is None:
         db = Database(Path(settings.data_dir) / DB_FILENAME)
     seed_index(db)
-    app = create_app(settings, db=db, authenticator=directory or DemoDirectory())
+    import httpx
+
+    from apparadise.harbor import HarborClient
+    from mock.harbor_mock import create_app as create_harbor
+    from mock.harbor_mock import seed_from_catalog
+
+    fake_harbor = create_harbor()
+    seed_from_catalog(fake_harbor, settings.catalog_dir)
+    harbor = HarborClient(settings, transport=httpx.ASGITransport(app=fake_harbor))
+    app = create_app(settings, db=db, authenticator=directory or DemoDirectory(), harbor=harbor)
+    app.state.fake_harbor = fake_harbor
     app.state.demo = True
     return app
 

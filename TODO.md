@@ -11,6 +11,7 @@ The phased plan from the architecture doc. Tick items as they land. Questions go
 - [x] SQLite `Database` with migrations (full data model from the architecture doc + audit)
 - [x] AD/LDAPS login, sessions, CSRF, throttle, `require_user` / `require_sysadmin`
 - [x] `mock/` LDAP directory + `mock/demo.py`
+- [x] Registry page (`#/registry`): read-only Harbor browser with pull commands; fake Harbor in the demo
 - [x] Frontend shell: tokens.css, dom.js `h()`, api.js, theme, login view, showcase.html
 - [x] Tests enforcing CSP/static rules, `.env.default` parity
 - [x] `tests/web/test_audit_coverage.py`

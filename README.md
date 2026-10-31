@@ -25,13 +25,16 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/pytest                      # web + builder tests
 ```
 
-The demo runs the real app with a fake directory, a sample catalog and a small package
-index. All users have the password `demo`. `alice` and `bob` are regular users. `dana` is a
-sysadmin (RCO-Admins), who sees restricted packages and the build console at `#/admin`.
+The demo needs no AD, Harbor or cluster. It runs the real app (real login flow, sessions and
+CSRF) with a fake directory in place of LDAP, a fake Harbor seeded from the sample catalog, and
+a small package index. All users have the password `demo`. `alice` and `bob` are regular users.
+`dana` is a sysadmin (RCO-Admins), who also sees restricted packages, the `restricted` and
+`cache` registry projects, and the build console at `#/admin`. The registry browser is at
+`#/registry`.
 
 | Path | What it is |
 |---|---|
-| `web/` | FastAPI app: catalog, AD login, coordinator, builder API, build console (appmotel app) |
+| `web/` | FastAPI app: catalog, registry browser, AD login, coordinator, builder API, build console (appmotel app) |
 | `builder/` | Pull-based builder agent and launchers: local container, `sbatch`, EC2 spot (appmotel app) |
 | `catalog/` | Hand-maintained catalog entries (phase 1) |
 | `containers/` | `targets.yml` (every arch flag) and the base image Containerfiles |

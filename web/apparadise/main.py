@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, builder_api, catalog, coordinator
+from . import auth, builder_api, catalog, coordinator, registry
 from .config import Settings
 from .db import DB_FILENAME, Database
 from .harbor import HarborClient, HarborError, HarborUnavailable
@@ -81,6 +81,9 @@ def create_app(
         level=settings.log_level.upper(),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    # httpx logs every request URL at INFO, which names internal hosts (Harbor, Slurm).
+    for noisy in ("httpx", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -114,6 +117,7 @@ def create_app(
     # Always False here. Only mock/demo.py flips it on the finished app object;
     # no setting or environment variable can (tests/test_demo.py).
     app.state.demo = False
+    app.state.registry_cache = {}  # registry.py: short-lived Harbor answers
 
     demo_router = APIRouter()
 
@@ -149,6 +153,7 @@ def create_app(
     api.include_router(auth.router)
     api.include_router(demo_router)
     api.include_router(catalog.router)
+    api.include_router(registry.router)
     api.include_router(builder_api.router)
     api.include_router(builder_api.admin_router)
     app.include_router(api)

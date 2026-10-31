@@ -8,9 +8,12 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/ruff check . ../mock ../tests  # lint
 ```
 
-The demo runs the real app with a fake directory (`mock/directory.py`) and the sample catalog
-in `mock/catalog/`. `dana` is a sysadmin (RCO-Admins) and sees the restricted AlphaFold 3
-entry. Nothing in `web/apparadise/` imports `mock/`, and no setting turns the demo on.
+The demo runs the real app with a fake directory (`mock/directory.py`) instead of LDAP, the
+sample catalog in `mock/catalog/`, and a fake Harbor (`mock/harbor_mock.py`, reached
+in-process, seeded from that catalog) behind the Registry page and the per-job robots. `dana`
+is a sysadmin (RCO-Admins) and sees the restricted AlphaFold 3 entry and the `restricted` and
+`cache` registry projects. Nothing in `web/apparadise/` imports `mock/`, and no setting turns
+the demo on.
 
 To run against a real directory, copy `web/.env.default` to `web/.env`, fill in the REQUIRED
 values, and start `.venv/bin/python3 app.py` from `web/`.

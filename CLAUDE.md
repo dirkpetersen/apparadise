@@ -82,7 +82,7 @@ catalog/        hand-maintained catalog/<name>.yml (phase 1), loaded at startup
 containers/     targets.yml (all arch flags: single source of truth) + base/ Containerfiles
 recipes/        _templates/ + rendered recipes/<name>/<version>/<target>/
 tools/          stage-sqsh and other single-file operator scripts (bash or stdlib Python)
-mock/           fake directory, sample catalog, demo (mock/demo.py); later fake Harbor/Slurm
+mock/           fake directory, fake Harbor, sample catalog, demo (mock/demo.py); later fake Slurm
 tests/web/      tests for web/; tests/builder/ drives the builder against the real app
                 (ASGI, fake command runner). Run both from web/: .venv/bin/pytest
 docs/           Markdown for Zensical; docs/stack.md lists versions
@@ -90,10 +90,11 @@ TODO.md  QUESTIONS.md  zensical.toml  ruff.toml (lint config for mock/ and tests
 ```
 
 Existing modules in `web/apparadise/`: config, main (app factory + lost-builder reaper), db
-(migrations 1-5), auth, ldapauth, ldapca, catalog, modules (Lmod + Enroot wrappers), recipes
+(migrations 1-7), auth, ldapauth, ldapca, catalog, modules (Lmod + Enroot wrappers), recipes
 (template rendering), index (three-way index), resolver, coordinator (queue, claim, report),
 builder_api (`/api/builder/*`, `/api/admin/*`), failures (signatures, scrubbing), harbor
-(per-job robots). `builder/apparadise_builder/`: config, agent, launchers, scale.
+(per-job robots, read-only repository/artifact listing), registry (`/api/registry`, the
+Registry page: `public` for everyone, `restricted` and `cache` for sysadmins, 30 s cache). `builder/apparadise_builder/`: config, agent, launchers, scale.
 chatbot, votes, slurm and runai are still to come.
 **appmotel gotcha:** a top-level directory named `frontend`, `backend`, `api`, `worker`, `db` or
 `cache` that holds a `requirements.txt` switches appmotel into multi-component mode. Never use

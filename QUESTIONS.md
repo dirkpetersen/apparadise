@@ -199,3 +199,14 @@ would compile a whole old toolchain and download its own CUDA.
 failure records. Builds now pick the easyconfig automatically: for the requested version,
 the CUDA easyconfig with the newest toolchain generation.
 **Answer:**
+
+## Q23 (2026-10-31): Who may browse the Registry page, and with which Harbor account?
+
+The new Registry page (`#/registry`) lists what Harbor holds, with pull commands per tag.
+**Default:** the `public` project is browsable without signing in, like the catalog.
+`restricted` and `cache` (the NGC proxy cache plus test tags) are shown only to RCO-Admins,
+and anyone else gets a 404 for them. The server reads Harbor with the same
+`HARBOR_USERNAME` account that creates the per-job robots. The browser never talks to
+Harbor's API, and answers are cached for 30 seconds. If you'd rather keep reads off the admin
+account, a separate read-only robot (pull + list on all three projects) would be a small change.
+**Answer:**

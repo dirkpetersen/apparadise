@@ -4,12 +4,14 @@ import { renderShell } from "./views/shell.js";
 import { renderCatalog } from "./views/catalog.js";
 import { renderPackage } from "./views/package.js";
 import { renderAdmin } from "./views/admin.js";
+import { renderRegistry, renderRepository } from "./views/registry.js";
 import "./components/confirm-dialog.js";
 import { h } from "./dom.js";
 import { toast } from "./components/toast.js";
 import "./components/code-panel.js";
 
-// Hash routes: "#/" catalog, "#/p/<name>" package page, "#/admin" build console
+// Hash routes: "#/" catalog, "#/p/<name>" package page, "#/registry" (and
+// "#/registry/<project>/<repo>") what Harbor holds, "#/admin" build console
 // (sysadmins; the server enforces the role), "#/login" sign-in.
 // The catalog is public; signing in only matters for sysadmins (restricted
 // packages) and, in later phases, for requests and votes.
@@ -38,11 +40,16 @@ function route() {
     return;
   }
   const m = hash.match(/^#\/p\/([^/?#]+)$/);
+  const r = hash.match(/^#\/registry\/([^/?#]+)\/([^?#]+)$/);
   const page = hash === "#/admin"
     ? renderAdmin({ me, setTitle })
-    : m
-      ? renderPackage({ name: decodeURIComponent(m[1]), setTitle })
-      : renderCatalog({ query: new URLSearchParams(hash.split("?")[1] || "").get("q") || "", setTitle });
+    : hash === "#/registry"
+      ? renderRegistry({ setTitle })
+      : r
+        ? renderRepository({ project: decodeURIComponent(r[1]), name: r[2].split("/").map(decodeURIComponent).join("/"), setTitle })
+        : m
+          ? renderPackage({ name: decodeURIComponent(m[1]), setTitle })
+          : renderCatalog({ query: new URLSearchParams(hash.split("?")[1] || "").get("q") || "", setTitle });
   swap(renderShell({ appName, me, onLogout: doLogout, onSignIn, content: page }));
 }
 

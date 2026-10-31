@@ -12,7 +12,14 @@
 .hdr-nav a[aria-current="page"] { color: var(--text); }
 .user-wrap { display: inline-flex; align-items: center; gap: var(--sp-2); }
 .user-wrap .avatar { width: 1.75rem; height: 1.75rem; }
-@media (max-width: 34em) { .hdr-nav { display: none; } .user-wrap .avatar { display: none; } }
+.hdr-nav a[aria-current="page"] { background: var(--surface-2); }
+/* Phones: the nav becomes a second header row, so every section stays one tap away. */
+@media (max-width: 34em) {
+  .hdr-in { flex-wrap: wrap; height: auto; padding-block: var(--sp-2) 0; row-gap: var(--sp-1); }
+  .hdr-nav { order: 10; flex-basis: 100%; margin: 0 0 var(--sp-2); }
+  .hdr-nav a { padding: var(--sp-1) var(--sp-3); }
+  .user-wrap .avatar { display: none; }
+}
 
 .ftr { border-top: 1px solid var(--border); color: var(--text-faint); font-size: var(--fs-xs); }
 .ftr-in {
