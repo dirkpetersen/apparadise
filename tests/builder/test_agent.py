@@ -150,3 +150,32 @@ def test_settings_validation():
     with pytest.raises(ValidationError):
         Settings(_env_file=None, coordinator_url="https://c.example", builder_name="Bad Name",
                  registry_host="r")
+
+
+def test_registry_token_goes_to_authfile_not_argv(world):
+    tc, db, make_agent, queue, tmp = world
+    queue()
+    seen = {}
+
+    class Spy(FakeRunner):
+        async def __call__(self, argv, cwd, on_output):
+            if "push" in argv and "--authfile" in argv:
+                f = Path(argv[argv.index("--authfile") + 1])
+                seen["mode"] = f.stat().st_mode & 0o777
+                seen["auth"] = f.read_text()
+            return await super().__call__(argv, cwd, on_output)
+
+    runner = Spy()
+    agent = make_agent(runner)
+
+    async def go():
+        await agent.ensure_token()
+        job = await agent.claim()
+        job["registryToken"] = {"username": "robot$x", "password": "s3cret"}
+        return job, await agent.execute(job)
+
+    job, status = asyncio.run(go())
+    assert status == "published" and seen["mode"] == 0o600
+    assert "registry.example.org" in seen["auth"]
+    assert not any("s3cret" in a for argv in runner.calls for a in argv)
+    assert not (tmp / "work" / str(job["id"]) / "auth.json").exists()  # removed afterwards

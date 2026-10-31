@@ -148,3 +148,19 @@ host. **Default:** `python -m apparadise.index ... --csv` regenerates it from th
 upstream sources. Its columns are name, spack, easybuild, pixi and sources, with CUDA
 packages only.
 **Answer:**
+
+## Q19 (2026-10-31): How do GPU nodes pull the test tag from the `cache` project?
+
+The test stage pushes `cache/test-<name>:<job>` with the job's robot account and then runs it
+with `srun --container-image`. Pyxis/Enroot pulls it as the user who runs the test job.
+**Default:** test jobs run as a service account that has site Enroot credentials
+(`~/.config/enroot/.credentials`) with pull access to `cache`. A retention rule in Harbor
+deletes `cache/test-*` tags after 2 days.
+**Answer:**
+
+## Q20 (2026-10-31): Is a per-project robot scope enough?
+
+Harbor scopes robot accounts to projects, not single repositories. **Default:** each job
+gets push/pull on its image's project plus `cache`, lasts 1 day at most, and is deleted
+when the job ends. CLAUDE.md says "one repository"; this is the closest Harbor offers.
+**Answer:**

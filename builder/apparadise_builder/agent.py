@@ -14,7 +14,9 @@ Stages run by the builder (resolve and generate already happened on the coordina
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
+import json
 import logging
 import os
 import re
@@ -73,6 +75,8 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
     inside the container."""
     tool = s.container_tool
     ref = f"{s.registry_host}/{job['image']}"
+    authfile = workdir / "auth.json"
+    auth = ["--authfile", str(authfile)] if authfile.exists() else []
     local = f"apparadise-local/{job['id']}"
     labels = [f"--label=io.apparadise.{k}={job[k]}" for k in ("package", "version", "target",
                                                                 "source")]
@@ -87,13 +91,14 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
             return []
         test_ref = f"{s.registry_host}/cache/test-{job['package']}:{job['id']}"
         return [
-            [tool, "push", local, f"docker://{test_ref}"],
+            [tool, "push", *auth, local, f"docker://{test_ref}"],
             ["srun", "-p", s.test_partition, "--gpus=1", "--nice=1000",
              f"--container-image={s.registry_host}#cache/test-{job['package']}:{job['id']}",
              "sh", "-c", job["smoke"]],
         ]
     if stage == "publish":
-        cmds = [[tool, "push", "--digestfile", str(workdir / "digest"), local, f"docker://{ref}"]]
+        cmds = [[tool, "push", *auth, "--digestfile", str(workdir / "digest"), local,
+                 f"docker://{ref}"]]
         if s.sign_key:
             cmds.append(["cosign", "sign", "--yes", "--key", s.sign_key, ref])
         return cmds
@@ -168,6 +173,14 @@ class Agent:
         workdir = Path(self.s.work_dir) / str(job["id"])
         workdir.mkdir(parents=True, exist_ok=True)
         (workdir / RECIPE_FILE[job["source"]]).write_text(job["recipe"])
+        authfile = workdir / "auth.json"
+        if job.get("registryToken"):
+            # The job's robot credentials go to a 0600 auth file, never into argv or the log.
+            tok = job["registryToken"]
+            cred = base64.b64encode(f"{tok['username']}:{tok['password']}".encode()).decode()
+            fd = os.open(authfile, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as fh:
+                json.dump({"auths": {self.s.registry_host: {"auth": cred}}}, fh)
         (workdir / "Containerfile").write_text(CONTAINERFILES[job["source"]].format(
             registry=self.s.registry_host, base_builder=job["baseBuilder"],
             base_runtime=job["baseRuntime"]))
@@ -215,6 +228,7 @@ class Agent:
                     await self.report(job["id"], stage, True)
             return "published"
         finally:
+            authfile.unlink(missing_ok=True)
             self.current = None
 
     # -- the loop ---------------------------------------------------------------------------

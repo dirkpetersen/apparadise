@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from . import auth, builder_api, catalog
 from .config import Settings
 from .db import DB_FILENAME, Database
+from .harbor import HarborClient
 from .ldapauth import AdAuthenticator
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -37,6 +38,7 @@ def create_app(
     authenticator: AdAuthenticator | None = None,
     clock: Callable[[], float] = time.time,
     load_catalog: bool = True,
+    harbor: HarborClient | None = None,
 ) -> FastAPI:
     """`db`: an already-open database (e.g. in-memory), which the caller then closes;
     `authenticator`: a fake-LDAP one; `clock` drives session expiry and the login
@@ -57,6 +59,8 @@ def create_app(
         try:
             yield
         finally:
+            if _app.state.harbor is not None:
+                await _app.state.harbor.aclose()
             if owned:
                 _app.state.db.close()
 
@@ -67,6 +71,8 @@ def create_app(
     app.state.authenticator = authenticator or AdAuthenticator(settings)
     app.state.sessions = auth.SessionManager(settings, clock)
     app.state.throttle = auth.LoginThrottle(clock)
+    # One Harbor client per app; None without HARBOR_URL (no robot credentials for builders).
+    app.state.harbor = harbor or (HarborClient(settings) if settings.harbor_url else None)
     # Always False here. Only mock/demo.py flips it on the finished app object;
     # no setting or environment variable can (tests/test_demo.py).
     app.state.demo = False

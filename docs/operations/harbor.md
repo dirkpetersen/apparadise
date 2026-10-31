@@ -18,8 +18,11 @@ internet. Base images are derived from NGC through it.
 
 ## Robot accounts
 
-- **One per build job**, created by the coordinator (phase 2) with push rights to a single
-  repository and a short expiry. Never use site credentials.
+- **One per build job**, created by the coordinator when a builder claims the job. It is
+  a system robot with push/pull on the image's project (`public` or `restricted`) plus
+  `cache`, lives `HARBOR_ROBOT_DAYS` (default 1), and is deleted when the job finishes. If
+  Harbor is down, the job goes back in the queue. Set `HARBOR_URL`, `HARBOR_USERNAME` and
+  `HARBOR_PASSWORD` in `web/.env` to an admin account that may create system robots (Q20).
 - **Phase 1 hand builds:** one robot account per operator, with push to `public/*` and
   `cache/*`. Use `restricted/*` only from on-prem builders.
 

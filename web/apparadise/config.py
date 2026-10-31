@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Annotated
 
 from dotenv import load_dotenv
-from pydantic import Field, SecretStr, ValidationError, field_validator
+from pydantic import Field, SecretStr, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 LOG_LEVELS = ("debug", "info", "warning", "error")
@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     sqsh_dir: str = "/shared/containers"
     module_dir: str = "/shared/modules/apparadise"
     wrapper_dir: str = "/shared/apps/apparadise/bin"
+
+    # Harbor admin API, for one short-lived robot account per build job. Empty HARBOR_URL:
+    # builders get no registry credentials (development only).
+    harbor_url: str = ""
+    harbor_username: str = ""
+    harbor_password: SecretStr = SecretStr("")
+    harbor_robot_days: int = Field(1, ge=1, le=7)
 
     @field_validator("ldap_url", mode="before")
     @classmethod
@@ -117,6 +124,22 @@ class Settings(BaseSettings):
             raise ValueError("must be a registry host such as registry.example.org[:port], "
                              "without https://")
         return v
+
+    @field_validator("harbor_url")
+    @classmethod
+    def _harbor_url(cls, v: str) -> str:
+        v = v.strip().rstrip("/")
+        if v and not re.fullmatch(r"https://[A-Za-z0-9.-]+(:[0-9]{1,5})?", v) \
+                and not re.fullmatch(r"http://(127\.0\.0\.1|localhost)(:[0-9]{1,5})?", v):
+            raise ValueError("must be https://host[:port] (plain http only for loopback)")
+        return v
+
+    @model_validator(mode="after")
+    def _harbor_complete(self):
+        if self.harbor_url and not (self.harbor_username
+                                    and self.harbor_password.get_secret_value()):
+            raise ValueError("HARBOR_URL is set, so also set HARBOR_USERNAME and HARBOR_PASSWORD")
+        return self
 
     @field_validator("sqsh_dir", "module_dir", "wrapper_dir")
     @classmethod

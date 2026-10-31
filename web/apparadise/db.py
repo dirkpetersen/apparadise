@@ -194,6 +194,10 @@ MIGRATIONS: list[str] = [
     ALTER TABLE build ADD COLUMN builder_id INTEGER REFERENCES builder (id);
     ALTER TABLE build ADD COLUMN restricted INTEGER NOT NULL DEFAULT 0;
     """,
+    # 4: the Harbor robot account a running job pushes with (deleted when the job ends)
+    """
+    ALTER TABLE build ADD COLUMN harbor_robot_id INTEGER;
+    """,
 ]
 
 _SECRET_KEY = re.compile(

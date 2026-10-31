@@ -112,6 +112,18 @@ def claim(db: Database, builder: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def release(db: Database, build_id: int) -> None:
+    """Put a just-claimed job back in the queue (e.g. Harbor was unavailable)."""
+    with db.tx() as c:
+        c.execute("UPDATE build SET status = 'queued', builder_id = NULL, started_at = NULL "
+                  "WHERE id = ? AND status = 'running'", (build_id,))
+
+
+def set_robot(db: Database, build_id: int, robot_id: int | None) -> None:
+    with db.tx() as c:
+        c.execute("UPDATE build SET harbor_robot_id = ? WHERE id = ?", (robot_id, build_id))
+
+
 def _own_running(db: Database, builder: dict[str, Any], build_id: int) -> dict[str, Any]:
     row = db.query_one("SELECT * FROM build WHERE id = ?", (build_id,))
     if row is None or row["builder_id"] != builder["id"]:
@@ -177,6 +189,6 @@ def report(db: Database, data_dir: str | Path, builder: dict[str, Any], build_id
             db.failures.record(build_id, failures.signature(stage, line, restricted), stage,
                                failures.excerpt(log or line, around=line[:80] or None),
                                restricted)
-    return db.query_one("SELECT id, stage, status, image_digest, failure_id FROM build "
-                        "WHERE id = ?", (build_id,))
+    return db.query_one("SELECT id, stage, status, image_digest, failure_id, harbor_robot_id "
+                        "FROM build WHERE id = ?", (build_id,))
 
