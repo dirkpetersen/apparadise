@@ -11,6 +11,8 @@ need root, and never need to know whether a package came from Spack, EasyBuild o
 > - **Phase 1:** the code and runbooks are done.
 > - **Phase 2:** the pipeline code (index, resolver, coordinator, builder agent, Harbor
 >   robots) is built and tested offline.
+> - **Phase 3:** the community layer (requests with a weekly quota, upvotes, the public
+>   failure database, live build logs, nightly retries) is built and tested offline (Q24).
 > - **Not yet:** nothing has run on real hardware, Harbor or a container runtime.
 >
 > See `docs/operations/go-live.md` for the order to bring it up, `TODO.md` for what's

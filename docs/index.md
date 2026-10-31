@@ -12,7 +12,9 @@ Run:ai. Software comes from Spack, EasyBuild or pixi/conda-forge, with one sourc
 
 ## Where things are
 
-- **Web app** (`web/`): the catalog, sign-in, and later requests, votes and the builder API.
+- **Web app** (`web/`): the catalog, registry browser, requests with quota, votes, the
+  public failure database, live build logs, the build console and the builder API
+  ([Using apparadise](using.md)).
 - **Catalog** (`catalog/*.yml`): hand-maintained in phase 1, loaded at startup.
 - **Targets** (`containers/targets.yml`): every architecture flag, in one place.
 - **Base images** (`containers/base/`): the builder and runtime images per target.

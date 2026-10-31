@@ -36,6 +36,13 @@ digests under `base_digests` in `containers/targets.yml`
 ## 5. Index
 
 Install `tools/refresh-index` as a nightly cron job on the server, then run it once by hand.
+It also runs `python -m apparadise.retry`, which re-queues failed builds whose recipe changed
+upstream (or whose failure is older than 14 days, with at most 3 attempts per release).
+
+## 5b. Community settings
+
+On `#/admin`, set the weekly request quota (default: 6 build jobs per user). The retry
+interval and cap are stored in the database as `retry.after_days` and `retry.max_attempts`.
 
 ## 6. Builders
 

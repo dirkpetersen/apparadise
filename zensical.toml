@@ -6,6 +6,7 @@ docs_dir = "docs"
 site_dir = "site"
 nav = [
   { "Home" = "index.md" },
+  { "Using apparadise" = "using.md" },
   { "Software stack" = "stack.md" },
   { "Development" = "development.md" },
   { "Operations" = [
