@@ -150,7 +150,8 @@ def test_package_detail_and_commands(client):
 def test_failed_build_shows_stage(client):
     r = client.get("/api/catalog/relion").json()
     assert r["versions"][0]["targets"]["vr"] == {
-        "status": "failed", "stage": "build", "digest": "", "test": "", "built": None, "failureId": None}
+        "status": "failed", "stage": "build", "digest": "", "test": "", "built": None,
+        "failureId": None}
 
 
 def test_list_summary(client):

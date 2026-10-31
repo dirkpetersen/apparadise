@@ -210,3 +210,18 @@ and anyone else gets a 404 for them. The server reads Harbor with the same
 Harbor's API, and answers are cached for 30 seconds. If you'd rather keep reads off the admin
 account, a separate read-only robot (pull + list on all three projects) would be a small change.
 **Answer:**
+
+## Q24 (2026-10-31): Phase 3 started early; failure database and vote defaults
+
+Phase 1 is blocked on hardware (Harbor install, Rubin compute capability), so I kept going
+with phase 3 code, as Q17 did for phase 2.
+**Default:**
+- The failure database (`#/failures`) is public without signing in, like the catalog.
+  Restricted failure groups are visible to RCO-Admins only.
+- The excerpt and the error line are scrubbed when recorded. Paths, internal host names
+  (node part included), IP addresses and tokens are replaced.
+- Who requested a failed build is never shown publicly.
+- Voting needs a signed-in user. Each user gets one vote per package or failure group, and
+  can take it back.
+- Votes are counted, but nothing is ranked or scheduled by them yet.
+**Answer:**

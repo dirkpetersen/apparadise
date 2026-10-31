@@ -43,7 +43,7 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 
 
 - [x] Three-way index loader (Spack, EasyBuild, conda-forge linux-64 + linux-aarch64), `python -m apparadise.index`
-- [ ] Nightly refresh job (clone/download upstreams, then run the loader)
+- [x] Nightly refresh job (`tools/refresh-index`: clone/download upstreams, then run the loader)
 - [x] Resolver (fixed rule order) with tests per rule
 - [x] Base images pinned by digest via `containers/targets.yml` `base_digests` (filled in after the first push)
 - [x] EasyBuild: CUDA easyconfig per version recorded in the index and picked automatically; recipes bumped to `foss,2025b` with `filter-deps: CUDA` (Q22)
@@ -64,8 +64,9 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 
 ## Phase 3: community layer
 
-- [ ] Requests, upvotes, quota
-- [ ] Public failure DB: signature grouping, log scrubbing, restricted filtering
+- [ ] Requests and quota
+- [x] Public failure DB: signature grouping, log scrubbing, restricted filtering (`#/failures`, `#/f/<id>`, Q24)
+- [x] Upvotes on packages and failure groups (`PUT/DELETE /api/votes/...`)
 - [ ] Nightly retries when dependencies change upstream
 - [ ] Live build logs (SSE)
 

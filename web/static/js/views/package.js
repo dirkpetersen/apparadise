@@ -1,7 +1,8 @@
-import { h } from "../dom.js";
+import { h, replace } from "../dom.js";
 import { icon } from "../icons.js";
 import { getPackage } from "../api.js";
 import { SOURCE_LABEL, STATUS_LABEL, TARGET_LABEL, targetDots } from "./catalog.js";
+import { voteButton } from "../vote.js";
 
 const TARGET_HW = {
   vr: "NVIDIA Vera (Arm, 88 cores) · Rubin GPU",
@@ -56,7 +57,8 @@ function targetCard(pkg, version, target, info, select, selected) {
       info.test && [h("dt", { text: "Smoke test" }), h("dd", { text: info.test })],
       info.built && [h("dt", { text: "Built" }), h("dd", { text: info.built })]));
   } else if (info.status === "failed") {
-    body.push(h("p", { class: "tc-note", text: `Failed at the ${info.stage} stage. The public failure record arrives with the community layer.` }));
+    body.push(h("p", { class: "tc-note", text: `Failed at the ${info.stage} stage.` }),
+      info.failureId && h("a", { class: "tc-fail", href: `#/f/${info.failureId}` }, "See the failure record", icon("right", "icon tc-fail-icon")));
   }
   const attrs = { class: "tc", "data-status": info.status };
   if (!published) return h("div", attrs, body);
@@ -66,7 +68,7 @@ function targetCard(pkg, version, target, info, select, selected) {
   }, body);
 }
 
-export function renderPackage({ name, setTitle }) {
+export function renderPackage({ name, me, setTitle }) {
   const view = h("article", { class: "pkgpage", "aria-busy": "true" },
     h("a", { class: "back", href: "#/" }, icon("right", "icon back-icon"), "Catalog"),
     h("div", { class: "pkgpage-skel", "aria-hidden": "true" }));
@@ -108,12 +110,13 @@ export function renderPackage({ name, setTitle }) {
     paint();
 
     const upstream = Object.entries(pkg.aliases);
-    view.replaceChildren(
+    replace(view, [
       h("a", { class: "back", href: "#/" }, icon("right", "icon back-icon"), "Catalog"),
       h("header", { class: "pkgpage-head" },
         h("div", { class: "pkgpage-title" },
           h("h1", { text: pkg.title }),
-          pkg.visibility === "restricted" && h("span", { class: "chip chip-warn" }, icon("lock"), "Restricted · sysadmins only")),
+          pkg.visibility === "restricted" && h("span", { class: "chip chip-warn" }, icon("lock"), "Restricted · sysadmins only"),
+          h("span", { class: "pkg-vote" }, voteButton({ subject: "package", key: pkg.name, votes: pkg.votes, voted: pkg.voted, me, label: pkg.title }))),
         h("p", { class: "lede", text: pkg.description }),
         h("div", { class: "pkg-meta" },
           pkg.source && h("span", { class: "chip", "data-source": pkg.source }, SOURCE_LABEL[pkg.source]),
@@ -126,7 +129,7 @@ export function renderPackage({ name, setTitle }) {
           upstream.length > 0 && [h("dt", { text: "Upstream names" }), h("dd", {}, upstream.map(([s, n]) => h("span", { class: "alias" }, h("span", { class: "muted", text: `${s} ` }), h("code", { text: n }))))])),
       cmdEl,
       pkg.versions.length > 0 && h("h2", { class: "section-h", text: "Versions and targets" }),
-      versionsEl);
+      versionsEl]);
   }).catch((err) => {
     view.removeAttribute("aria-busy");
     view.replaceChildren(

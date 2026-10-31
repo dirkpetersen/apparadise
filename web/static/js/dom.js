@@ -22,3 +22,9 @@ export function append(el, children) {
   }
   return el;
 }
+// Like el.replaceChildren(...children), but skips null/false the way h() does
+// (the native call would render a conditional `cond && node` as the text "false").
+export function replace(el, children) {
+  el.replaceChildren();
+  return append(el, children);
+}

@@ -81,3 +81,20 @@ export const createBuilderToken = () => api("/admin/builder-tokens", { method: "
 export const getRegistry = () => api("/registry", { announce401: false });
 export const getRepository = (project, name) =>
   api(`/registry/${enc(project)}/${name.split("/").map(enc).join("/")}`, { announce401: false });
+
+// The public failure database. list({q, stage, package}) -> {failures: [{id, stage, error,
+// builds, votes, voted, packages, fixUrl, restricted, firstSeen, lastSeen}], stages};
+// get -> the same plus {excerpt (scrubbed), repairAttempts, builds: [{id, package, version,
+// source, target, platform, stage, status, finished}]}. Restricted groups: sysadmins only.
+export const listFailures = ({ q = "", stage = "", pkg = "" } = {}) => {
+  const p = new URLSearchParams();
+  if (q) p.set("q", q);
+  if (stage) p.set("stage", stage);
+  if (pkg) p.set("package", pkg);
+  const qs = p.toString();
+  return api(`/failures${qs ? `?${qs}` : ""}`, { announce401: false });
+};
+export const getFailure = (id) => api(`/failures/${enc(id)}`, { announce401: false });
+// Votes: subject "package" (key = name) or "failure" (key = id). -> {votes, voted}
+export const setVote = (subject, key, on) =>
+  api(`/votes/${enc(subject)}/${enc(key)}`, { method: on ? "PUT" : "DELETE" });

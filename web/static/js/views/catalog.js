@@ -31,7 +31,8 @@ function card(p) {
       h("div", { class: "pkg-meta" },
         h("span", { class: "chip", "data-source": p.source }, SOURCE_LABEL[p.source] || p.source),
         p.latest ? h("span", { class: "pkg-ver", text: p.latest }) : h("span", { class: "pkg-ver pkg-ver-none", text: "version at build time" }),
-        targetDots(p.targets))));
+        targetDots(p.targets),
+        p.votes > 0 && h("span", { class: "pkg-votes", title: `${p.votes} upvote${p.votes === 1 ? "" : "s"}` }, icon("up", "icon"), String(p.votes)))));
 }
 
 export function renderCatalog({ query, setTitle }) {

@@ -5,13 +5,15 @@ import { renderCatalog } from "./views/catalog.js";
 import { renderPackage } from "./views/package.js";
 import { renderAdmin } from "./views/admin.js";
 import { renderRegistry, renderRepository } from "./views/registry.js";
+import { renderFailure, renderFailures } from "./views/failures.js";
 import "./components/confirm-dialog.js";
 import { h } from "./dom.js";
 import { toast } from "./components/toast.js";
 import "./components/code-panel.js";
 
 // Hash routes: "#/" catalog, "#/p/<name>" package page, "#/registry" (and
-// "#/registry/<project>/<repo>") what Harbor holds, "#/admin" build console
+// "#/registry/<project>/<repo>") what Harbor holds, "#/failures" (and "#/f/<id>") the
+// public failure database, "#/admin" build console
 // (sysadmins; the server enforces the role), "#/login" sign-in.
 // The catalog is public; signing in only matters for sysadmins (restricted
 // packages) and, in later phases, for requests and votes.
@@ -41,15 +43,21 @@ function route() {
   }
   const m = hash.match(/^#\/p\/([^/?#]+)$/);
   const r = hash.match(/^#\/registry\/([^/?#]+)\/([^?#]+)$/);
+  const f = hash.match(/^#\/f\/(\d+)$/);
+  const query = new URLSearchParams(hash.split("?")[1] || "").get("q") || "";
   const page = hash === "#/admin"
     ? renderAdmin({ me, setTitle })
+    : hash.split("?")[0] === "#/failures"
+      ? renderFailures({ me, query, setTitle })
+    : f
+      ? renderFailure({ id: f[1], me, setTitle })
     : hash === "#/registry"
       ? renderRegistry({ setTitle })
       : r
         ? renderRepository({ project: decodeURIComponent(r[1]), name: r[2].split("/").map(decodeURIComponent).join("/"), setTitle })
         : m
-          ? renderPackage({ name: decodeURIComponent(m[1]), setTitle })
-          : renderCatalog({ query: new URLSearchParams(hash.split("?")[1] || "").get("q") || "", setTitle });
+          ? renderPackage({ name: decodeURIComponent(m[1]), me, setTitle })
+          : renderCatalog({ query, setTitle });
   swap(renderShell({ appName, me, onLogout: doLogout, onSignIn, content: page }));
 }
 
@@ -77,6 +85,8 @@ async function doLogout() {
 }
 
 window.addEventListener("hashchange", route);
+// Views that need a signed-in user (e.g. the upvote button) ask for sign-in this way.
+window.addEventListener("apparadise:signin", onSignIn);
 window.addEventListener("apparadise:unauthorized", () => {
   if (me) { me = null; current = ""; route(); toast.show("Your session has ended."); }
 });
