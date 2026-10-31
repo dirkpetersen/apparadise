@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # One-time token from a sysadmin; only needed until the builder has registered.
     registration_token: SecretStr = SecretStr("")
     poll_interval: int = Field(30, ge=1)
+    # Exit after this many consecutive empty claims (0: run forever). Slurm and EC2
+    # builders set it, so they release their node when the queue is empty.
+    idle_exit_polls: int = Field(0, ge=0)
 
     # Building
     registry_host: str = Field(min_length=1)

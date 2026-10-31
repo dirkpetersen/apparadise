@@ -179,3 +179,10 @@ def test_registry_token_goes_to_authfile_not_argv(world):
     assert "registry.example.org" in seen["auth"]
     assert not any("s3cret" in a for argv in runner.calls for a in argv)
     assert not (tmp / "work" / str(job["id"]) / "auth.json").exists()  # removed afterwards
+
+
+def test_idle_exit(world):
+    _, _, make_agent, _, _ = world
+    agent = make_agent(FakeRunner(), idle_exit_polls=2, poll_interval=1)
+    asyncio.run(asyncio.wait_for(agent.run(), 10))
+    assert agent.stopping.is_set()

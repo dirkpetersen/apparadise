@@ -235,6 +235,7 @@ class Agent:
 
     async def run(self) -> None:
         await self.ensure_token()
+        idle = 0
         while not self.stopping.is_set():
             try:
                 job = await self.claim()
@@ -242,9 +243,15 @@ class Agent:
                 log.warning("claim failed: %s", e)
                 job = None
             if job is None:
+                idle += 1
+                if self.s.idle_exit_polls and idle >= self.s.idle_exit_polls:
+                    log.info("idle for %d polls: exiting", idle)
+                    self.stopping.set()
+                    break
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self.stopping.wait(), self.s.poll_interval)
                 continue
+            idle = 0
             log.info("job %s: %s %s %s", job["id"], job["package"], job["version"], job["target"])
             try:
                 status = await self.execute(job)
