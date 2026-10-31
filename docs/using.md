@@ -23,6 +23,15 @@ whether it is signed. Each image comes with Slurm, Enroot and Podman commands, p
 digest-pinned reference for builds that must never change. Everyone sees the `public`
 project. Only RCO-Admins see `restricted` and `cache`.
 
+## Ask (`#/ask`)
+
+Sign in and ask in plain words, for example "Is GROMACS available on the Vera Rubin
+nodes?", "I need LAMMPS for the RTX farm" or "Why did the vLLM build fail on vr?". The
+assistant (Claude) searches the catalog and the upstream indexes and reads failure records,
+then answers with the exact `module load` or `srun` line. It never builds anything by
+itself: when a build is the answer, it drafts a request, and nothing is queued until you
+press the button under it.
+
 ## Requests (`#/requests`)
 
 Search for a package. The search covers Spack, EasyBuild and conda-forge. Each result shows

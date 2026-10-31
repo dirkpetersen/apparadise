@@ -33,7 +33,10 @@ a small package index. All users have the password `demo`. `alice` and `bob` are
 `dana` is a sysadmin (RCO-Admins), who also sees restricted packages, the `restricted` and
 `cache` registry projects, and the build console at `#/admin`. Pages: `#/` catalog,
 `#/registry` registry browser, `#/requests` software requests (sign in; quota per user),
-`#/failures` the public failure database.
+`#/failures` the public failure database, `#/ask` the request chatbot (in the demo, a
+keyword-rule stand-in answers instead of Claude, so no API key is needed). After pulling,
+run `.venv/bin/pip install -r requirements.txt` again: the chatbot adds the `anthropic`
+package.
 
 | Path | What it is |
 |---|---|

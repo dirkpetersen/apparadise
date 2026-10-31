@@ -1,4 +1,4 @@
-import { h } from "../dom.js";
+import { h, replace } from "../dom.js";
 import { icon } from "../icons.js";
 import { createRequest, getChatStatus, queueBuild, sendChat } from "../api.js";
 import { SOURCE_LABEL, TARGET_LABEL } from "./catalog.js";
@@ -11,11 +11,14 @@ const SUGGESTIONS = [
   "Why did the vLLM build fail on vr?",
 ];
 
-// Assistant text: paragraphs, ``` fenced blocks and `inline code`. Built with h(), so
-// nothing the model writes is ever parsed as HTML.
+// Assistant text: paragraphs, lists, ``` fenced blocks, `inline code` and **bold**. Built
+// with h(), so nothing the model writes is ever parsed as HTML.
 function inline(text) {
-  return text.split(/(`[^`\n]+`)/).map((part) => (part.startsWith("`") && part.endsWith("`") && part.length > 2
-    ? h("code", { text: part.slice(1, -1) }) : part));
+  return text.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/).map((part) => {
+    if (part.length > 2 && part.startsWith("`") && part.endsWith("`")) return h("code", { text: part.slice(1, -1) });
+    if (part.length > 4 && part.startsWith("**") && part.endsWith("**")) return h("strong", { text: part.slice(2, -2) });
+    return part;
+  });
 }
 function render(text) {
   const out = [];
@@ -46,10 +49,10 @@ function proposalCard(p, me) {
       const r = isBuild
         ? await queueBuild({ package: p.name, version: p.version, targets: p.targets, ...(p.source ? { source: p.source } : {}) })
         : await createRequest({ name: p.name, targets: p.targets, ...(p.version ? { version: p.version } : {}), ...(p.source ? { source: p.source } : {}) });
-      result.replaceChildren(h("p", {}, icon(r.queued.length ? "check" : "bell"),
+      replace(result, [h("p", {}, icon(r.queued.length ? "check" : "bell"),
         r.queued.length ? `Queued ${r.queued.length} build job${r.queued.length === 1 ? "" : "s"}${r.version ? ` of ${r.version}` : ""}. ` : "Nothing new to build. ",
         h("a", { href: "#/requests", text: "See requests" })),
-      r.skipped.map((s) => h("p", { class: "muted", text: `${TARGET_LABEL[s.target]}: ${s.reason}` })));
+      r.skipped.map((s) => h("p", { class: "muted", text: `${TARGET_LABEL[s.target]}: ${s.reason}` }))]);
       btn.replaceChildren(icon("check"), h("span", { text: "Done" }));
     } catch (err) {
       result.replaceChildren(h("p", { class: "form-error", role: "alert" }, icon("alert"), h("span", { text: err.message })));
