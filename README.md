@@ -7,8 +7,37 @@ apparadise builds CUDA software once per hardware target and ships each build as
 container image. The same image is also exposed as `module load <name>/<version>`. Users never
 need root, and never need to know whether a package came from Spack, EasyBuild or conda-forge.
 
-> Status: greenfield. The architecture is designed, and no code exists yet. See
-> [Roadmap](#roadmap) for the phased plan.
+> **Status (2026-10-31):**
+> - **Phase 1:** the code and runbooks are done.
+> - **Phase 2:** the pipeline code (index, resolver, coordinator, builder agent, Harbor
+>   robots) is built and tested offline.
+> - **Not yet:** nothing has run on real hardware, Harbor or a container runtime.
+>
+> See `TODO.md` for what's left and `QUESTIONS.md` for open decisions and the defaults in
+> use.
+
+## Quick start
+
+```bash
+cd web
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python3 ../mock/demo.py     # http://127.0.0.1:8000
+.venv/bin/pytest                      # web + builder tests
+```
+
+The demo runs the real app with a fake directory, a sample catalog and a small package
+index. All users have the password `demo`. `alice` and `bob` are regular users. `dana` is a
+sysadmin (RCO-Admins), who sees restricted packages and the build console at `#/admin`.
+
+| Path | What it is |
+|---|---|
+| `web/` | FastAPI app: catalog, AD login, coordinator, builder API, build console (appmotel app) |
+| `builder/` | Pull-based builder agent and launchers: local container, `sbatch`, EC2 spot (appmotel app) |
+| `catalog/` | Hand-maintained catalog entries (phase 1) |
+| `containers/` | `targets.yml` (every arch flag) and the base image Containerfiles |
+| `recipes/_templates/` | Spack, EasyBuild and pixi recipe templates |
+| `tools/` | `stage-sqsh`, `refresh-index` |
+| `docs/` | Zensical docs: stack, runbooks, lessons |
 
 ## How it works
 
