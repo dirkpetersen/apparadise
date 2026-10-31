@@ -16,8 +16,13 @@
 /* Phones: the nav becomes a second header row, so every section stays one tap away. */
 @media (max-width: 34em) {
   .hdr-in { flex-wrap: wrap; height: auto; padding-block: var(--sp-2) 0; row-gap: var(--sp-1); }
-  .hdr-nav { order: 10; flex-basis: 100%; margin: 0 0 var(--sp-2); overflow-x: auto; scrollbar-width: none; }
-  .hdr-nav a { padding: var(--sp-1) var(--sp-3); }
+  /* min-width 0 all the way up, or the nav's full width becomes the page's minimum width
+     and the whole page scrolls sideways instead of the nav */
+  .hdr, .hdr-in { min-width: 0; }
+  .hdr-nav { order: 10; flex-basis: 100%; min-width: 0; margin: 0 0 var(--sp-2); overflow-x: auto; scrollbar-width: none; }
+  .hdr-nav a { padding: var(--sp-1) var(--sp-3); flex: none; }
+  /* a soft edge says "scroll for more" when the items don't fit */
+  .hdr-nav { mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent); padding-inline-end: 2rem; }
   /* the avatar names the user; the trigger keeps its aria-label */
   .user .mb-label { display: none; }
 }
