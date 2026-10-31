@@ -128,9 +128,9 @@ tell apart.
 
 ## Q16 (2026-10-31): Are the pinned tool versions in the builder image right?
 
-**Default:** Spack `v1.1.0`, EasyBuild `5.1.2`, pixi `0.58.0`. None of them have been checked
-against upstream yet, because no container runtime is available on the development host.
-Verify them at the first image build.
+**Default (updated 2026-10-31, checked against upstream):** Spack `v1.2.2`, EasyBuild
+`5.4.2`, pixi `0.83.0`, NGC CUDA `13.0.3` and `12.9.2` on Ubuntu 24.04. The image builds
+themselves still haven't run, because no container runtime is available here.
 **Answer:**
 
 ## Q17 (2026-10-31): May phase 2 code start before phase 1 is fully built?

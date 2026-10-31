@@ -1,12 +1,12 @@
 # Runtime base: what every published image starts from. CUDA runtime only; the GPU
 # driver comes from the host (Enroot/Pyxis hooks, NVIDIA GPU Operator on Run:ai).
 #
-#   podman build --platform linux/arm64 --build-arg CUDA_VERSION=13.0 \
+#   podman build --platform linux/arm64 --build-arg CUDA_FULL=13.0.3 \
 #     -f Containerfile.runtime -t $REGISTRY/cache/base-runtime:13.0-vr .
 #
 # Pin the base by digest in production builds (--build-arg BASE=...@sha256:...).
-ARG CUDA_VERSION=13.0
-ARG BASE=nvcr.io/nvidia/cuda:${CUDA_VERSION}.0-runtime-ubuntu24.04
+ARG CUDA_FULL=13.0.3
+ARG BASE=nvcr.io/nvidia/cuda:${CUDA_FULL}-runtime-ubuntu24.04
 FROM ${BASE}
 
 ARG TARGET=rtx

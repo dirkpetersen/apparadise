@@ -31,6 +31,7 @@ Code and runbooks are done. What remains needs the hardware, Harbor and a contai
 - [x] Harbor runbook (`docs/operations/harbor.md`): projects public/restricted/cache, nvcr.io proxy cache (Q8)
 - [ ] Install Harbor (Q8), build and push base images (Q5, Q6, Q16)
 - [ ] Read Rubin's compute capability on the NVL72 and fill in `containers/targets.yml` (Q13)
+- [ ] Concretize a rendered `spack.yaml` with real Spack (`spack -e <dir> concretize`); not run here, since executing a freshly cloned Spack was outside this session's permissions
 - [ ] Top 20 packages built on both targets (Q4)
 - [ ] Visual check of the UI in a real browser (headless Chromium crashes on this dev host)
 

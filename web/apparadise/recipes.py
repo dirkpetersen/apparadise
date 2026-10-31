@@ -66,6 +66,7 @@ def target_vars(target: str, platform: str | None = None,
         "PLATFORM": platform,
         "CONDA_PLATFORM": CONDA_PLATFORM[platform],
         "CUDA_VERSION": str(t["cuda_version"]),
+        "CUDA_FULL": str(t["cuda_full"]),
         "CUDA_MAJOR": str(t["cuda_version"]).split(".")[0],
         "CUDA_ARCH_CSV": ",".join(arches),
         # EasyBuild wants dotted compute capabilities: 120 -> 12.0, 89 -> 8.9

@@ -37,8 +37,8 @@ dynamic data, and every `/api` call goes through `api.js`.
 | Component | Version | Notes |
 |---|---|---|
 | Base OS | Ubuntu 24.04 (NGC `nvcr.io/nvidia/cuda`) | Q5 |
-| CUDA | 13.0 (`vr`, `rtx`), 12.9 (`generic`) | Q6 |
-| Spack | `v1.1.0` (`SPACK_REF`) | Verify at the first image build |
-| EasyBuild | 5.1.2 | Non-editable install. Verify at the first image build. |
-| pixi | 0.58.0 | Verify at the first image build |
+| CUDA | 13.0.3 (`vr`, `rtx`), 12.9.2 (`generic`) | Q6; NGC tags checked 2026-10-31 |
+| Spack | `v1.2.2` (`SPACK_REF`) | Latest release on 2026-10-31 |
+| EasyBuild | 5.4.2 | Non-editable install. Latest on PyPI on 2026-10-31 |
+| pixi | 0.83.0 | Latest release on 2026-10-31; musl static binary |
 | Lmod | Ubuntu package | Not bootstrapped by hand |

@@ -11,7 +11,7 @@ spack:
     cuda:
       buildable: false
       externals:
-      - spec: cuda@$CUDA_VERSION
+      - spec: cuda@$CUDA_FULL
         prefix: /usr/local/cuda
     # RDMA comes from the image's rdma-core so MPI/UCX keep InfiniBand support.
     rdma-core:

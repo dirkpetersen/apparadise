@@ -2,17 +2,17 @@
 # and tested once, so no build ever bootstraps its own toolchain on a host OS.
 # Lessons: docs/lessons/easybuild-host-build.md.
 #
-#   podman build --platform linux/amd64 --build-arg CUDA_VERSION=13.0 --build-arg TARGET=rtx \
+#   podman build --platform linux/amd64 --build-arg CUDA_FULL=13.0.3 --build-arg TARGET=rtx \
 #     -f Containerfile.builder -t $REGISTRY/cache/base-builder:13.0-rtx .
-ARG CUDA_VERSION=13.0
-ARG BASE=nvcr.io/nvidia/cuda:${CUDA_VERSION}.0-devel-ubuntu24.04
+ARG CUDA_FULL=13.0.3
+ARG BASE=nvcr.io/nvidia/cuda:${CUDA_FULL}-devel-ubuntu24.04
 FROM ${BASE}
 
 ARG TARGET=rtx
 # Pinned tool versions: bump deliberately, together with docs/stack.md.
-ARG SPACK_REF=v1.1.0
-ARG EASYBUILD_VERSION=5.1.2
-ARG PIXI_VERSION=0.58.0
+ARG SPACK_REF=v1.2.2
+ARG EASYBUILD_VERSION=5.4.2
+ARG PIXI_VERSION=0.83.0
 
 LABEL io.apparadise.target="${TARGET}" io.apparadise.role="builder"
 
