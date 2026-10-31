@@ -248,6 +248,12 @@ async def start_build(body: BuildBody, request: Request, user: Sysadmin,
         if not easyconfig:
             raise HTTPException(422, f"No CUDA easyconfig for {res.upstream_name} "
                                      f"{body.version}; name one in 'easyconfig'.")
+    marker = True
+    if res.source == "pixi":
+        rows = await db.run(db.index.lookup, [normalise(res.upstream_name, "pixi")])
+        marker = next((r["details"].get("cuda_build_marker", True) for r in rows
+                       if r["source"] == "pixi" and r["upstream_name"] == res.upstream_name),
+                      True)
     queued, skipped = [], []
     for target in dict.fromkeys(body.targets):
         for platform in coordinator.TARGET_PLATFORMS[target]:
@@ -255,7 +261,8 @@ async def start_build(body: BuildBody, request: Request, user: Sysadmin,
                 recipe = render(res.source, body.package, body.version, target,
                                 registry=settings.registry_host, platform=platform,
                                 spec=body.spec or f"{res.upstream_name}@{body.version}",
-                                easyconfig=easyconfig, conda_name=res.upstream_name)
+                                easyconfig=easyconfig, conda_name=res.upstream_name,
+                                cuda_build_marker=marker)
             except RecipeError as e:
                 skipped.append({"target": target, "platform": platform, "reason": str(e)})
                 continue

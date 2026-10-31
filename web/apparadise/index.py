@@ -133,6 +133,7 @@ def scan_conda(repodata: dict[str, str | Path]) -> list[dict[str, Any]]:
     versions: dict[str, set[str]] = defaultdict(set)
     cuda_arches: dict[str, set[str]] = defaultdict(set)
     python: dict[str, bool] = defaultdict(bool)
+    marker: dict[str, bool] = defaultdict(bool)  # "cuda" appears in a build string
     for subdir, path in repodata.items():
         if subdir not in CONDA_SUBDIRS:
             raise ValueError(f"unknown conda subdir {subdir!r}")
@@ -143,13 +144,20 @@ def scan_conda(repodata: dict[str, str | Path]) -> list[dict[str, Any]]:
                 name = rec["name"]
                 versions[name].add(rec["version"])
                 deps = rec.get("depends") or []
-                if "cuda" in rec.get("build", "").lower() or any(CUDA_DEPS.match(d) for d in deps):
+                in_build = "cuda" in rec.get("build", "").lower()
+                if in_build or any(CUDA_DEPS.match(d) for d in deps):
                     cuda_arches[name].add(subdir)
+                    marker[name] |= in_build
                 if any(d == "python" or d.startswith("python ") or d.startswith("python_abi")
                        for d in deps) or PYTHON_HINT.match(name):
                     python[name] = True
-    return [_item("pixi", n, versions[n], bool(cuda_arches[n]), sorted(cuda_arches[n]),
-                  python[n]) for n in sorted(versions)]
+    out = []
+    for n in sorted(versions):
+        it = _item("pixi", n, versions[n], bool(cuda_arches[n]), sorted(cuda_arches[n]), python[n])
+        if cuda_arches[n]:
+            it["details"] = {"cuda_build_marker": marker[n]}
+        out.append(it)
+    return out
 
 
 def write_csv(path: str | Path, items: list[dict[str, Any]]) -> int:

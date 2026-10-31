@@ -180,7 +180,8 @@ def test_conda_cuda_detected_from_dependencies(tmp_path):
                                          "depends": ["python", "cuda-version >=12,<13"]}}}
     f = tmp_path / "r.json"
     f.write_text(json.dumps(rd))
-    assert scan_conda({"linux-64": f})[0]["has_cuda"]
+    it = scan_conda({"linux-64": f})[0]
+    assert it["has_cuda"] and it["details"] == {"cuda_build_marker": False}
 
 
 def test_compiled_hpc_code_with_python_bindings_goes_to_spack():

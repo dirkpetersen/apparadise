@@ -81,7 +81,8 @@ def target_vars(target: str, platform: str | None = None,
 
 def render(source: str, name: str, version: str, target: str, *, registry: str,
            platform: str | None = None, spec: str = "", easyconfig: str = "",
-           conda_name: str = "", targets: dict[str, Any] | None = None) -> str:
+           conda_name: str = "", cuda_build_marker: bool = True,
+           targets: dict[str, Any] | None = None) -> str:
     if source not in TEMPLATE_FOR:
         raise RecipeError(f"unknown source {source!r}")
     if not NAME_RE.match(name) or not VERSION_RE.match(version):
@@ -100,7 +101,10 @@ def render(source: str, name: str, version: str, target: str, *, registry: str,
         conda = conda_name or name
         if not NAME_RE.match(conda):
             raise RecipeError("--conda-name: a conda-forge package name")
-        v["PIXI_DEPENDENCY"] = f'{conda} = {{ version = "=={version}", build = "*cuda*" }}'
+        # Pin a CUDA build only when conda-forge marks it in the build string; otherwise the
+        # [system-requirements] cuda entry steers the solver to the CUDA variant.
+        build = ', build = "*cuda*"' if cuda_build_marker else ""
+        v["PIXI_DEPENDENCY"] = f'{conda} = {{ version = "=={version}"{build} }}'
     text = (TEMPLATES / TEMPLATE_FOR[source]).read_text()
     return Template(text).substitute(v)
 

@@ -94,3 +94,8 @@ def test_targets_have_digest_slots():
         if name == "easybuild_toolchain":
             continue
         assert set(spec["base_digests"]) == {"builder", "runtime"}, name
+
+
+def test_render_pixi_without_build_marker():
+    text = render("pixi", "cupy", "14.2.0", "rtx", registry="r", cuda_build_marker=False)
+    assert tomllib.loads(text)["dependencies"]["cupy"] == {"version": "==14.2.0"}
