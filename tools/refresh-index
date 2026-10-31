@@ -1,0 +1,45 @@
+#!/bin/bash
+# Nightly refresh of the three-way package index (Spack, EasyBuild, conda-forge).
+#
+#   tools/refresh-index [SRC_DIR]        default SRC_DIR=/srv/apparadise/upstream
+#
+# Clones or fast-forwards spack/spack-packages and easybuilders/easybuild-easyconfigs,
+# downloads conda-forge current_repodata for linux-64 and linux-aarch64, then loads all three into
+# the web app's database and writes the comparison CSV next to them. Run it from cron or a
+# systemd timer as the web app's user, e.g. 03:15 daily:
+#   15 3 * * * /srv/apparadise/tools/refresh-index >> /srv/apparadise/web/data/index.log 2>&1
+set -euo pipefail
+
+here=$(cd "$(dirname "$0")/.." && pwd)
+src=${1:-/srv/apparadise/upstream}
+db=${APPARADISE_DB:-$here/web/data/apparadise.sqlite3}
+py=${APPARADISE_PYTHON:-$here/web/.venv/bin/python3}
+conda_base=${CONDA_FORGE_URL:-https://conda.anaconda.org/conda-forge}
+mkdir -p "$src"
+
+sync_repo() {  # url dir
+  if [[ -d "$2/.git" ]]; then
+    git -C "$2" fetch --quiet --depth 1 origin develop && git -C "$2" reset --quiet --hard FETCH_HEAD
+  else
+    git clone --quiet --depth 1 --branch develop "$1" "$2"
+  fi
+}
+sync_repo https://github.com/spack/spack-packages.git "$src/spack-packages"
+sync_repo https://github.com/easybuilders/easybuild-easyconfigs.git "$src/easybuild-easyconfigs"
+
+conda_args=()
+for sub in linux-64 linux-aarch64; do
+  out="$src/repodata-$sub.json"
+  tmp=$(mktemp "$src/.repodata-$sub.XXXXXX")
+  # current_repodata.json: the newest builds of every package, a fraction of the full
+  # repodata (over 1 GB for linux-64), and enough to see which arches have CUDA builds.
+  curl -fsSL --compressed "$conda_base/$sub/current_repodata.json" > "$tmp"
+  mv -f "$tmp" "$out"
+  conda_args+=(--conda "$sub=$out")
+done
+
+cd "$here/web"
+"$py" -m apparadise.index --db "$db" --spack "$src/spack-packages" \
+  --easybuild "$src/easybuild-easyconfigs" "${conda_args[@]}" \
+  --csv "$src/cuda_spack_easybuild_pixi.csv"
+echo "index refreshed $(date -Is)"

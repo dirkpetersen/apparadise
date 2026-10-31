@@ -51,9 +51,19 @@ def normalise(name: str, source: str = "") -> str:
     return aliases.get(n, n)
 
 
+# Branch names and templates are not releases (spack: develop/main/master; EasyBuild: %s).
+NOT_A_RELEASE = re.compile(r"^(develop|main|master|stable|head|trunk|latest|nightly)$|%", re.I)
+CUDA_DEPS = re.compile(r"^(cuda-version|cudatoolkit|cuda-cudart|cuda-nvrtc|libcublas)\b")
+
+
+def releases(versions: Iterable[str]) -> list[str]:
+    vs = {v for v in versions if v and not NOT_A_RELEASE.search(v)}
+    return sorted(vs, key=version_key, reverse=True)[:MAX_VERSIONS]
+
+
 def _item(source: str, name: str, versions: Iterable[str], has_cuda: bool,
           arches: list[str], is_python: bool) -> dict[str, Any]:
-    vs = sorted(set(versions), key=version_key, reverse=True)[:MAX_VERSIONS]
+    vs = releases(versions)
     return {"source": source, "upstream_name": name, "norm_name": normalise(name, source),
             "versions": vs, "has_cuda": has_cuda, "arches": arches, "is_python": is_python}
 
@@ -112,9 +122,9 @@ def scan_conda(repodata: dict[str, str | Path]) -> list[dict[str, Any]]:
             for rec in (data.get(section) or {}).values():
                 name = rec["name"]
                 versions[name].add(rec["version"])
-                if "cuda" in rec.get("build", "").lower():
-                    cuda_arches[name].add(subdir)
                 deps = rec.get("depends") or []
+                if "cuda" in rec.get("build", "").lower() or any(CUDA_DEPS.match(d) for d in deps):
+                    cuda_arches[name].add(subdir)
                 if any(d == "python" or d.startswith("python ") or d.startswith("python_abi")
                        for d in deps) or PYTHON_HINT.match(name):
                     python[name] = True

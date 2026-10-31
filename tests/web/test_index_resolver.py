@@ -167,3 +167,29 @@ def test_aliases_widen_lookup(db):
 def test_unknown_requested_source():
     with pytest.raises(ValueError):
         resolve([], "conan")
+
+
+def test_branch_names_are_not_versions():
+    from apparadise.index import releases
+
+    assert releases(["main", "develop", "2026.3", "2.0.%s", "master", "1.2"]) == ["2026.3", "1.2"]
+
+
+def test_conda_cuda_detected_from_dependencies(tmp_path):
+    rd = {"packages.conda": {"a.conda": {"name": "cupy", "version": "14.0.1", "build": "py312h0",
+                                         "depends": ["python", "cuda-version >=12,<13"]}}}
+    f = tmp_path / "r.json"
+    f.write_text(json.dumps(rd))
+    assert scan_conda({"linux-64": f})[0]["has_cuda"]
+
+
+def test_compiled_hpc_code_with_python_bindings_goes_to_spack():
+    entries = [
+        {"source": "pixi", "upstream_name": "lammps", "versions": ["1"], "has_cuda": True,
+         "is_python": True, "arches": ["linux-64", "linux-aarch64"]},
+        {"source": "spack", "upstream_name": "lammps", "versions": ["1"], "has_cuda": True,
+         "is_python": False, "arches": []},
+    ]
+    assert resolve(entries).source == "spack"
+    entries[1]["upstream_name"] = "py-lammps"  # a py- recipe: the Python stack wins
+    assert resolve(entries).source == "pixi"

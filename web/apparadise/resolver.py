@@ -71,10 +71,15 @@ def resolve(entries: list[dict[str, Any]], requested_source: str | None = None) 
                               f"{requested_source} has no recipe for this package")
         return pick(1, e, f"requested source {requested_source}", port=not e["has_cuda"])
     conda = by_source.get("pixi")
-    if conda and conda["has_cuda"] and conda["is_python"] \
+    spack = by_source.get("spack")
+    # Rule 2 is for Python/ML stacks. A conda package that merely ships Python bindings
+    # (LAMMPS, GROMACS) is compiled HPC code: when Spack has a non-py- CUDA recipe for it,
+    # Spack wins, so it gets rebuilt per target.
+    compiled_in_spack = bool(spack and spack["has_cuda"]
+                             and not spack["upstream_name"].startswith("py-"))
+    if conda and conda["has_cuda"] and conda["is_python"] and not compiled_in_spack \
             and set(CONDA_SUBDIRS) <= set(conda["arches"]):
         return pick(2, conda, "Python/ML package with conda-forge CUDA builds for both arches")
-    spack = by_source.get("spack")
     if spack and spack["has_cuda"]:
         return pick(3, spack, "Spack recipe with a cuda variant")
     eb = by_source.get("easybuild")

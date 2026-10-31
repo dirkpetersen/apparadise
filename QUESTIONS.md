@@ -164,3 +164,26 @@ Harbor scopes robot accounts to projects, not single repositories. **Default:** 
 gets push/pull on its image's project plus `cache`, lasts 1 day at most, and is deleted
 when the job ends. CLAUDE.md says "one repository"; this is the closest Harbor offers.
 **Answer:**
+
+## Q21 (2026-10-31): Some resolver results on the real index need a decision
+
+I ran `tools/refresh-index` against the real upstreams. The index has 9,116 Spack packages
+(338 CUDA), 3,267 EasyBuild (261 CUDA) and 14,231 conda-forge (421 CUDA, counted from build
+strings and `cuda-version`/`cudatoolkit` deps). 910 names have a CUDA build somewhere, and
+18 have one in all three. The architecture doc says roughly 510 / 250 / 180 / 26, so the
+detection rules count differently than the original comparison.
+
+Resolving the provisional top 20 gave results that follow the rules but may not be what we
+want:
+- **jax** goes to EasyBuild: conda-forge's CUDA build lives in `jaxlib`, not `jax`.
+  **Default:** I leave it. A pixi recipe needs `jax` plus `jaxlib=*cuda*`, which the template
+  can't express yet.
+- **rapids, rapids-singlecell** go to EasyBuild: the conda metapackages have no CUDA marker
+  of their own. **Default:** I leave them. Request `source: pixi` explicitly (rule 1) to
+  build from conda-forge.
+- **jupyterlab** becomes a CUDA "port" in Spack, but it needs no CUDA at all.
+  **Default:** I leave the rule. Should non-GPU packages be allowed in the catalog as plain
+  CPU images?
+- **relion** goes to Spack (it has a cuda variant), not EasyBuild as I guessed in the
+  catalog file.
+**Answer:**
