@@ -69,3 +69,22 @@ def test_render_pixi():
 def test_render_rejects_bad_spec(kw):
     with pytest.raises(RecipeError):
         render("spack", "gromacs", "1", "rtx", registry="r", **kw)
+
+
+def test_base_refs_pin_digest_when_known(monkeypatch):
+    from apparadise import coordinator
+
+    d = "sha256:" + "1" * 64
+    targets = load_targets()
+    targets["rtx"]["base_digests"] = {"builder": d, "runtime": None}
+    monkeypatch.setattr(coordinator, "_targets", lambda: targets)
+    assert coordinator.base_ref("builder", "rtx", "13.0") == f"cache/base-builder:13.0-rtx@{d}"
+    assert coordinator.base_ref("runtime", "rtx", "13.0") == "cache/base-runtime:13.0-rtx"
+    targets["rtx"]["base_digests"]["runtime"] = "latest"
+    with pytest.raises(ValueError):
+        coordinator.base_ref("runtime", "rtx", "13.0")
+
+
+def test_targets_have_digest_slots():
+    for name, spec in load_targets().items():
+        assert set(spec["base_digests"]) == {"builder", "runtime"}, name

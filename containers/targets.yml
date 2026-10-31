@@ -1,6 +1,8 @@
 # Hardware targets: the single source of truth for architecture flags.
 # cuda_version (major.minor) names images (base-builder:13.0-rtx); cuda_full is the exact
 # toolkit in the NGC base image and in Spack's cuda external.
+# base_digests: fill in after pushing the base images (podman push --digestfile); every
+# job then builds FROM tag@digest, so a rebuilt base never changes an old recipe silently.
 # Read by the recipe templates (tools/render-recipe), the runbooks and, in phase 2,
 # the recipe generators. tests/web/test_targets.py checks this file.
 #
@@ -24,6 +26,7 @@ vr:
   spack_target: neoverse_v2
   easybuild_optarch: "GCC:-mcpu=neoverse-v2"
   compiler_min: "GCC 16.1 or Clang 21 for Olympus tuning; GCC 14 for neoverse-v2"
+  base_digests: {builder: null, runtime: null}
 
 rtx:
   title: RTX PRO 6000 Blackwell farm
@@ -36,6 +39,7 @@ rtx:
   # Always the full flag: a bare "x86-64-v4" becomes "-x86-64-v4" (FAILURES.md #15).
   easybuild_optarch: "GCC:-march=x86-64-v4"
   compiler_min: "GCC 13"
+  base_digests: {builder: null, runtime: null}
 
 generic:
   title: Portable fallback
@@ -48,3 +52,5 @@ generic:
   spack_target: {linux/amd64: x86_64_v3, linux/arm64: aarch64}
   easybuild_optarch: {linux/amd64: "GCC:-march=x86-64-v3", linux/arm64: "GCC:-march=armv8.2-a"}
   compiler_min: "GCC 13"
+  # generic is multi-arch: pin the manifest-list digest
+  base_digests: {builder: null, runtime: null}

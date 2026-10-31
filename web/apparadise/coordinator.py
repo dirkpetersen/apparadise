@@ -39,6 +39,17 @@ def _targets() -> dict[str, Any]:
     return load_targets()
 
 
+def base_ref(role: str, target: str, cuda: str) -> str:
+    """cache/base-<role>:<cuda>-<target>, pinned @sha256 once targets.yml has the digest."""
+    ref = f"cache/base-{role}:{cuda}-{target}"
+    digest = ((_targets()[target].get("base_digests") or {}).get(role)) or ""
+    if digest:
+        if not DIGEST_RE.fullmatch(digest):
+            raise ValueError(f"targets.yml {target}.base_digests.{role}: not sha256:<64 hex>")
+        ref += f"@{digest}"
+    return ref
+
+
 class JobError(Exception):
     """A builder asked for something it may not do (wrong job, finished job, bad stage)."""
 
@@ -103,8 +114,8 @@ def claim(db: Database, builder: dict[str, Any]) -> dict[str, Any] | None:
         "image": f"{project}/{pkg['name']}:{job['version']}-{job['target']}",
         "cache": f"cache/{job['source']}-{job['target']}",
         "stages": list(BUILDER_STAGES),
-        "baseBuilder": f"cache/base-builder:{cuda}-{job['target']}",
-        "baseRuntime": f"cache/base-runtime:{cuda}-{job['target']}",
+        "baseBuilder": base_ref("builder", job["target"], cuda),
+        "baseRuntime": base_ref("runtime", job["target"], cuda),
         "executables": exes,
         "smoke": smoke,
         # Phase 2 TODO: a short-lived Harbor robot token for this one repository.

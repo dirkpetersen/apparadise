@@ -20,7 +20,11 @@ podman build --platform linux/amd64 --build-arg CUDA_FULL=13.0.3 --build-arg TAR
 The rules:
 
 - **Build natively.** Never use `--platform` for a foreign architecture (QEMU).
-- **Pin the base by digest** for production (`--build-arg BASE=nvcr.io/...@sha256:...`).
+- **Record the pushed digests.** Push with `podman push --digestfile d.txt ...`, then put
+  the digests under `base_digests` in `containers/targets.yml`. From then on every job
+  builds `FROM cache/base-builder:<cuda>-<target>@sha256:...`, so a rebuilt base never
+  silently changes an existing recipe.
+- **Pin the NGC parent by digest** for production (`--build-arg BASE=nvcr.io/...@sha256:...`).
   Check that the NGC tag has an arm64 variant before relying on it for `vr`.
 - **Use only the builder image's own toolchain.** The image carries Lmod, EasyBuild
   (non-editable), Spack, pixi, the RDMA headers and `config.guess`. That avoids every

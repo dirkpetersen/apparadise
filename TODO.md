@@ -44,7 +44,8 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 - [x] Three-way index loader (Spack, EasyBuild, conda-forge linux-64 + linux-aarch64), `python -m apparadise.index`
 - [ ] Nightly refresh job (clone/download upstreams, then run the loader)
 - [x] Resolver (fixed rule order) with tests per rule
-- [~] Recipe generators: templates render per target/platform; still to do: pin base digest, real easyconfig lookup
+- [x] Base images pinned by digest via `containers/targets.yml` `base_digests` (filled in after the first push)
+- [ ] Recipe generators: real easyconfig lookup from the index (today the sysadmin names the .eb file)
 - [x] Coordinator: job queue (`UPDATE ... RETURNING` claim), stages, per-tree EasyBuild lock (Q9)
 - [x] Builder API `/api/builder/...` (register, claim, log stream, report) + per-builder tokens
 - [x] Sysadmin routes: registration tokens, builders, `POST /api/admin/builds` (resolve + render + queue)
