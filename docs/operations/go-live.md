@@ -60,6 +60,12 @@ interval and cap are stored in the database as `retry.after_days` and `retry.max
   ([Modules and wrappers](modules.md)).
 - Add `MODULE_DIR` to the site `MODULEPATH`.
 
+## 7b. Assistant (optional)
+
+Set `ANTHROPIC_API_KEY` in `web/.env` to switch on the Ask page (`CHAT_MODEL` defaults to
+`claude-opus-5-5`, Q12, Q27). Without the key, the page says the assistant is off and
+everything else works.
+
 ## 8. First package, end to end
 
 Queue `gromacs` for `rtx` from `#/admin`. Watch the log through
@@ -73,6 +79,8 @@ These are untested on the development host:
 - the per-source Containerfiles in `builder/apparadise_builder/agent.py`,
 - `enroot start` from a `.sqsh` file (Q14),
 - the EasyBuild toolchain bump (Q22),
+- the auto-repair rules in `recipes/repairs.yml` against real build logs (Q29),
+- the Ask page against the real Claude API (the tests and the demo use a fake),
 - Spack concretization of the rendered `spack.yaml`.
 
 Expect the first builds to fail at `concretize` or `build`. The failure records show where.

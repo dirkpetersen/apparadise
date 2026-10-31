@@ -13,6 +13,9 @@ need root, and never need to know whether a package came from Spack, EasyBuild o
 >   robots) is built and tested offline.
 > - **Phase 3:** the community layer (requests with a weekly quota, upvotes, the public
 >   failure database, live build logs, nightly retries) is built and tested offline (Q24).
+> - **Phase 4:** the request chatbot (`#/ask`, Claude with five tools, proposals the user
+>   confirms), bounded auto-repair from a known-patch library, and upstream offers are
+>   built and tested offline (Q27, Q29).
 > - **Not yet:** nothing has run on real hardware, Harbor or a container runtime.
 >
 > See `docs/operations/go-live.md` for the order to bring it up, `TODO.md` for what's
