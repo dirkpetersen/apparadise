@@ -3,8 +3,12 @@
 #
 #   tools/refresh-index [SRC_DIR]        default SRC_DIR=/srv/apparadise/upstream
 #
-# Clones or fast-forwards spack/spack-packages and easybuilders/easybuild-easyconfigs,
-# downloads conda-forge current_repodata for linux-64 and linux-aarch64, then loads all three into
+# Clones or fast-forwards spack/spack-packages and easybuilders/easybuild-easyconfigs at the
+# refs the builder base image uses (containers/base/Containerfile.builder: Spack 1.2.2 reads
+# spack-packages releases/v2026.06, EasyBuild 5.4.2 ships easyconfigs v5.4.2). Scanning
+# develop instead offers versions the builders do not have (gromacs 2026.3 vs 2026.1).
+# Downloads conda-forge current_repodata for linux-64, linux-aarch64 and noarch (pure-Python
+# packages such as jupyterlab 4.x live only there), then loads all three into
 # the web app's database and writes the comparison CSV next to them. Run it from cron or a
 # systemd timer as the web app's user, e.g. 03:15 daily:
 #   15 3 * * * /srv/apparadise/tools/refresh-index >> /srv/apparadise/web/data/index.log 2>&1
@@ -15,20 +19,22 @@ src=${1:-/srv/apparadise/upstream}
 db=${APPARADISE_DB:-$here/web/data/apparadise.sqlite3}
 py=${APPARADISE_PYTHON:-$here/web/.venv/bin/python3}
 conda_base=${CONDA_FORGE_URL:-https://conda.anaconda.org/conda-forge}
+spack_ref=${SPACK_PACKAGES_REF:-releases/v2026.06}
+eb_ref=${EASYCONFIGS_REF:-easybuild-easyconfigs-v5.4.2}
 mkdir -p "$src"
 
-sync_repo() {  # url dir
+sync_repo() {  # url dir ref (a branch or a tag)
   if [[ -d "$2/.git" ]]; then
-    git -C "$2" fetch --quiet --depth 1 origin develop && git -C "$2" reset --quiet --hard FETCH_HEAD
+    git -C "$2" fetch --quiet --depth 1 origin "$3" && git -C "$2" reset --quiet --hard FETCH_HEAD
   else
-    git clone --quiet --depth 1 --branch develop "$1" "$2"
+    git clone --quiet --depth 1 --branch "$3" "$1" "$2"
   fi
 }
-sync_repo https://github.com/spack/spack-packages.git "$src/spack-packages"
-sync_repo https://github.com/easybuilders/easybuild-easyconfigs.git "$src/easybuild-easyconfigs"
+sync_repo https://github.com/spack/spack-packages.git "$src/spack-packages" "$spack_ref"
+sync_repo https://github.com/easybuilders/easybuild-easyconfigs.git "$src/easybuild-easyconfigs" "$eb_ref"
 
 conda_args=()
-for sub in linux-64 linux-aarch64; do
+for sub in linux-64 linux-aarch64 noarch; do
   out="$src/repodata-$sub.json"
   tmp=$(mktemp "$src/.repodata-$sub.XXXXXX")
   # current_repodata.json: the newest builds of every package, a fraction of the full

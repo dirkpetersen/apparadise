@@ -41,6 +41,11 @@ digests under `base_digests` in `containers/targets.yml`
 ## 5. Index
 
 Install `tools/refresh-index` as a nightly cron job on the server, then run it once by hand.
+The index must see the same recipes as the builders. `refresh-index` checks out
+spack-packages `releases/v2026.06` (what Spack 1.2.2 reads) and easybuild-easyconfigs
+`v5.4.2` (what EasyBuild 5.4.2 ships). When the base image moves to a new Spack or EasyBuild,
+set `SPACK_PACKAGES_REF` and `EASYCONFIGS_REF` to match. Otherwise the index offers versions
+that fail at `concretize` (`No version exists that satisfies these input specs`).
 It also runs `python -m apparadise.retry`, which re-queues failed builds whose recipe changed
 upstream (or whose failure is older than 14 days, with at most 3 attempts per release).
 

@@ -40,8 +40,13 @@ RUN python3 -m venv /opt/easybuild \
  && ln -s /opt/easybuild/bin/eb /usr/local/bin/eb
 
 # Spack at a pinned release; its build cache lives in the registry's `cache/` (Zot).
+# Its package recipes (spack-packages, branch releases/v2026.06 for Spack 1.2.2) are
+# fetched here, not by every build: one base image digest = one recipe snapshot. The index
+# must scan the same branch (docs/operations/go-live.md, index refresh), or it offers versions builders lack.
 RUN git clone --depth 1 --branch "${SPACK_REF}" https://github.com/spack/spack.git /opt/spack \
- && ln -s /opt/spack/bin/spack /usr/local/bin/spack
+ && ln -s /opt/spack/bin/spack /usr/local/bin/spack \
+ && { spack repo update || spack list zlib; } >/dev/null 2>&1 \
+ && spack repo list && spack versions --safe zlib | head -1
 
 # pixi: one static binary.
 RUN arch="$(uname -m)" \
