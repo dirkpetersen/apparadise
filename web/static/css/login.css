@@ -1,4 +1,4 @@
-/* Login: a deep black stage with a slow indigo glow, subtle grain, a crisp card. */
+/* Login: a deep black stage with a slow Beaver Orange glow, subtle grain, a crisp card. */
 
 .login {
   position: relative; isolation: isolate; overflow: hidden;
@@ -9,9 +9,9 @@
 .login::before { /* the glow */
   content: ""; position: absolute; inset: -20%; z-index: -2;
   background:
-    radial-gradient(42% 38% at var(--glow-x) var(--glow-y), rgb(79 70 229 / 0.7), transparent 70%),
-    radial-gradient(36% 34% at calc(100% - var(--glow-x)) calc(100% - var(--glow-y)), rgb(129 140 248 / 0.22), transparent 70%),
-    radial-gradient(60% 50% at 50% 110%, rgb(79 70 229 / 0.18), transparent 70%);
+    radial-gradient(42% 38% at var(--glow-x) var(--glow-y), rgb(215 63 9 / 0.7), transparent 70%),
+    radial-gradient(36% 34% at calc(100% - var(--glow-x)) calc(100% - var(--glow-y)), rgb(255 120 40 / 0.22), transparent 70%),
+    radial-gradient(60% 50% at 50% 110%, rgb(215 63 9 / 0.18), transparent 70%);
   filter: blur(30px);
   animation: glow-drift 26s ease-in-out infinite alternate;
 }
@@ -30,7 +30,7 @@
 @keyframes rise { from { opacity: 0; translate: 0 1rem; } }
 
 .brand { display: flex; align-items: center; gap: var(--sp-3); text-decoration: none; }
-.brand img { width: 2.25rem; height: 2.25rem; border-radius: 0.6rem; box-shadow: 0 6px 24px rgb(79 70 229 / 0.45); }
+.brand img { width: 2.25rem; height: 2.25rem; border-radius: 0.6rem; box-shadow: 0 6px 24px rgb(215 63 9 / 0.45); }
 .brand-name { font: 560 var(--fs-xl) / 1 var(--font-display); letter-spacing: -0.01em; font-variation-settings: "opsz" 48; }
 .login .brand-name { color: var(--stage-text); }
 .login-tag { color: var(--stage-muted); font-size: var(--fs-sm); text-align: center; margin-top: calc(-1 * var(--sp-3)); }
@@ -40,7 +40,7 @@
   border-radius: var(--r-xl); background: var(--surface); color: var(--text);
   border: 1px solid var(--border);
   box-shadow: 0 0 0 1px rgb(255 255 255 / 0.04), 0 2px 4px rgb(0 0 0 / 0.3),
-    0 24px 60px -12px rgb(0 0 0 / 0.7), 0 0 80px -20px rgb(79 70 229 / 0.35);
+    0 24px 60px -12px rgb(0 0 0 / 0.7), 0 0 80px -20px rgb(215 63 9 / 0.35);
 }
 .login-card h1 { font: 500 var(--fs-2xl) / 1.1 var(--font-display); letter-spacing: -0.015em;
   font-variation-settings: "opsz" 72; }

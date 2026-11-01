@@ -80,7 +80,7 @@ code, kbd, samp { font-family: var(--font-mono); font-size: 0.92em; }
 .btn-primary {
   --_bg: var(--accent); --_fg: var(--on-accent); --_bd: transparent;
   background-image: linear-gradient(180deg, rgb(255 255 255 / 0.16), rgb(255 255 255 0) 60%);
-  box-shadow: 0 1px 2px rgb(30 27 90 / 0.35), 0 6px 16px -6px rgb(79 70 229 / 0.55),
+  box-shadow: 0 1px 2px rgb(120 30 0 / 0.35), 0 6px 16px -6px rgb(215 63 9 / 0.55),
     inset 0 1px 0 rgb(255 255 255 / 0.22);
 }
 .btn-primary:hover { --_bg: var(--accent-hover); }

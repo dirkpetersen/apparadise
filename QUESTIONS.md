@@ -339,7 +339,7 @@ themselves still haven't run, because no container runtime is available here.
 from orange to indigo `#4f46e5` and cool neutrals, so the two apps are related but easy to
 tell apart.
 **Answer:** no use same colors 
-**Status (2026-11-01):** **Not implemented yet:** the accent is still indigo `#4f46e5`. To do: Bucketeer's colours.
+**Status (2026-11-01):** Done: Bucketeer's colours (Beaver Orange `#d73f09` as the only accent, its warm neutrals, code and login-stage colours) in `tokens.css`, the login glow, the primary button and the logo gradient. All text pairs pass AA.
 
 ## Q14 (2026-10-31): How should module wrappers start the image?
 
