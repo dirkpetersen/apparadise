@@ -57,13 +57,15 @@ ENV APPARADISE_TARGET=${TARGET} \
     EASYBUILD_MODULES_TOOL=Lmod \
     LMOD_CMD=/usr/share/lmod/lmod/libexec/lmod \
     EASYBUILD_DOWNLOAD_TIMEOUT=30 \
+    EB_PYTHON=/opt/easybuild/bin/python \
     MODULEPATH=/opt/apps/modules/all
 
-# Ubuntu's lmod package sets LMOD_CMD only in login shells (/etc/profile.d); a plain
+# The eb wrapper looks for `python` on PATH, where only the system python3 is: EB_PYTHON
+# names the venv's. Ubuntu's lmod package sets LMOD_CMD only in login shells (/etc/profile.d); a plain
 # RUN does not read that, so it is set above. Fail here, not in the first build, if moved.
 # TMPDIR and the EasyBuild paths must exist even without a mounted scratch volume
 # (the concretize stage runs without one).
-RUN test -x "$LMOD_CMD" \
+RUN test -x "$LMOD_CMD" && eb --version \
  && mkdir -p /scratch/tmp /scratch/eb-build /scratch/sources && chmod 1777 /scratch/tmp
 
 WORKDIR /work

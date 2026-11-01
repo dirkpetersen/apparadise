@@ -86,7 +86,7 @@ repeat them.
 - **Gotchas:** declare `cuda` on the platform or you silently get CPU builds; GPU-less builders
   need `CONDA_OVERRIDE_CUDA`; use conda-forge only (no `defaults`, `pytorch`, `nvidia` channels);
   never mix pip CUDA wheels with conda CUDA libs; keep the env path identical across container
-  stages; the template pins `cuda-version = "<target CUDA>.*"` (13.0.*), because an unpinned
+  stages; the template pins `cuda-version = "<=<target CUDA>"` (<=13.0; PyTorch 2.14 has only 12.9 builds), because an unpinned
   solve picks the newest runtime (nvrtc 13.4 on a 13.0 base, seen with cupy); some CUDA-only
   packages (CuPy) carry no `cuda` in their build string, so the index turns the `*cuda*`
   build filter off for them; `[system-requirements]` is deprecated but still read by 0.83.
