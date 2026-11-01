@@ -89,7 +89,7 @@ and they rarely match our targets anyway.
 **Default:** no. Use E4S's `spack.yaml` environments and its known-sm_120-failure list as a
 reference only.
 **Answer:** yes
-**Status (2026-11-01):** Done: every rendered `spack.yaml` has `e4s` (`https://cache.e4s.io/26.06`, `signed: true`, release set by `e4s_release` in `containers/targets.yml`) after our own cache. The build stage runs `spack buildcache keys --install --trust` first. Expect few hits: E4S builds against cuda@12.9.1, and every target is now CUDA 13.0 (Q38).
+**Status (2026-11-01):** Done: every rendered `spack.yaml` has `e4s` (`https://cache.e4s.io/26.06`, `signed: true`, release set by `e4s_release` in `containers/targets.yml`) after our own cache. The build stage runs `spack buildcache keys --install --trust --yes-to-all` first. Expect few hits: E4S builds against cuda@12.9.1, and every target is now CUDA 13.0 (Q38).
 
 ## Q34 (2026-11-01): EasyBuild toolchain generation: stay on foss/2025b or move to 2026.1?
 
