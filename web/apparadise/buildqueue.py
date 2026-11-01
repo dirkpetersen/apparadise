@@ -132,12 +132,14 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
         if not easyconfig:
             raise QueueError(422, f"No CUDA easyconfig for {res.upstream_name} {version}"
                                   + ("; name one in 'easyconfig'." if admin else "."))
-    marker = True
+    marker = False
     if res.source == "pixi":
+        # Only CUDA packages carry the detail (index.scan_conda). Without it the package has
+        # no CUDA build at all (jupyterlab), and a `*cuda*` build filter could never match.
         rows = db.index.lookup([normalise(res.upstream_name, "pixi")])
-        marker = next((r["details"].get("cuda_build_marker", True) for r in rows
+        marker = next((bool((r["details"] or {}).get("cuda_build_marker")) for r in rows
                        if r["source"] == "pixi" and r["upstream_name"] == res.upstream_name),
-                      True)
+                      False)
     restricted = bool(pkg and pkg["visibility"] == "restricted")
     if spec_append:  # a repair (or a retry of one) adds to the spec; store the result
         spec = f"{spec or f'{res.upstream_name}@{version}'} {spec_append}"

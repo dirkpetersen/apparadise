@@ -48,6 +48,10 @@ def _per_platform(value: Any, platform: str) -> Any:
     return value[platform] if isinstance(value, dict) else value
 
 
+# conda-forge packages that are pure Python (noarch) while their CUDA code ships in a
+# companion package: the recipe installs the package and requires a CUDA build of the
+# companion. jax: conda-forge's documented `jax` + `jaxlib=*=*cuda*`.
+CUDA_COMPANION = {"jax": "jaxlib"}
 TOOLCHAIN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,30},20\d\d(?:[ab]|\.\d{1,2})")
 
 
@@ -163,6 +167,9 @@ def render(source: str, name: str, version: str, target: str, *, registry: str,
         # [system-requirements] cuda entry steers the solver to the CUDA variant.
         build = ', build = "*cuda*"' if cuda_build_marker else ""
         v["PIXI_DEPENDENCY"] = f'{conda} = {{ version = "=={version}"{build} }}'
+        if conda in CUDA_COMPANION:  # pure-Python package; its CUDA code is in another one
+            v["PIXI_DEPENDENCY"] = (f'{conda} = {{ version = "=={version}" }}\n'
+                                    f'{CUDA_COMPANION[conda]} = {{ build = "*cuda*" }}')
     text = (TEMPLATES / TEMPLATE_FOR[source]).read_text()
     return Template(text).substitute(v)
 

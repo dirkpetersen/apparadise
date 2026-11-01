@@ -217,3 +217,16 @@ def test_published_repairs_become_upstream_offers_for_sysadmins(env):
     assert o["rule"] == "binutils-gprofng" and o["error"] == GPROFNG and not o["restricted"]
     assert "lammps@20250722 ^binutils~gprofng" in o["body"]
     assert o["issueUrl"].startswith("https://github.com/spack/spack-packages/issues/new?")
+
+
+def test_pixi_build_filter_only_for_packages_marked_in_the_index(env):
+    # A package with no CUDA build (jupyterlab, noarch) has no cuda_build_marker detail:
+    # a `*cuda*` build filter would make it unsolvable.
+    c, db = env, env.app_db
+    plain = _item("pixi", "jupyterlab", ["4.6.5"], False, [], True)
+    gpu = _item("pixi", "cupy", ["14.2.0"], True, ["linux-64", "linux-aarch64"], True)
+    gpu["details"] = {"cuda_build_marker": True}
+    db.index.replace_source("pixi", [plain, gpu])
+    for name, version, marked in (("jupyterlab", "4.6.5", False), ("cupy", "14.2.0", True)):
+        bid = queue(c, package=name, version=version, source="pixi")
+        assert ('build = "*cuda*"' in build(db, bid)["recipe"]) is marked, name

@@ -9,6 +9,17 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q42 (2026-11-01): Which conda-forge package carries a package's CUDA code?
+
+The first catalog builds found two kinds of pixi package where `name *cuda*` cannot work:
+pure-Python packages with no CUDA build (jupyterlab: now built without the filter), and
+**jax**, which is `noarch` while its CUDA code is in `jaxlib`. **Default:** a small mapping in
+`recipes.py` (`CUDA_COMPANION = {"jax": "jaxlib"}`). A jax recipe installs `jax==<v>` and
+requires a CUDA build of `jaxlib`, which is how conda-forge documents jax with CUDA. Other pairs
+get added when a build finds them. The alternative is a `cuda_companion:` field in the catalog
+entry.
+**Answer:**
+
 ## Q41 (2026-11-01): Which work should the 20% of the Claude Max tokens pay for?
 
 Your Q40 answer ties the caps to "20% of the weekly tokens of a Claude Max $200 account".

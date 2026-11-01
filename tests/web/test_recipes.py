@@ -127,3 +127,9 @@ def test_dotted_cc():
         "12.0", "8.9", "9.0a", "12.0f", "7.0"]
     with pytest.raises(RecipeError):
         dotted_cc("sm_120")
+
+
+def test_render_pixi_jax_requires_a_cuda_jaxlib():
+    deps = tomllib.loads(render("pixi", "jax", "0.12.0.1", "rtx", registry="r"))["dependencies"]
+    assert deps["jax"] == {"version": "==0.12.0.1"}
+    assert deps["jaxlib"] == {"build": "*cuda*"}
