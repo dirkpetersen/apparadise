@@ -42,6 +42,10 @@ Product decisions are never guessed: open questions go to `QUESTIONS.md`, newest
   fixed: `no-recipe`, `concretize`, `build`, `package`, `test`, `publish`.
 - **Base images derive from NGC** (`nvcr.io`). Slurm runtime is Pyxis + Enroot only; no
   Apptainer, no shpc.
+- **Images run as any UID** (Q36): Pyxis runs them as the user, Run:ai takes UID/GID from AD,
+  and Kubernetes cannot map root inside to the user outside. So install trees are `a+rX`,
+  there is no entrypoint, `USER 65534:65534`, and the `package` stage checks it as uid 54321
+  (`docs/operations/user-identity.md`). Never make a recipe or image need root at runtime.
 - **EESSI and E4S are not build sources.** They are complements (see their sections). Never
   propose either as a resolver step, an image base or a builder mirror; that would be an owner
   decision for `QUESTIONS.md`.
