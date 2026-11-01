@@ -79,10 +79,15 @@ COPY easystack.yml /work/easystack.yml
 # and CMakeMake only build GPU code when $EBROOTCUDA is set, so point them at it; and fail
 # the CUDA sanity check (device code, PTX) instead of only warning. The build runs as root
 # inside a throw-away container, which EasyBuild refuses without the explicit opt-in.
+# EasyBuild's own build-dir cleanup chmods every path first and fails on M4's deliberately
+# over-long confdir3/confdir3/... test tree; rm -rf (relative walks) does not, and in the
+# same RUN keeps the build trees out of the layer.
 ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
     EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1 \
-    EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1
+    EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1 \
+    EASYBUILD_CLEANUP_BUILDDIR=0
 RUN eb --easystack /work/easystack.yml --installpath=/opt/apps --robot \
+ && rm -rf /scratch/eb-build/* /scratch/tmp/* \
  && chmod -R a+rX /opt/apps
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/apps /opt/apps
