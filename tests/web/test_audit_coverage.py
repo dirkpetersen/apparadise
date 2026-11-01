@@ -25,13 +25,15 @@ ROUTES = {
     ("POST", "/api/requests"): "request.create",
     ("PUT", "/api/admin/policy"): "policy.update",
     ("POST", "/api/chat"): "chat.message",
+    # Credentialed token requests (anonymous pulls are not audited).
+    ("POST", "/registry/token"): "registry.token",
 }
 NOT_AUDITED = {
     # High-volume log streaming; the build row and the log file are the record.
     ("POST", "/api/builder/jobs/{build_id}/log"),
 }
 SOURCES = ["auth.py", "builder_api.py", "votes.py", "requests_api.py",
-           "chatbot.py"]
+           "chatbot.py", "registry_auth.py"]
 
 
 def mutating_routes(tmp_path):

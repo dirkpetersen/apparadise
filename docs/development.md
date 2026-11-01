@@ -9,7 +9,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 ```
 
 The demo runs the real app with a fake directory (`mock/directory.py`) instead of LDAP, the
-sample catalog in `mock/catalog/`, and a fake Harbor (`mock/harbor_mock.py`, reached
+sample catalog in `mock/catalog/`, and a fake Zot search API (`mock/zot_mock.py`, reached
 in-process, seeded from that catalog) behind the Registry page and the per-job robots. `dana`
 is a sysadmin (RCO-Admins) and sees the restricted AlphaFold 3 entry and the `restricted` and
 `cache` registry projects. Nothing in `web/apparadise/` imports `mock/`, and no setting turns

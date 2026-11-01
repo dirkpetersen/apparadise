@@ -3,13 +3,14 @@ import { icon } from "../icons.js";
 import { getRegistry, getRepository } from "../api.js";
 import "../components/code-panel.js";
 
-// "#/registry": what Harbor actually holds (the catalog says what should exist).
+// "#/registry": what the registry (Zot) actually holds (the catalog says what should exist).
 // "#/registry/<project>/<repo>": one repository's artifacts, with pull commands.
-// The server decides which projects this user may see (restricted and cache: sysadmins).
+// The server decides which projects this user may see (restricted, cache, nvcr: sysadmins).
 const PROJECT = {
   public: { label: "Public", note: "Every signed image the pipeline published. Anyone on the cluster can pull these." },
   restricted: { label: "Restricted", note: "Licence-gated images. Visible and pullable by RCO-Admins only." },
-  cache: { label: "Cache", note: "The NGC proxy cache (base images) plus test tags. Sysadmins only." },
+  cache: { label: "Cache", note: "Base images, test tags and build caches. Sysadmins only." },
+  nvcr: { label: "NGC mirror", note: "NVIDIA NGC images, fetched once on first pull. Sysadmins only." },
 };
 
 const day = (iso) => (iso ? iso.slice(0, 10) : "—");
@@ -35,7 +36,7 @@ function repoRow(project, r) {
     h("a", { class: "repo-link", href: repoHref(project, r.name) },
       h("span", { class: "repo-name mono", text: r.name }),
       h("span", { class: "repo-stats" },
-        h("span", { text: plural(r.artifacts, "image") }),
+        r.newest && h("span", { class: "mono", text: r.newest }),
         h("span", { text: plural(r.pulls, "pull") }),
         h("span", { text: `updated ${day(r.updated)}` })),
       icon("right", "icon repo-go")));
@@ -50,7 +51,7 @@ export function renderRegistry({ setTitle }) {
     host.replaceChildren(icon("bucket"), h("span", { class: "mono", text: res.host }));
     if (!res.configured) {
       body.replaceChildren(h("div", { class: "notice" }, icon("bell"),
-        h("p", { text: "This server has no Harbor connection (HARBOR_URL is empty), so there is nothing to browse yet." })));
+        h("p", { text: "This server has no registry connection (REGISTRY_URL is empty), so there is nothing to browse yet." })));
       return;
     }
     body.replaceChildren(...res.projects.map((p) => h("section", { class: "reg-project", "data-project": p.name },
@@ -66,7 +67,7 @@ export function renderRegistry({ setTitle }) {
   return h("div", { class: "registry" },
     h("section", { class: "hero hero-compact" },
       h("p", { class: "eyebrow", text: "Container registry" }),
-      h("h1", {}, "Every image, ", h("em", { text: "exactly as Harbor holds it." })),
+      h("h1", {}, "Every image, ", h("em", { text: "exactly as the registry holds it." })),
       h("p", { text: "The registry is the source of truth. Modules and the staged squashfs files on CephFS are rebuilt from these images, and every pipeline image is signed with cosign." }),
       host),
     body);
@@ -76,7 +77,7 @@ function commandPanel(repo, a) {
   const panel = h("code-panel");
   const c = a.commands;
   panel.tabs = [
-    { label: "Slurm", content: `# Pyxis pulls from Harbor and starts the image unprivileged\n${c.srun}` },
+    { label: "Slurm", content: `# Pyxis pulls from the registry and starts the image unprivileged\n${c.srun}` },
     { label: "Enroot", content: c.enroot },
     { label: "Podman", content: c.podman },
     { label: "By digest", content: `${repo.host}/${repo.project}/${repo.name}@${a.digest}` },

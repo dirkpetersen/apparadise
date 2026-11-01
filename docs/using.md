@@ -18,7 +18,7 @@ A failed target links to its failure record.
 
 ## Registry (`#/registry`)
 
-The registry shows what Harbor holds: every image, its tags, platforms, digest, size, and
+The registry shows what Zot holds: every image, its tags, platforms, digest, size, and
 whether it is signed. Each image comes with Slurm, Enroot and Podman commands, plus a
 digest-pinned reference for builds that must never change. Everyone sees the `public`
 project. Only RCO-Admins see `restricted` and `cache`.

@@ -47,7 +47,7 @@ def _free_port() -> int:
 
 def test_root_app_py_starts_the_web_app(tmp_path):
     port = _free_port()
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("LDAP_", "HARBOR_"))}
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("LDAP_", "REGISTRY_"))}
     env.update({k.upper(): v for k, v in REQUIRED.items()})
     env.update({"PORT": str(port), "DATA_DIR": str(tmp_path), "ANTHROPIC_API_KEY": "",
                 "LOG_LEVEL": "warning"})

@@ -9,14 +9,15 @@ need root, and never need to know whether a package came from Spack, EasyBuild o
 
 > **Status (2026-10-31):**
 > - **Phase 1:** the code and runbooks are done.
-> - **Phase 2:** the pipeline code (index, resolver, coordinator, builder agent, Harbor
+> - **Phase 2:** the pipeline code (index, resolver, coordinator, builder agent, registry
 >   robots) is built and tested offline.
 > - **Phase 3:** the community layer (requests with a weekly quota, upvotes, the public
 >   failure database, live build logs, nightly retries) is built and tested offline (Q24).
 > - **Phase 4:** the request chatbot (`#/ask`, Claude with five tools, proposals the user
 >   confirms), bounded auto-repair from a known-patch library, and upstream offers are
 >   built and tested offline (Q27, Q29).
-> - **Not yet:** nothing has run on real hardware, Harbor or a container runtime.
+> - **Not yet:** nothing has run on real hardware or a container runtime. Zot and its token
+>   flow were tested locally with docker.
 >
 > See `docs/operations/go-live.md` for the order to bring it up, `TODO.md` for what's
 > left, and `QUESTIONS.md` for open decisions and the defaults in use.
@@ -30,8 +31,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/pytest                      # web + builder tests
 ```
 
-The demo needs no AD, Harbor or cluster. It runs the real app (real login flow, sessions and
-CSRF) with a fake directory in place of LDAP, a fake Harbor seeded from the sample catalog, and
+The demo needs no AD, registry or cluster. It runs the real app (real login flow, sessions and
+CSRF) with a fake directory in place of LDAP, a fake Zot search API seeded from the sample catalog, and
 a small package index. All users have the password `demo`. `alice` and `bob` are regular users.
 `dana` is a sysadmin (RCO-Admins), who also sees restricted packages, the `restricted` and
 `cache` registry projects, and the build console at `#/admin`. Pages: `#/` catalog,
@@ -54,7 +55,7 @@ package.
 ## How it works
 
 ```
-request / vote ──► resolver ──► build pipeline (per target) ──► Harbor registry ──► module / container / Run:ai
+request / vote ──► resolver ──► build pipeline (per target) ──► Zot registry ──► module / container / Run:ai
                        │                 │
                        │                 └─ failure ──► public failure DB ──► nightly retry / community fix
                        └─ three-way index (Spack × EasyBuild × conda-forge, refreshed nightly)
@@ -103,10 +104,10 @@ happened.
 | 3 | Build     | Disposable, network-restricted builder of matching arch      | `build`       |
 | 4 | Package   | OCI image on per-target NGC-derived CUDA base, plus SBOM     | `package`     |
 | 5 | Test      | Unprivileged smoke test on a real GPU node (low-prio job)    | `test`        |
-| 6 | Publish   | Sign, push to Harbor, write `.sqsh` to CephFS, modulefile    | `publish`     |
+| 6 | Publish   | Sign, push to Zot, write `.sqsh` to CephFS, modulefile       | `publish`     |
 
-Builders **pull** jobs from the coordinator over HTTPS and get one short-lived Harbor robot
-token per job. A builder can be a local container, a Slurm job or an EC2 spot instance.
+Builders **pull** jobs from the coordinator over HTTPS and get one short-lived registry
+login per job, valid only for that job's repositories. A builder can be a local container, a Slurm job or an EC2 spot instance.
 Restricted builds run only on on-premises builders.
 
 ## Using the software
@@ -149,9 +150,9 @@ This project uses the same stack as [Bucketeer](https://github.com/dirkpetersen/
 - SQLite (WAL, STRICT tables, `PRAGMA user_version` migrations), with PostgreSQL planned later
 - AD login over LDAPS, signed stateless cookie sessions, CSRF header
 - Plain HTML/CSS/vanilla JS ES modules, with no framework and no bundler, under a strict CSP
-- pytest + ruff, and a `mock/` folder with fake Harbor, Slurm and builder APIs
+- pytest + ruff, and a `mock/` folder with fake Zot, Slurm and builder APIs
 - Docs in `docs/`, built with Zensical
-- Deployed with [appmotel](https://github.com/dirkpetersen/appmotel). Harbor runs alongside
+- Deployed with [appmotel](https://github.com/dirkpetersen/appmotel). Zot runs alongside
   on the same server.
 
 ## Repository layout
@@ -165,7 +166,7 @@ See `CLAUDE.md` for development conventions and commands.
 
 ## Roadmap
 
-1. **Hand-built catalog:** Harbor, per-target base images, top 20 packages on both targets.
+1. **Hand-built catalog:** Zot, per-target base images, top 20 packages on both targets.
 2. **Automated pipeline:** resolver, three-way index, six-stage pipeline, pull-based builders.
 3. **Community layer:** catalog pages, upvotes, public failure DB, nightly retries.
 4. **Chatbot and auto-repair:** request agent, bounded repair, upstream PRs.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Try apparadise locally with no AD, Harbor or cluster: one command.
+"""Try apparadise locally with no AD, registry or cluster: one command.
 
     cd web && .venv/bin/python3 ../mock/demo.py [--port 8000] [--password demo] [--keep-data]
 
@@ -7,8 +7,8 @@ Runs the real app (real login flow, throttle, sessions, CSRF) on 127.0.0.1 with:
 - `DemoDirectory` (mock/directory.py) in place of AD, injected via create_app(authenticator=...);
   users alice and bob are normal users, dana is a sysadmin (RCO-Admins);
 - the sample catalog in mock/catalog/ (published, building, failed and restricted entries);
-- a fake Harbor (mock/harbor_mock.py, in-process) seeded from that catalog, for the Registry
-  page and the per-job robot accounts;
+- a fake Zot search API (mock/zot_mock.py, in-process) seeded from that catalog, for the
+  Registry page (the real token service at /registry/token runs too);
 - a fake Claude (mock/claude_mock.py: keyword rules, no API key) behind the Ask page, which
   still runs the real tool loop;
 - a temporary DATA_DIR, removed on exit unless --keep-data.
@@ -59,10 +59,10 @@ def demo_settings(*, port: int, data_dir: str, catalog_dir: str = str(DEMO_CATAL
         ldap_admin_group_dn="CN=RCO-Admins,OU=Groups,DC=demo,DC=example",
         catalog_dir=catalog_dir,
         registry_host="registry.example.org",
-        # mock/harbor_mock.py, reached in-process; nothing listens on this name
-        harbor_url="https://harbor.demo.invalid",
-        harbor_username="admin",
-        harbor_password="harbor",
+        # mock/zot_mock.py, reached in-process; nothing listens on this name
+        registry_url="https://zot.demo.invalid",
+        registry_username="apparadise-web",
+        registry_password="zot",
     )
 
 
@@ -134,13 +134,13 @@ def build_demo_app(settings: Settings, db=None, directory: DemoDirectory | None 
     seed_index(db)
     import httpx
 
-    from apparadise.harbor import HarborClient
-    from mock.harbor_mock import create_app as create_harbor
-    from mock.harbor_mock import seed_from_catalog
+    from apparadise.zot import ZotClient
+    from mock.zot_mock import create_app as create_zot
+    from mock.zot_mock import seed_from_catalog
 
-    fake_harbor = create_harbor()
-    seed_from_catalog(fake_harbor, settings.catalog_dir)
-    harbor = HarborClient(settings, transport=httpx.ASGITransport(app=fake_harbor))
+    fake_zot = create_zot()
+    seed_from_catalog(fake_zot, settings.catalog_dir)
+    zot = ZotClient(settings, transport=httpx.ASGITransport(app=fake_zot))
     if anthropic_client is None:  # the keyword-rule stand-in, never the real API
         import anthropic
         import httpx2
@@ -150,14 +150,14 @@ def build_demo_app(settings: Settings, db=None, directory: DemoDirectory | None 
         anthropic_client = anthropic.AsyncAnthropic(
             api_key="demo", max_retries=0, http_client=anthropic.DefaultAsyncHttpxClient(
                 transport=httpx2.MockTransport(FakeClaude().handler)))
-    app = create_app(settings, db=db, authenticator=directory or DemoDirectory(), harbor=harbor,
+    app = create_app(settings, db=db, authenticator=directory or DemoDirectory(), zot=zot,
                      anthropic_client=anthropic_client)
     # The catalog loads at startup, and failures need its packages: seed after it.
     from apparadise.catalog import load_and_sync
 
     load_and_sync(db, settings)
     seed_failures(db)
-    app.state.fake_harbor = fake_harbor
+    app.state.fake_zot = fake_zot
     app.state.demo = True
     return app
 

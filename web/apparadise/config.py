@@ -63,12 +63,18 @@ class Settings(BaseSettings):
     module_dir: str = "/shared/modules/apparadise"
     wrapper_dir: str = "/shared/apps/apparadise/bin"
 
-    # Harbor admin API, for one short-lived robot account per build job. Empty HARBOR_URL:
-    # builders get no registry credentials (development only).
-    harbor_url: str = ""
-    harbor_username: str = ""
-    harbor_password: SecretStr = SecretStr("")
-    harbor_robot_days: int = Field(1, ge=1, le=7)
+    # Registry (Zot). The web app is Zot's token service (/registry/token): Zot trusts tokens
+    # signed with DATA_DIR/registry-signing.pem (public half: registry-verify.pem).
+    # REGISTRY_SERVICE must equal `service` in Zot's bearer config.
+    registry_service: str = Field("apparadise-registry", pattern=r"^[A-Za-z0-9._-]{1,64}$")
+    # Lifetime of one registry token (clients fetch a new one per pull/push).
+    registry_token_minutes: int = Field(60, ge=5, le=720)
+    # A build job's push credential works only while the job runs, and at most this long.
+    registry_job_hours: int = Field(24, ge=1, le=168)
+    # Zot's API, read-only, for the Registry page. Empty: the page says it is not configured.
+    registry_url: str = ""
+    registry_username: str = ""
+    registry_password: SecretStr = SecretStr("")
 
     # A running build fails when its builder has not called in for this long (builders
     # send a heartbeat every minute while working).
@@ -134,9 +140,9 @@ class Settings(BaseSettings):
                              "without https://")
         return v
 
-    @field_validator("harbor_url")
+    @field_validator("registry_url")
     @classmethod
-    def _harbor_url(cls, v: str) -> str:
+    def _registry_url(cls, v: str) -> str:
         v = v.strip().rstrip("/")
         if v and not re.fullmatch(r"https://[A-Za-z0-9.-]+(:[0-9]{1,5})?", v) \
                 and not re.fullmatch(r"http://(127\.0\.0\.1|localhost)(:[0-9]{1,5})?", v):
@@ -144,10 +150,11 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def _harbor_complete(self):
-        if self.harbor_url and not (self.harbor_username
-                                    and self.harbor_password.get_secret_value()):
-            raise ValueError("HARBOR_URL is set, so also set HARBOR_USERNAME and HARBOR_PASSWORD")
+    def _registry_complete(self):
+        if self.registry_url and not (self.registry_username
+                                      and self.registry_password.get_secret_value()):
+            raise ValueError("REGISTRY_URL is set, so also set REGISTRY_USERNAME and "
+                             "REGISTRY_PASSWORD")
         return self
 
     @field_validator("sqsh_dir", "module_dir", "wrapper_dir")

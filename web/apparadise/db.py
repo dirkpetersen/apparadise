@@ -236,6 +236,12 @@ MIGRATIONS: list[str] = [
     ALTER TABLE build ADD COLUMN repair TEXT NOT NULL DEFAULT '';
     ALTER TABLE build ADD COLUMN eb_options TEXT NOT NULL DEFAULT '{}';
     """,
+    # 12: the registry moved from Harbor to Zot. A claimed job gets a one-time registry
+    # credential (username job-<id>); only its SHA-256 is stored, and it is cleared when the
+    # job ends. harbor_robot_id stays (applied migrations are never edited) but is unused.
+    """
+    ALTER TABLE build ADD COLUMN registry_secret TEXT;
+    """,
 ]
 
 _SECRET_KEY = re.compile(

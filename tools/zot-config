@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""Print the Zot config.json apparadise expects (docs/operations/registry.md).
+
+    tools/zot-config --storage /data/zot --realm https://apparadise.example.org/registry/token \
+        --verify-key /path/to/web/data/registry-verify.pem --htpasswd /etc/zot/htpasswd \
+        > /etc/zot/config.json
+
+What it sets up:
+- tokens: Zot trusts only tokens signed by the apparadise web app (its registry-verify.pem);
+  every client is sent to --realm (apparadise's /registry/token) to get one.
+- htpasswd: one read-only account (REGISTRY_USERNAME) for the web app's Registry page.
+- nvcr.io mirror: `<registry>/nvcr/nvidia/...` is fetched from NGC on first pull, then kept.
+- search extension (the Registry page reads it), Docker v2 manifests (NGC uses them),
+  garbage collection, dedupe.
+
+Standard library only. Prints JSON; never writes files or secrets.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+
+
+def config(a: argparse.Namespace) -> dict:
+    return {
+        "distSpecVersion": "1.1.1",
+        "storage": {"rootDirectory": a.storage, "dedupe": True, "gc": True,
+                    "gcDelay": "1h", "gcInterval": "24h"},
+        "http": {
+            "address": a.address, "port": str(a.port),
+            # NGC publishes Docker v2 manifest lists; without this the mirror cannot sync them.
+            "compat": ["docker2s2"],
+            "auth": {
+                "bearer": {"realm": a.realm, "service": a.service, "cert": a.verify_key},
+                "htpasswd": {"path": a.htpasswd},
+            },
+            # Bearer tokens carry their own grants. This only gives the htpasswd account
+            # (the web app's Registry page) read access to everything, and nothing else.
+            "accessControl": {"repositories": {},
+                              "adminPolicy": {"users": [a.web_user], "actions": ["read"]}},
+        },
+        "log": {"level": "info", "output": f"{a.log_dir}/zot.log",
+                "audit": f"{a.log_dir}/zot-audit.log"},
+        "extensions": {
+            "search": {"enable": True},
+            "sync": {"enable": True, "registries": [{
+                "urls": ["https://nvcr.io"], "onDemand": True, "tlsVerify": True,
+                "maxRetries": 3, "retryDelay": "5m",
+                "content": [{"prefix": "nvidia/**", "destination": "/nvcr"}],
+            }]},
+        },
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--storage", required=True, help="image storage directory (large disk)")
+    ap.add_argument("--realm", required=True,
+                    help="apparadise token URL, e.g. https://host/registry/token")
+    ap.add_argument("--verify-key", required=True,
+                    help="the web app's DATA_DIR/registry-verify.pem")
+    ap.add_argument("--htpasswd", required=True, help="htpasswd file (bcrypt) for --web-user")
+    ap.add_argument("--web-user", default="apparadise-web", help="REGISTRY_USERNAME")
+    ap.add_argument("--service", default="apparadise-registry", help="REGISTRY_SERVICE")
+    ap.add_argument("--address", default="127.0.0.1")
+    ap.add_argument("--port", type=int, default=5000)
+    ap.add_argument("--log-dir", default="/var/log/zot")
+    a = ap.parse_args(argv)
+    for name in ("storage", "verify_key", "htpasswd", "log_dir"):
+        if not getattr(a, name).startswith("/"):
+            print(f"--{name.replace('_', '-')} must be an absolute path", file=sys.stderr)
+            return 2
+    if not a.realm.startswith(("https://", "http://127.0.0.1", "http://localhost")):
+        print("--realm must be https:// (plain http only for loopback)", file=sys.stderr)
+        return 2
+    json.dump(config(a), sys.stdout, indent=2)
+    print()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -12,8 +12,10 @@ All functions are synchronous and run through `db.run(...)` from the API.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import secrets
 import shlex
 from functools import cache
 from pathlib import Path
@@ -38,6 +40,19 @@ def _targets() -> dict[str, Any]:
     from .recipes import load_targets
 
     return load_targets()
+
+
+def registry_secret_hash(secret: str) -> str:
+    return hashlib.sha256(secret.encode()).hexdigest()
+
+
+def job_repositories(job: dict[str, Any], package: str) -> tuple[set[str], set[str]]:
+    """-> (push_and_pull, pull_only) repository names for a build job's registry token:
+    its own image, its test tag and its build cache; the base images it builds FROM."""
+    project = "restricted" if job["restricted"] else "public"
+    own = {f"{project}/{package}", f"cache/test-{package}",
+           f"cache/{job['source']}-{job['target']}"}
+    return own, {"cache/base-builder", "cache/base-runtime"}
 
 
 def base_ref(role: str, target: str, cuda: str) -> str:
@@ -102,6 +117,11 @@ def claim(db: Database, builder: dict[str, Any]) -> dict[str, Any] | None:
         job = dict(row)
         pkg = c.execute("SELECT name, visibility, executables FROM package WHERE id = ?",
                         (job["package_id"],)).fetchone()
+        # The job's registry login (registry_auth.py): job-<id> plus a one-time secret. Only
+        # its SHA-256 is stored, and it stops working when the job leaves 'running'.
+        secret = secrets.token_urlsafe(32)
+        c.execute("UPDATE build SET registry_secret = ? WHERE id = ?",
+                  (registry_secret_hash(secret), job["id"]))
     project = "restricted" if job["restricted"] else "public"
     cuda = str(_targets()[job["target"]]["cuda_version"])
     exes = json.loads(pkg["executables"] or "[]")
@@ -123,8 +143,7 @@ def claim(db: Database, builder: dict[str, Any]) -> dict[str, Any] | None:
         "baseRuntime": base_ref("runtime", job["target"], cuda),
         "executables": exes,
         "smoke": smoke,
-        # Phase 2 TODO: a short-lived Harbor robot token for this one repository.
-        "registryToken": None,
+        "registryToken": {"username": f"job-{job['id']}", "password": secret},
     }
 
 
@@ -132,35 +151,24 @@ LOST_ERROR = "builder lost: no contact from the builder while the job was runnin
 
 
 def reap_lost(db: Database, cutoff: str) -> list[dict[str, Any]]:
-    """Fail running builds whose builder has not been seen since `cutoff` (ISO time).
-    Returns the reaped rows (id, harbor_robot_id) so the caller can delete their robots."""
+    """Fail running builds whose builder has not been seen since `cutoff` (ISO time), and
+    void their registry credentials. Returns the reaped rows."""
     rows = db.query(
-        "SELECT b.id, b.stage, b.restricted, b.harbor_robot_id FROM build b "
+        "SELECT b.id, b.stage, b.restricted FROM build b "
         "JOIN builder w ON w.id = b.builder_id WHERE b.status = 'running' "
         "AND COALESCE(w.last_seen, b.started_at) < ?", (cutoff,))
     ts = now()
     for r in rows:
         stage = r["stage"] if r["stage"] in BUILDER_STAGES else "build"
         with db.tx() as c:
-            if c.execute("UPDATE build SET status = 'failed', stage = ?, finished_at = ? "
-                         "WHERE id = ? AND status = 'running'", (stage, ts, r["id"])).rowcount:
+            if c.execute("UPDATE build SET status = 'failed', stage = ?, finished_at = ?, "
+                         "registry_secret = NULL WHERE id = ? AND status = 'running'",
+                         (stage, ts, r["id"])).rowcount:
                 db.failures.record(r["id"], failures.signature(stage, LOST_ERROR,
                                                                bool(r["restricted"])),
                                    stage, LOST_ERROR, bool(r["restricted"]),
                                    error_line=LOST_ERROR)
     return rows
-
-
-def release(db: Database, build_id: int) -> None:
-    """Put a just-claimed job back in the queue (e.g. Harbor was unavailable)."""
-    with db.tx() as c:
-        c.execute("UPDATE build SET status = 'queued', builder_id = NULL, started_at = NULL "
-                  "WHERE id = ? AND status = 'running'", (build_id,))
-
-
-def set_robot(db: Database, build_id: int, robot_id: int | None) -> None:
-    with db.tx() as c:
-        c.execute("UPDATE build SET harbor_robot_id = ? WHERE id = ?", (robot_id, build_id))
 
 
 def _own_running(db: Database, builder: dict[str, Any], build_id: int) -> dict[str, Any]:
@@ -234,7 +242,10 @@ def report(db: Database, data_dir: str | Path, builder: dict[str, Any], build_id
                       "WHERE id = ?", (stage, ts, build_id))
             db.failures.record(build_id, failures.signature(stage, line, restricted), stage,
                                excerpt, restricted, error_line=error_line)
-    return db.query_one("SELECT id, stage, status, image_digest, failure_id, harbor_robot_id "
+    with db.tx() as c:  # the job is over: its registry login stops working
+        c.execute("UPDATE build SET registry_secret = NULL WHERE id = ? "
+                  "AND status NOT IN ('queued', 'running')", (build_id,))
+    return db.query_one("SELECT id, stage, status, image_digest, failure_id "
                         "FROM build WHERE id = ?", (build_id,))
 
 

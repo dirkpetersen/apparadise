@@ -8,16 +8,15 @@ runbook or setting it needs. Open decisions are in `QUESTIONS.md`.
 - **Q1:** the full DN of RCO-Admins (`LDAP_ADMIN_GROUP_DN`).
 - **Q5/Q6:** the base OS and CUDA versions.
 - **Q7:** the shared paths (`SQSH_DIR`, `MODULE_DIR`, `WRAPPER_DIR`).
-- **Q8:** the Harbor hostname.
+- **Q8:** the registry hostname (Zot; owner, 2026-11-01).
 - **Q13:** read Rubin's compute capability on the NVL72
   (`nvidia-smi --query-gpu=compute_cap`), put it into `containers/targets.yml`
   (`vr.cuda_arch`, `vr.ptx_arch`), and run the tests.
 
 ## 2. Registry
 
-Install Harbor and create the `public`, `restricted` and `cache` projects plus the `nvcr.io`
-proxy cache with `tools/harbor-setup` ([Harbor](harbor.md)). Create an admin account that
-can create system robots.
+Install Zot with `tools/zot-config` ([Registry](registry.md)): token auth against the web
+app, a read-only account for the Registry page, and the on-demand `nvcr.io` mirror.
 
 ## 3. Web app (appmotel app 1, `web/`)
 
@@ -29,7 +28,7 @@ run the web app only, from `web/`. It never installs the builder. Deploying the 
 Fill in the app's `.env` (`appmo env apparadise`):
 - the REQUIRED settings, and `LDAP_REQUIRED_GROUP_DN` if needed (Q2),
 - `REGISTRY_HOST`,
-- `HARBOR_URL`, `HARBOR_USERNAME` and `HARBOR_PASSWORD`.
+- `REGISTRY_URL`, `REGISTRY_USERNAME` and `REGISTRY_PASSWORD` (Zot's read-only account).
 
 Deploy with appmotel. Check `/health`, sign in as an RCO-Admin, and open `#/admin`.
 

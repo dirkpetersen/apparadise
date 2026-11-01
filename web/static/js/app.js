@@ -16,7 +16,7 @@ import { toast } from "./components/toast.js";
 import "./components/code-panel.js";
 
 // Hash routes: "#/" catalog, "#/p/<name>" package page, "#/registry" (and
-// "#/registry/<project>/<repo>") what Harbor holds, "#/failures" (and "#/f/<id>") the
+// "#/registry/<project>/<repo>") what the registry holds, "#/failures" (and "#/f/<id>") the
 // public failure database, "#/ask" the request chatbot, "#/requests" software requests, "#/b/<id>" a live build log,
 // "#/admin" build console
 // (sysadmins; the server enforces the role), "#/login" sign-in.

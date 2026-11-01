@@ -29,7 +29,8 @@ To retire a builder, use **Disable** on the admin page. It can no longer claim j
 | test | push `cache/test-<name>:<job>`, then `srun --gpus=1 --nice` to run the smoke test on a GPU node |
 | publish | push the release tag, record the digest, `cosign sign` if `SIGN_KEY` is set |
 
-- **Credentials:** each job gets its own short-lived Harbor robot account. The builder
+- **Credentials:** each job gets its own one-time registry login (`job-<id>`), valid only
+  while the job runs ([Registry](registry.md)). The builder
   writes it to a 0600 `auth.json` in the job directory, never to the command line or the
   log, and deletes the directory when the job ends.
 - **Logs:** output streams to the coordinator in 64 KiB chunks. A heartbeat every minute

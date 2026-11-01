@@ -11,7 +11,7 @@ The phased plan from the architecture doc. Tick items as they land. Questions go
 - [x] SQLite `Database` with migrations (full data model from the architecture doc + audit)
 - [x] AD/LDAPS login, sessions, CSRF, throttle, `require_user` / `require_sysadmin`
 - [x] `mock/` LDAP directory + `mock/demo.py`
-- [x] Registry page (`#/registry`): read-only Harbor browser with pull commands; fake Harbor in the demo
+- [x] Registry page (`#/registry`): read-only Zot browser with pull commands; fake Zot search in the demo
 - [x] Frontend shell: tokens.css, dom.js `h()`, api.js, theme, login view, showcase.html
 - [x] Tests enforcing CSP/static rules, `.env.default` parity
 - [x] `tests/web/test_audit_coverage.py`
@@ -19,7 +19,7 @@ The phased plan from the architecture doc. Tick items as they land. Questions go
 
 ## Phase 1: hand-built catalog
 
-Code and runbooks are done. What remains needs the hardware, Harbor and a container runtime.
+Code and runbooks are done. What remains needs the hardware, the registry host and a container runtime.
 
 
 - [x] Per-target base images (`containers/base/`): builder + runtime for `vr`, `rtx`, `generic` (Q5, Q6, Q10)
@@ -30,7 +30,7 @@ Code and runbooks are done. What remains needs the hardware, Harbor and a contai
 - [x] Catalog read model: `catalog/*.yml` → DB `package` rows; read-only `/api/catalog` (Q3)
 - [x] Catalog UI: list/search + package page with `module load` and `srun --container-image` lines
 - [x] Harbor runbook (`docs/operations/harbor.md`): projects public/restricted/cache, nvcr.io proxy cache (Q8)
-- [ ] Install Harbor (Q8), build and push base images (Q5, Q6, Q16)
+- [ ] Install Zot for real (Q8; tested on 127.0.0.1), build and push base images (Q5, Q6, Q16)
 - [ ] Read Rubin's compute capability on the NVL72 and fill in `containers/targets.yml` (Q13)
 - [ ] Concretize a rendered `spack.yaml` with real Spack (`spack -e <dir> concretize`); not run here, since executing a freshly cloned Spack was outside this session's permissions
 - [ ] Top 20 packages built on both targets (Q4)
@@ -57,7 +57,7 @@ Offline-testable code is being built ahead of phase 1 hardware (Q17).
 - [x] Lost-builder reaper (BUILDER_STALE_MINUTES) + agent heartbeat; work trees removed after each job
 - [x] Autoscaler: `python -m apparadise_builder.scale` from cron, counts-only `GET /api/builder/queue`
 - [x] Test stage as low-priority Slurm job via Pyxis (`srun --nice --container-image`); TEST_MODE=none fails closed
-- [x] Harbor client: robot per job (project + cache, 1 day, deleted at the end; job released on outage); builder uses a 0600 authfile (Q19, Q20)
+- [x] Registry: Zot with the web app as token service; a one-time login per job for exactly its repositories, void when the job ends; builder uses a 0600 authfile (Q8, Q19, Q20)
 
 - [x] Delivery job (`python -m apparadise.deliver`): stage .sqsh by digest, multi-arch generic manifest, modules from the DB
 - [x] generic builds push per-arch tags; .sqsh and wrappers are per-arch for generic

@@ -6,7 +6,7 @@ This file gives Claude Code (claude.ai/code) guidance for working with code in t
 
 apparadise is a CUDA software platform for HPC. It builds software once per hardware target and
 ships every build as a signed OCI image. That image is the only build product: it is served
-from Harbor and exposed both as a container (Pyxis/Enroot on Slurm, Run:ai on Kubernetes) and as
+from Zot and exposed both as a container (Pyxis/Enroot on Slurm, Run:ai on Kubernetes) and as
 `module load <name>/<version>`. Software comes from **Spack**, **EasyBuild** or
 **pixi/conda-forge**. Users browse a catalog, upvote packages, request software through a
 chatbot, and see every failed build in a public failure database.
@@ -38,16 +38,18 @@ their question ID and date, for example "(Q4, owner, 2026-11-02)".
   `publish`. Do not add new ones without updating the data model and docs.
 - **Builders pull, and the server never pushes.** Builders register with a one-time token, poll
   `/api/builder/...`, stream logs, and report stage, status and image digest. Each job gets one
-  short-lived Harbor robot token for one repository and never site credentials. Restricted
+  short-lived registry login (`job-<id>`) for its own repositories and never site credentials. Restricted
   builds go to on-prem builders only. A launcher implements exactly `start` and `stop`.
 - **Slurm runtime:** Pyxis + Enroot as shipped by BCM. Do not add another container runtime to
-  Slurm. Base images derive from NGC (`nvcr.io`), proxy-cached by Harbor.
+  Slurm. Base images derive from NGC (`nvcr.io`), mirrored on demand by Zot under `nvcr/`.
 - **Module delivery:** an shpc-*style* generator of our own. It writes one Lmod file per image
   and one wrapper script per exposed executable, takes `module help` text from the catalog, and
   picks the `vr` or `rtx` image from the node's architecture. The wrappers run **Enroot**
   against the pre-staged `.sqsh` on CephFS. Do not use shpc itself or Apptainer.
-- **Registry:** Harbor, with projects `public`, `restricted` and `cache`. The registry is the
-  source of truth. The `.sqsh` files on CephFS are a rebuildable cache.
+- **Registry:** Zot (Q8, owner, 2026-11-01), with `public`, `restricted`, `cache` and the
+  `nvcr` mirror. The web app is Zot's token service (`/registry/token`, ES256 key in
+  `DATA_DIR`); Zot holds no users. A second Zot only if restricted ever needs separation. The registry is
+  the source of truth. The `.sqsh` files on CephFS are a rebuildable cache.
 - **Permissions:** anyone signed in may trigger builds within a quota, and sysadmins have no
   quota. Sysadmins are members of the AD group **RCO-Admins** (`LDAP_ADMIN_GROUP_DN`, nested
   membership counts). Restricted packages, and their failures, are visible and pullable only by
@@ -56,7 +58,7 @@ their question ID and date, for example "(Q4, owner, 2026-11-02)".
   standalone page inside apparadise, not a yeetl mode. yeetl (the front end for non-advanced
   users) may use apparadise later, so keep the catalog, request and build endpoints a clean,
   documented JSON API that another app could call. Do not build any yeetl integration now.
-- **Hosting:** one server runs the web app, DB, Harbor, coordinator and an x86 builder. Harbor
+- **Hosting:** one server runs the web app, DB, Zot, coordinator and an x86 builder. Zot
   runs outside appmotel, behind the same Traefik.
 - **Still open:** the Rubin compute capability and the Vera CPU target, to be read from the
   hardware (`nvidia-smi --query-gpu=compute_cap`) and checked against Spack archspec.
@@ -72,7 +74,7 @@ web/            FastAPI app + build coordinator + static frontend (appmotel app 
   .env.default
   apparadise/     package: config.py, main.py (create_app), db.py, auth.py, ldapauth.py,
                   resolver.py, index.py, coordinator.py, builder_api.py, catalog.py,
-                  votes.py, failures.py, chatbot.py, harbor.py, slurm.py, runai.py, modules.py
+                  votes.py, failures.py, chatbot.py, zot.py, registry_auth.py, slurm.py, runai.py, modules.py
   static/         frontend, served at /
 builder/        pull-based builder agent (appmotel app #2, big MEMORY_LIMIT)
   app.py          /health + the pull loop
@@ -83,7 +85,7 @@ catalog/        hand-maintained catalog/<name>.yml (phase 1), loaded at startup
 containers/     targets.yml (all arch flags: single source of truth) + base/ Containerfiles
 recipes/        _templates/ + rendered recipes/<name>/<version>/<target>/
 tools/          stage-sqsh and other single-file operator scripts (bash or stdlib Python)
-mock/           fake directory, fake Harbor, sample catalog, demo (mock/demo.py); later fake Slurm
+mock/           fake directory, fake Zot search, sample catalog, demo (mock/demo.py); later fake Slurm
 tests/web/      tests for web/; tests/builder/ drives the builder against the real app
                 (ASGI, fake command runner). Run both from web/: .venv/bin/pytest
 docs/           Markdown for Zensical; docs/stack.md lists versions
@@ -92,10 +94,11 @@ TODO.md  QUESTIONS.md  zensical.toml  ruff.toml (lint config for mock/ and tests
 ```
 
 Existing modules in `web/apparadise/`: config, main (app factory + lost-builder reaper), db
-(migrations 1-11), auth, ldapauth, ldapca, catalog, modules (Lmod + Enroot wrappers), recipes
+(migrations 1-12), auth, ldapauth, ldapca, catalog, modules (Lmod + Enroot wrappers), recipes
 (template rendering), index (three-way index), resolver, coordinator (queue, claim, report),
-builder_api (`/api/builder/*`, `/api/admin/*`), failures (signatures, scrubbing), harbor
-(per-job robots, read-only repository/artifact listing), failures also serves `/api/failures`
+builder_api (`/api/builder/*`, `/api/admin/*`), failures (signatures, scrubbing), zot
+(read-only search client), registry_auth (`/registry/token`: Zot's token service; job, AD
+and anonymous grants), failures also serves `/api/failures`
 (public failure DB), votes (`/api/votes/{package|failure|request}/{key}`), buildqueue (the one
 resolve/render/queue path + quota), requests_api (`/api/requests`, `/api/index`, `/api/quota`,
 `/api/admin/policy`), live (`/api/builds/{id}/events`, SSE live logs), retry (nightly re-queue of failed builds), repair (bounded auto-repair from
@@ -142,14 +145,14 @@ in step with `requirements*.txt` and the frontend layout.
   directly on `app`. The static mount at `/` is registered **last**. `GET /health` is cheap and
   touches neither the DB nor any upstream.
 - Bind uvicorn to `127.0.0.1` with `proxy_headers=True` and `forwarded_allow_ips="127.0.0.1"`.
-- Each external client (Harbor, Slurm REST, Run:ai, the LLM) is one async httpx client per app
+- Each external client (Zot, Slurm REST, Run:ai, the LLM) is one async httpx client per app
   on `app.state.X`, exposed through a `get_X` dependency and closed on shutdown. Escape every
   path parameter (`quote(v, safe="")`), and never build URLs by hand.
 - Blocking libraries (ldap3, subprocess-heavy work) run via `asyncio.to_thread`.
 - Background work (job queue, nightly index refresh, nightly failure retries, nightly `.sqsh`
   re-staging) runs as asyncio tasks in the single uvicorn process. Use no Celery or Redis.
-- Errors are typed exceptions such as `HarborError(status, code, message, details)` or
-  `HarborUnavailable`, mapped to HTTP codes. Never put URLs, tokens or secrets in exception text
+- Errors are typed exceptions such as `RegistryError(status, message)` or
+  `RegistryUnavailable`, mapped to HTTP codes. Never put URLs, tokens or secrets in exception text
   or logs. Pin noisy third-party loggers to WARNING. Redact token paths in `uvicorn.access`.
 - Live build logs use server-sent events, not WebSockets.
 - The chatbot runs on the backend only, and the browser never sees the LLM API key. Its tools
@@ -207,6 +210,9 @@ in step with `requirements*.txt` and the frontend layout.
   never from the request.
 - **CSRF:** every state-changing `/api` request needs `X-Requested-With: apparadise`. Add no
   CORS middleware for that header, and never let a GET change state.
+- **Registry tokens** (`/registry/token`, outside `/api`, no CSRF header) take HTTP Basic
+  (AD login through `password_sign_in` and its throttle, or a `job-<id>` secret) and never
+  set a session. Grants match exact repository names.
 - **Builder API** (`/api/builder/...`) is the exception: builders send a per-builder bearer token
   instead of a cookie, and never get a session.
 
@@ -233,7 +239,7 @@ in step with `requirements*.txt` and the frontend layout.
 - Demo code lives only in `mock/demo.py`. It builds its own Settings, never reads the real
   `.env`, uses a temp `DATA_DIR`, and serves on 127.0.0.1. The only production hook is
   `app.state.demo` behind `GET /api/demo`.
-- Tests must never call real Harbor, Slurm, Run:ai, LDAP, an LLM, Spack, EasyBuild or pixi.
+- Tests must never call real Zot, Slurm, Run:ai, LDAP, an LLM, Spack, EasyBuild or pixi.
 
 ## Security notes
 

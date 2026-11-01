@@ -22,7 +22,8 @@ export async function api(path, { method = "GET", json, signal, announce401 = tr
   }
   let res;
   try {
-    res = await fetch(`/api${path}`, init);
+    // Relative to the page, so the app also works under a path prefix (/apparadise/).
+    res = await fetch(`api${path}`, init);
   } catch (err) {
     if (err.name === "AbortError") throw err;
     throw new ApiError(0, "Cannot reach the server. Check your connection.");
@@ -74,9 +75,9 @@ export const disableBuilder = (id) => api(`/admin/builders/${enc(id)}/disable`, 
 // -> {token, expiresAt}: shown once, a one-time secret; keep it in memory only.
 export const createBuilderToken = () => api("/admin/builder-tokens", { method: "POST" });
 
-// The registry (Harbor, read-only). overview -> {configured, host, projects: [{name,
-// repositories: [{name, artifacts, pulls, updated, package}]}]}; `restricted` and `cache`
-// only for sysadmins. repository -> {project, name, host, package, artifacts: [{digest, tags,
+// The registry (Zot, read-only). overview -> {configured, host, projects: [{name,
+// repositories: [{name, newest, pulls, updated, package}]}]}; `restricted`, `cache` and
+// `nvcr` only for sysadmins. repository -> {project, name, host, package, artifacts: [{digest, tags,
 // size, pushed, platforms, index, signed, commands: {podman, srun, enroot}}]}.
 export const getRegistry = () => api("/registry", { announce401: false });
 export const getRepository = (project, name) =>
@@ -117,7 +118,7 @@ export const setPolicy = (body) => api("/admin/policy", { method: "PUT", json: b
 // Live build log (server-sent events): events "status" ({status, stage}), "log" (lines;
 // the event id is the byte offset, so EventSource resumes by itself) and "end".
 // Sysadmins get the raw log; the requester a scrubbed one. Close it when done.
-export const buildEvents = (id) => new EventSource(`/api/builds/${enc(id)}/events`);
+export const buildEvents = (id) => new EventSource(`api/builds/${enc(id)}/events`);
 
 // Request chatbot (phase 4). status -> {enabled, model}. send -> {conversation, reply,
 // proposals: [{kind: "request"|"build", name, version, targets, source, resolution?}], tools}.

@@ -21,14 +21,15 @@ from . import (
     failures,
     live,
     registry,
+    registry_auth,
     requests_api,
     upstream,
     votes,
 )
 from .config import Settings
 from .db import DB_FILENAME, Database
-from .harbor import HarborClient, HarborError, HarborUnavailable
 from .ldapauth import AdAuthenticator
+from .zot import ZotClient
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -51,7 +52,7 @@ REAP_EVERY = 300  # seconds
 
 
 async def reap_once(app: FastAPI) -> list[int]:
-    """Fail builds whose builder went silent, and delete their Harbor robots."""
+    """Fail builds whose builder went silent (which also voids their registry login)."""
     settings: Settings = app.state.settings
     cutoff = (datetime.now(UTC) - timedelta(minutes=settings.builder_stale_minutes)) \
         .strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -60,12 +61,6 @@ async def reap_once(app: FastAPI) -> list[int]:
     for r in rows:
         logging.getLogger(__name__).warning("build %s failed: builder lost", r["id"])
         await db.run(db.audit.add, "system", "build.reap", "build", str(r["id"]), {})
-        if r["harbor_robot_id"] is not None and app.state.harbor is not None:
-            try:
-                await app.state.harbor.delete_robot(r["harbor_robot_id"])
-                await db.run(coordinator.set_robot, db, r["id"], None)
-            except (HarborError, HarborUnavailable):
-                pass  # it expires on its own
     return [r["id"] for r in rows]
 
 
@@ -84,7 +79,7 @@ def create_app(
     authenticator: AdAuthenticator | None = None,
     clock: Callable[[], float] = time.time,
     load_catalog: bool = True,
-    harbor: HarborClient | None = None,
+    zot: ZotClient | None = None,
     background: bool = True,
     anthropic_client: anthropic.AsyncAnthropic | None = None,
 ) -> FastAPI:
@@ -95,7 +90,7 @@ def create_app(
         level=settings.log_level.upper(),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    # httpx logs every request URL at INFO, which names internal hosts (Harbor, Slurm).
+    # httpx logs every request URL at INFO, which names internal hosts (the registry, Slurm).
     for noisy in ("httpx", "httpcore", "httpx2", "anthropic"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
@@ -114,8 +109,8 @@ def create_app(
             for t in tasks:
                 t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
-            if _app.state.harbor is not None:
-                await _app.state.harbor.aclose()
+            if _app.state.zot is not None:
+                await _app.state.zot.aclose()
             if _app.state.anthropic is not None:
                 await _app.state.anthropic.close()
             if owned:
@@ -128,12 +123,14 @@ def create_app(
     app.state.authenticator = authenticator or AdAuthenticator(settings)
     app.state.sessions = auth.SessionManager(settings, clock)
     app.state.throttle = auth.LoginThrottle(clock)
-    # One Harbor client per app; None without HARBOR_URL (no robot credentials for builders).
-    app.state.harbor = harbor or (HarborClient(settings) if settings.harbor_url else None)
+    # One read-only Zot client per app (Registry page); None without REGISTRY_URL.
+    app.state.zot = zot or (ZotClient(settings) if settings.registry_url else None)
+    # The registry token signing key (registry_auth.py), loaded on first use.
+    app.state.registry_key = None
     # Always False here. Only mock/demo.py flips it on the finished app object;
     # no setting or environment variable can (tests/test_demo.py).
     app.state.demo = False
-    app.state.registry_cache = {}  # registry.py: short-lived Harbor answers
+    app.state.registry_cache = {}  # registry.py: short-lived registry answers
     # The chatbot's Claude client (one per app; None without ANTHROPIC_API_KEY) and its
     # in-process conversations.
     key = settings.anthropic_api_key.get_secret_value()
@@ -164,7 +161,7 @@ def create_app(
             response.headers.setdefault("Cache-Control", "no-cache")
         return response
 
-    # Cheap liveness probe: must never touch the database, LDAP, Harbor or Slurm.
+    # Cheap liveness probe: must never touch the database, LDAP, the registry or Slurm.
     @app.get(settings.health_check_path, include_in_schema=False)
     def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -188,6 +185,9 @@ def create_app(
     api.include_router(builder_api.router)
     api.include_router(builder_api.admin_router)
     app.include_router(api)
+    # Zot's token service: OCI clients POST here without a CSRF header, so it lives outside
+    # /api. It only issues signed tokens and writes audit rows (registry_auth.py).
+    app.include_router(registry_auth.router, prefix="/registry")
 
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
     return app

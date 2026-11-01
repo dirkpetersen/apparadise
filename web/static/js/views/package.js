@@ -20,7 +20,7 @@ function commandPanel(pkg, version, target, info) {
   const panel = h("code-panel");
   panel.tabs = [
     { label: "Module", content: `${c.module}\n${pkg.executables[0] ? `${pkg.executables[0]} --help` : ""}`.trim() },
-    { label: "Slurm", content: `# Pyxis pulls from Harbor and starts the image unprivileged\n${c.srunRegistry}` },
+    { label: "Slurm", content: `# Pyxis pulls from the registry and starts the image unprivileged\n${c.srunRegistry}` },
     { label: "Slurm (staged)", content: `# Same image, from the pre-staged squashfs on CephFS (fastest start)\n${c.srunSqsh}` },
     { label: "Image", content: `${c.pull}\n# digest ${info.digest}` },
   ];

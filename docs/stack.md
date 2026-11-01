@@ -11,7 +11,7 @@ These are the versions in use. Keep this page in step with `web/requirements*.tx
 | FastAPI | >= 0.115 (0.162 tested) | App factory `create_app`, strict CSP |
 | uvicorn[standard] | >= 0.30 | Bound to 127.0.0.1 behind Traefik, `proxy_headers` on |
 | pydantic-settings, python-dotenv | >= 2.4, >= 1.0 | `.env` only, never overriding the environment |
-| httpx | >= 0.27 | Async clients for Harbor, Slurm, Run:ai (phase 2) |
+| httpx | >= 0.27 | Async clients for Zot, Slurm, Run:ai (phase 2) |
 | anthropic | >= 2.3 | Request chatbot (phase 4): Claude via the official SDK, server-side only |
 | ldap3 | >= 2.9 | AD over LDAPS, nested groups |
 | itsdangerous | >= 2.2 | Signed stateless session cookie |

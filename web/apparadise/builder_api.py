@@ -21,7 +21,6 @@ from .auth import SessionUser, require_sysadmin
 from .buildqueue import QueueError, queue_builds
 from .catalog import NAME_RE, VERSION_RE
 from .db import Database, get_db
-from .harbor import HarborError, HarborUnavailable
 
 log = logging.getLogger(__name__)
 REGISTRATION_TTL = timedelta(hours=24)
@@ -94,17 +93,6 @@ async def claim(builder: Builder, request: Request, response: Response,
     if job is None:
         response.status_code = 204
         return None
-    harbor = request.app.state.harbor
-    if harbor is not None:
-        project = job["image"].split("/", 1)[0]
-        try:
-            robot = await harbor.create_robot(job["id"], project)
-        except (HarborError, HarborUnavailable) as e:
-            await db.run(coordinator.release, db, job["id"])
-            log.warning("job %s released: no Harbor robot (%s)", job["id"], e)
-            raise HTTPException(503, "The registry is unavailable; try again later.") from None
-        await db.run(coordinator.set_robot, db, job["id"], robot["id"])
-        job["registryToken"] = {"username": robot["name"], "password": robot["secret"]}
     await _audit(db, f"builder:{builder['name']}", "build.claim", "build", str(job["id"]),
                  {"package": job["package"], "target": job["target"]})
     return job
@@ -149,14 +137,6 @@ async def report(build_id: int, body: ReportBody, request: Request, builder: Bui
             fixed = None
         if fixed:
             result["repair"] = fixed
-    robot = result.pop("harbor_robot_id")
-    harbor = request.app.state.harbor
-    if robot is not None and harbor is not None and result["status"] in ("published", "failed"):
-        try:  # best effort: the robot expires on its own after HARBOR_ROBOT_DAYS
-            await harbor.delete_robot(robot)
-            await db.run(coordinator.set_robot, db, build_id, None)
-        except (HarborError, HarborUnavailable) as e:
-            log.warning("could not delete Harbor robot %s of job %s: %s", robot, build_id, e)
     await _audit(db, f"builder:{builder['name']}", "build.report", "build", str(build_id),
                  {"stage": body.stage, "ok": body.ok})
     return result

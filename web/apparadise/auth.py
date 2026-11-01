@@ -291,12 +291,72 @@ def _no_store(response: Response) -> None:
     response.headers["Cache-Control"] = "no-store"
 
 
-@router.post("/login")
-async def login(request: Request, response: Response, db: Annotated[Database, Depends(get_db)]):
+class PasswordSignInError(Exception):
+    """A refused password sign-in: status (401/429/503), user-facing message, headers."""
+
+    def __init__(self, status: int, message: str, headers: dict[str, str] | None = None):
+        super().__init__(message)
+        self.status, self.message, self.headers = status, message, headers
+
+
+async def password_sign_in(request: Request, db: Database, login_name: str,
+                           password: str) -> AuthUser:
+    """Check an AD login and password with the throttle and audit of the login page. Used by
+    /api/login and by the registry token service (registry_auth.py). Raises
+    PasswordSignInError; never logs or audits the password."""
     state = request.app.state
-    sessions: SessionManager = state.sessions
     throttle: LoginThrottle = state.throttle
     auth: AdAuthenticator = state.authenticator
+    ip = _client_ip(request)
+    login_name = login_name.strip()
+    actor = login_name.lower() or "(empty)"
+    if not login_name or not password.strip() or len(login_name) > MAX_FIELD_LEN \
+            or len(password) > MAX_FIELD_LEN:
+        log.info("login refused: empty or oversized login or password (ip=%s)", ip)
+        raise PasswordSignInError(401, MSG_INVALID)
+
+    blocked = throttle.acquire(actor, ip)
+    if blocked:
+        retry_after, first = blocked
+        log.warning("login throttled: login=%r ip=%s retry_after=%ss", actor, ip, retry_after)
+        if first:
+            await _audit(db, actor, "login.throttled", {"ip": ip})
+        headers = {"Retry-After": str(retry_after), "Cache-Control": "no-store"}
+        raise PasswordSignInError(429, MSG_THROTTLED, headers)
+
+    uname_key: str | None = None
+    try:
+        resolved = await auth.resolve(login_name, password)
+        # Count the password check against the account itself: the three login
+        # spellings are separate typed-login counters but one AD lockout counter.
+        uname_key = resolved.user.username.lower()
+        blocked = throttle.acquire_user(uname_key, actor)
+        if blocked:
+            uname_key = None  # this attempt was not counted
+            retry_after, first = blocked
+            log.warning("login throttled (account): login=%r ip=%s", actor, ip)
+            if first:
+                await _audit(db, actor, "login.throttled", {"ip": ip, "scope": "account"})
+            headers = {"Retry-After": str(retry_after), "Cache-Control": "no-store"}
+            raise PasswordSignInError(429, MSG_THROTTLED, headers)
+        user = await auth.verify(resolved, password)
+    except InvalidCredentials as e:
+        log.info("login failed: login=%r ip=%s reason=%s", actor, ip, e.reason)
+        await _audit(db, actor, "login.failure", {"ip": ip, "reason": e.reason})
+        raise PasswordSignInError(401, MSG_INVALID) from None
+    except LdapUnavailable as e:
+        throttle.refund(actor, ip, uname_key)
+        log.error("login failed: LDAP unavailable (%s)", e)
+        await _audit(db, actor, "login.failure", {"ip": ip, "reason": "ldap_unavailable"})
+        raise PasswordSignInError(503, MSG_UNAVAILABLE) from None
+
+    throttle.success(actor, ip, user.username.lower())
+    return user
+
+
+@router.post("/login")
+async def login(request: Request, response: Response, db: Annotated[Database, Depends(get_db)]):
+    sessions: SessionManager = request.app.state.sessions
     ip = _client_ip(request)
     _no_store(response)
 
@@ -321,42 +381,10 @@ async def login(request: Request, response: Response, db: Annotated[Database, De
         log.info("login refused: empty login or password (ip=%s)", ip)
         raise HTTPException(401, MSG_INVALID)
 
-    blocked = throttle.acquire(actor, ip)
-    if blocked:
-        retry_after, first = blocked
-        log.warning("login throttled: login=%r ip=%s retry_after=%ss", actor, ip, retry_after)
-        if first:
-            await _audit(db, actor, "login.throttled", {"ip": ip})
-        headers = {"Retry-After": str(retry_after), "Cache-Control": "no-store"}
-        raise HTTPException(429, MSG_THROTTLED, headers=headers)
-
-    uname_key: str | None = None
     try:
-        resolved = await auth.resolve(login_name, password)
-        # Count the password check against the account itself: the three login
-        # spellings are separate typed-login counters but one AD lockout counter.
-        uname_key = resolved.user.username.lower()
-        blocked = throttle.acquire_user(uname_key, actor)
-        if blocked:
-            uname_key = None  # this attempt was not counted
-            retry_after, first = blocked
-            log.warning("login throttled (account): login=%r ip=%s", actor, ip)
-            if first:
-                await _audit(db, actor, "login.throttled", {"ip": ip, "scope": "account"})
-            headers = {"Retry-After": str(retry_after), "Cache-Control": "no-store"}
-            raise HTTPException(429, MSG_THROTTLED, headers=headers)
-        user = await auth.verify(resolved, password)
-    except InvalidCredentials as e:
-        log.info("login failed: login=%r ip=%s reason=%s", actor, ip, e.reason)
-        await _audit(db, actor, "login.failure", {"ip": ip, "reason": e.reason})
-        raise HTTPException(401, MSG_INVALID) from None
-    except LdapUnavailable as e:
-        throttle.refund(actor, ip, uname_key)
-        log.error("login failed: LDAP unavailable (%s)", e)
-        await _audit(db, actor, "login.failure", {"ip": ip, "reason": "ldap_unavailable"})
-        raise HTTPException(503, MSG_UNAVAILABLE) from None
-
-    throttle.success(actor, ip, user.username.lower())
+        user = await password_sign_in(request, db, login_name, password)
+    except PasswordSignInError as e:
+        raise HTTPException(e.status, e.message, headers=e.headers) from None
     sessions.set_cookie(response, user)
     log.info("login ok: user=%s admin=%s ip=%s", user.username, user.is_admin, ip)
     await _audit(

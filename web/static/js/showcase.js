@@ -61,7 +61,7 @@ $("tcs").append(
 const panel = h("code-panel");
 panel.tabs = [
   { label: "Module", content: "module load gromacs/2026.3\ngmx_mpi --help" },
-  { label: "Slurm", content: "# Pyxis pulls from Harbor\nsrun --container-image=registry.example.org#public/gromacs:2026.3-rtx gmx_mpi" },
+  { label: "Slurm", content: "# Pyxis pulls from the registry\nsrun --container-image=registry.example.org#public/gromacs:2026.3-rtx gmx_mpi" },
 ];
 panel.hint = "The module picks the right image for the node it runs on.";
 $("code").append(panel);
