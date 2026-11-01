@@ -13,7 +13,9 @@
 #   any source: {switch_source: true}                       next source with a CUDA recipe
 #
 # Seeded from the bare-metal EasyBuild session (FAILURES.md #13, #17, #19-21) and the
-# failures CUDA builds hit most often.
+# failures CUDA builds hit most often. The gnulib/glibc _Generic clash (#20, #21) has no rule:
+# -std=gnu17 does not fix it, and the forced include that does needs a file in the builder
+# image (Q31, docs/operations/easybuild-troubleshooting.md).
 #
 # EasyBuild: the compiler-level fixes are Spack-only for now. --try-amend reaches only the
 # top-level easyconfig (not the robot-resolved dependency that failed), replaces a
@@ -33,13 +35,6 @@
   stages: [build]
   actions:
     # == propagates the flag to every dependency, wherever the old code is
-    spack: {spec_append: "cflags==-std=gnu17"}
-
-- id: gnulib-glibc-generic
-  why: old gnulib redefines memchr/bsearch, which glibc 2.42+ turned into _Generic macros
-  match: "_Generic|expected declaration specifiers or '\\.\\.\\.' before '\\(' token.*(memchr|strchr|bsearch)"
-  stages: [build]
-  actions:
     spack: {spec_append: "cflags==-std=gnu17"}
 
 - id: easybuild-toolchain-bump

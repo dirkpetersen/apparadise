@@ -3,7 +3,8 @@
 In October 2026, a separate session set up EasyBuild + Lmod on an Ubuntu 26.04 host and tried
 to build `PyTorch-2.9.1-foss-2025b`. It logged 21 failures in
 `/storage/t3/test/motuz/eb/FAILURES.md`. This page turns them into design rules for
-apparadise.
+apparadise. The hands-on symptom → fix guide, with credit to that
+session and two later failures, is [EasyBuild troubleshooting](../operations/easybuild-troubleshooting.md).
 
 ## What went wrong, grouped by root cause
 

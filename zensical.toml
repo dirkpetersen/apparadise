@@ -16,6 +16,7 @@ nav = [
     { "Hand-building a package" = "operations/hand-build.md" },
     { "Builders" = "operations/builders.md" },
     { "Modules and wrappers" = "operations/modules.md" },
+    { "EasyBuild troubleshooting" = "operations/easybuild-troubleshooting.md" },
   ] },
   { "Lessons" = [
     { "EasyBuild on a bare host" = "lessons/easybuild-host-build.md" },

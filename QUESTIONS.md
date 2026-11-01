@@ -17,7 +17,7 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 **Default:** anyone in `LDAP_REQUIRED_GROUP_DN` (REQUIRED). If every domain user should be
 allowed in, set it to the Domain Users group DN.
-**Answer:**
+**Answer:** If this is empty everyone can log in 
 
 ## Q3 (2026-10-31): Does phase 1 need a read-only catalog page?
 
@@ -26,17 +26,17 @@ is easier to reach if users can see what exists and how to load it.
 **Default:** phase 1 includes a read-only catalog (list, search and package page, with module
 and srun commands), filled from a hand-maintained `catalog/` folder of YAML files. Votes,
 requests and the failure DB stay in phase 3.
-**Answer:**
+**Answer:**  Yes agreed 
 
 ## Q4 (2026-10-31): Which packages are the phase 1 "top 20"?
 
 **Default:** a provisional list in `catalog/` covers both targets and all three sources:
 - Spack: GROMACS, LAMMPS, OpenMPI, UCX, nccl-tests, OSU micro-benchmarks, HPL, Kokkos
-- EasyBuild: AlphaFold 3, RELION, cryoDRGN, MotionCor3, Cellpose
-- pixi: PyTorch, JAX, vLLM, RAPIDS (cuDF/cuML), rapids-singlecell, CuPy, JupyterLab
+- EasyBuild: Pytorch, aplphsfold 3, RELION, cryoDRGN, MotionCor3, Cellpose
+- pixi:  JAX, vLLM, RAPIDS (cuDF/cuML), rapids-singlecell, CuPy, JupyterLab
 
 Each entry stays `status: planned` until it has been built.
-**Answer:**
+**Answer:** ok
 
 ## Q5 (2026-10-31): What base OS should the per-target base images use?
 
@@ -45,22 +45,22 @@ Ubuntu 26.04 / GCC 15 / glibc (C23 defaults, `_Generic` clashes in gnulib, gprof
 **Default:** NGC `nvcr.io/nvidia/cuda:<ver>-devel-ubuntu24.04` for builder images and
 `...-runtime-ubuntu24.04` for runtime images. Never build on the host OS. Images are multi-arch
 (amd64 + arm64), with the CUDA version pinned by digest.
-**Answer:**
+**Answer:** build everything with ubuntu 24.06 (DGX OS 8.1.0) and cuda13 
 
 ## Q6 (2026-10-31): Which CUDA version is the platform baseline?
 
 **Default:** CUDA 13.0 for both targets. The `generic` target keeps `sm_70`–`sm_120`, but
 CUDA 13 dropped Volta (`sm_70`). So `generic` is built with CUDA 12.9 or starts at `sm_75`.
 I picked **`generic` = CUDA 12.9, sm_70–sm_120**, pending confirmation.
-**Answer:**
+**Answer:** 13.0 
 
 ## Q7 (2026-10-31): Where do things live on shared storage?
 
 **Default:** the paths are settings, and these are the defaults:
-- `.sqsh` cache: `SQSH_DIR=/shared/containers/<target>/<name>-<version>-<target>.sqsh`
-- module tree: `MODULE_DIR=/shared/modules/apparadise` (Lmod `MODULEPATH` entry)
-- wrapper scripts: `WRAPPER_DIR=/shared/apps/apparadise/bin/<name>/<version>/`
-**Answer:**
+- `.sqsh` cache: `SQSH_DIR=/opt/apparadise/containers/<target>/<name>-<version>-<target>.sqsh`
+- module tree: `MODULE_DIR=/opt/apparadise/modules` (Lmod `MODULEPATH` entry)
+- wrapper scripts: `WRAPPER_DIR=/opt/apparadise/bin/<name>/<version>/`
+**Answer:** use the abovbe 
 
 ## Q8 (2026-10-31): Is Harbor already installed, and what is its hostname?
 
@@ -311,4 +311,17 @@ or propagate a flag (`cflags==-std=gnu17`).
 **Default:** those rules are Spack-only. For EasyBuild, the only automatic repair is
 dropping the toolchain bump. An EasyBuild-side fix would need patched easyconfigs in a
 site robot path (`recipes/easybuild-overrides/`), shipped in the builder image.
+**Answer:**
+
+## Q31 (2026-11-01): Ship the glibc forced include in the builder image?
+
+The `gnulib-glibc-generic` repair rule appended `cflags==-std=gnu17`, which cannot work: old
+gnulib (and util-linux) define `_GNU_SOURCE`, and that switches on glibc 2.42+'s `_Generic`
+macros (`memchr`, `bsearch`, ...) in any language mode. Checked on glibc 2.43. The only fix
+that worked in the EasyBuild session is a forced include, `-include glibc-generic-off.h`, which
+undefines `__glibc_const_generic`. A Spack spec cannot name a file path (`SPEC_RE` forbids `/`).
+**Default:** the rule is removed so it no longer wastes a repair attempt. The NGC/Ubuntu 24.04
+builder images ship glibc 2.39, which does not have these macros, so builds there should not
+hit it. If newer bases are used, ship the header at a fixed path in `base-builder` and add a
+repair action that adds exactly that `-include`.
 **Answer:**
