@@ -38,9 +38,8 @@ RECIPE_FILE = {"spack": "spack.yaml", "easybuild": "easystack.yml", "pixi": "pix
 ERROR_RE = re.compile(rb"^.*\b(error|fatal|failed)\b.*$", re.I | re.M)
 LOG_FLUSH_BYTES = 64 * 1024
 HEARTBEAT_SECONDS = 60  # well under the coordinator's BUILDER_STALE_MINUTES
-# The concretize stage: the solver alone, in the job's builder image, on the rendered recipe
-# (mounted read-only except for pixi, which writes pixi.lock). Constant commands: no job data
-# goes through a shell.
+# The concretize stage: the solver alone, in the job's builder image, on the rendered recipe.
+# Constant commands: no job data goes through a shell.
 CONCRETIZE = {
     "spack": ["spack", "-e", "/work", "concretize", "--fresh"],
     "easybuild": ["env", "EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1",
@@ -122,7 +121,9 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
     labels = [f"--label=io.apparadise.{k}={job[k]}" for k in ("package", "version", "target",
                                                                 "source")]
     if stage == "concretize":
-        mode = "rw" if job["source"] == "pixi" else "ro"
+        # pixi writes pixi.lock and Spack its .spack-env lock and spack.lock; only the
+        # EasyBuild dry run leaves the recipe alone. The dir is the job's own, deleted after.
+        mode = "ro" if job["source"] == "easybuild" else "rw"
         return [[tool, "run", "--rm", "--platform", job["platform"], *auth,
                  "-v", f"{workdir}:/work:{mode}", f"{s.registry_host}/{job['baseBuilder']}",
                  *CONCRETIZE[job["source"]]]]

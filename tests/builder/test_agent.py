@@ -89,10 +89,10 @@ def test_happy_path_publishes(world):
     tools = [c[:2] for c in runner.calls]
     assert tools == [["podman", "run"], ["podman", "build"], ["podman", "build"],
                      ["podman", "run"], ["podman", "push"], ["srun", "-p"], ["podman", "push"]]
-    # concretize: the solver alone, in the job's builder image, recipe mounted read-only
+    # concretize: the solver alone, in the job's builder image (Spack writes its lock)
     conc = runner.calls[0]
     assert conc[-5:] == ["spack", "-e", "/work", "concretize", "--fresh"]
-    assert any(a.endswith(":/work:ro") for a in conc)
+    assert any(a.endswith(":/work:rw") for a in conc)
     assert runner.calls[3][runner.calls[3].index("--user") + 1] == "54321:54321"
     srun = runner.calls[5]
     assert f"--container-image=registry.example.org#cache/test-gromacs:{bid}" in srun
@@ -165,7 +165,8 @@ def test_concretize_commands_are_constant(world, tmp_path):
         [argv] = plan(job, "concretize", s, tmp_path)
         assert argv[-len(CONCRETIZE[source]):] == CONCRETIZE[source]
         assert f"{s.registry_host}/cache/base-builder:13.0-rtx" in argv
-        assert any(a.endswith(":/work:rw" if source == "pixi" else ":/work:ro") for a in argv)
+        assert any(a.endswith(":/work:ro" if source == "easybuild" else ":/work:rw")
+                   for a in argv)
     assert "--dry-run" in CONCRETIZE["easybuild"] and "--robot" in CONCRETIZE["easybuild"]
 
 
