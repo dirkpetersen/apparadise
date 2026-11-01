@@ -17,7 +17,8 @@ what the resolver and the catalog search use.
 
     python -m apparadise.index --db data/apparadise.sqlite3 --spack ~/src/spack-packages \
         --easybuild ~/src/easybuild-easyconfigs --conda linux-64=repodata-64.json \
-        --conda linux-aarch64=repodata-aarch64.json [--csv cuda_spack_easybuild_pixi.csv]
+        --conda linux-aarch64=repodata-aarch64.json --conda noarch=repodata-noarch.json \
+        [--csv cuda_spack_easybuild_pixi.csv]
 """
 
 from __future__ import annotations
@@ -133,13 +134,15 @@ def pick_easyconfig(names: list[str]) -> str:
 
 
 def scan_conda(repodata: dict[str, str | Path]) -> list[dict[str, Any]]:
-    """`repodata` maps a subdir (linux-64, linux-aarch64) to its repodata.json."""
+    """`repodata` maps a subdir (linux-64, linux-aarch64, noarch) to its repodata.json.
+    noarch holds the pure-Python packages (jupyterlab 4.x); it adds versions but never
+    counts as a CUDA build for an arch."""
     versions: dict[str, set[str]] = defaultdict(set)
     cuda_arches: dict[str, set[str]] = defaultdict(set)
     python: dict[str, bool] = defaultdict(bool)
     marker: dict[str, bool] = defaultdict(bool)  # "cuda" appears in a build string
     for subdir, path in repodata.items():
-        if subdir not in CONDA_SUBDIRS:
+        if subdir not in (*CONDA_SUBDIRS, "noarch"):
             raise ValueError(f"unknown conda subdir {subdir!r}")
         with open(path) as fh:
             data = json.load(fh)
@@ -149,7 +152,7 @@ def scan_conda(repodata: dict[str, str | Path]) -> list[dict[str, Any]]:
                 versions[name].add(rec["version"])
                 deps = rec.get("depends") or []
                 in_build = "cuda" in rec.get("build", "").lower()
-                if in_build or any(CUDA_DEPS.match(d) for d in deps):
+                if subdir != "noarch" and (in_build or any(CUDA_DEPS.match(d) for d in deps)):
                     cuda_arches[name].add(subdir)
                     marker[name] |= in_build
                 if any(d == "python" or d.startswith("python ") or d.startswith("python_abi")

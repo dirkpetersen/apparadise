@@ -184,6 +184,19 @@ def test_conda_cuda_detected_from_dependencies(tmp_path):
     assert it["has_cuda"] and it["details"] == {"cuda_build_marker": False}
 
 
+def test_conda_noarch_adds_versions_but_no_cuda_arch(tmp_path):
+    # jupyterlab 4.x is noarch only; without noarch the index saw just 1.0.x
+    old = {"packages": {"j.tar.bz2": {"name": "jupyterlab", "version": "1.0.10",
+                                      "build": "py37_0", "depends": ["python"]}}}
+    new = {"packages.conda": {"j.conda": {"name": "jupyterlab", "version": "4.6.4",
+                                          "build": "pyhd8ed1ab_0",
+                                          "depends": ["python >=3.10", "cuda-version"]}}}
+    (tmp_path / "a.json").write_text(json.dumps(old))
+    (tmp_path / "n.json").write_text(json.dumps(new))
+    it = scan_conda({"linux-64": tmp_path / "a.json", "noarch": tmp_path / "n.json"})[0]
+    assert it["versions"][0] == "4.6.4" and not it["has_cuda"]
+
+
 def test_compiled_hpc_code_with_python_bindings_goes_to_spack():
     entries = [
         {"source": "pixi", "upstream_name": "lammps", "versions": ["1"], "has_cuda": True,
