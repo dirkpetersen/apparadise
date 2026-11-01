@@ -63,9 +63,12 @@ CONTAINERFILES = {
     "spack": """\
 FROM {registry}/{base_builder} AS build
 COPY spack.yaml /work/spack.yaml
+# Spack keeps some stage dirs in TMPDIR (bison: gnulib's deliberately deep confdir3/... tree),
+# which podman then cannot commit (lstat: path too long). Remove them in the same RUN.
 RUN spack -e /work buildcache keys --install --trust --yes-to-all \\
  && spack -e /work concretize --fresh && spack -e /work install --fail-fast \\
- && spack -e /work gc -y && chmod -R a+rX /opt/software /opt/view
+ && spack -e /work gc -y && rm -rf /scratch/tmp/* \\
+ && chmod -R a+rX /opt/software /opt/view
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/software /opt/software
 COPY --from=build /opt/view /opt/view
