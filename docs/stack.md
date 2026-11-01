@@ -30,7 +30,7 @@ These are the versions in use. Keep this page in step with `web/requirements*.tx
 ## Frontend (`web/static/`)
 
 Plain HTML, CSS and vanilla JS ES modules, with no framework and no build step.
-- `css/tokens.css` holds all design values. There is one accent (indigo `#4f46e5`), and
+- `css/tokens.css` holds all design values. There is one accent (Beaver Orange `#d73f09`, as in Bucketeer, Q15), and
   light and dark both use `light-dark()`.
 - `js/dom.js` provides `h()`. `js/api.js` is the only way to call `/api`.
 - Components (`js/components/`): `code-panel`, `toast`, `menu-button`, `confirm-dialog`.

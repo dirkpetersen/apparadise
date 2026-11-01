@@ -46,7 +46,7 @@ RUN git clone --depth 1 --branch "${SPACK_REF}" https://github.com/spack/spack.g
 # pixi: one static binary.
 RUN arch="$(uname -m)" \
  && curl -fsSL "https://github.com/prefix-dev/pixi/releases/download/v${PIXI_VERSION}/pixi-${arch}-unknown-linux-musl.tar.gz" \
-    | tar -xz -C /usr/local/bin pixi
+    | tar -xz --no-same-owner -C /usr/local/bin pixi
 
 # Build trees on the builder's scratch volume, never on a small root filesystem.
 ENV APPARADISE_TARGET=${TARGET} \
