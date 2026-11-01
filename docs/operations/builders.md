@@ -20,6 +20,40 @@ or an EC2 spot instance. Restricted builds only go to on-prem builders
 
 To retire a builder, use **Disable** on the admin page. It can no longer claim jobs.
 
+## Rootless podman on the builder host
+
+Builders run podman as their own (non-root) account. What the first builder host (motuz)
+needed:
+
+1. **A sub-UID range.** Without one, podman maps a single UID, and only the slow `vfs`
+   driver works. Every layer is then a full copy of the CUDA image (about 10 GB). An AD
+   account is not in `/etc/passwd`, so `usermod --add-subuids` refuses it. Append the line
+   directly, using the next free range, then run `podman system migrate` **as that
+   account**, not as root:
+   ```bash
+   echo "<user>:<start>:65536" | sudo tee -a /etc/subuid /etc/subgid
+   podman system migrate        # as <user>
+   podman unshare cat /proc/self/uid_map   # two lines: 0 -> uid, 1 -> <start>
+   ```
+2. **Image storage on big shared storage**, when the local disk is small.
+   `~/.config/containers/storage.conf`:
+   ```toml
+   [storage]
+   driver = "overlay"
+   graphroot = "/storage/.../podman/storage-overlay"
+   runroot = "/run/user/<uid>/containers"
+   [storage.options.overlay]
+   force_mask = "700"
+   ```
+   On a network filesystem (CephFS, NFS) podman always applies `force_mask`: files are
+   stored as mode 700 and the real mode is kept in an xattr, which images and pushes
+   preserve. Point `TMPDIR` and `image_copy_tmp_dir` (`containers.conf`) at the same storage
+   too, or big layers fill `/var/tmp`.
+3. **No sub-UIDs and no way to get them:** `driver = "vfs"` with
+   `[storage.options.vfs] ignore_chown_errors = "true"`, plus `tar --no-same-owner` in every
+   `RUN` that unpacks an archive (the base Containerfiles already use it). This works but
+   is slow, and every file in the image ends up owned by one user.
+
 ## What a builder does per job
 
 | Stage | Command |
