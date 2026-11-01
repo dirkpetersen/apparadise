@@ -83,7 +83,8 @@ class Settings(BaseSettings):
     # Request chatbot (phase 4). Empty ANTHROPIC_API_KEY: the chatbot page says it is off.
     # The key stays on the server; the browser never sees it.
     anthropic_api_key: SecretStr = SecretStr("")
-    chat_model: str = Field("claude-opus-5-5", min_length=1)
+    chat_model: str = Field("claude-sonnet-5-5", min_length=1)
+    chat_fallback_model: str = "claude-opus-5-5"
 
     @field_validator("ldap_url", mode="before")
     @classmethod

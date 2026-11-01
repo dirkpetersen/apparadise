@@ -1,7 +1,8 @@
 """The request chatbot (phase 4): a standalone page that helps advanced users find, request
 and debug CUDA software. Backend only: the browser never sees the Anthropic API key.
 
-Claude (CHAT_MODEL, default claude-opus-5-5, Q12) gets exactly five tools:
+Claude (CHAT_MODEL, default claude-sonnet-5-5, retried on CHAT_FALLBACK_MODEL with high
+effort when the API fails, Q12) gets exactly five tools:
 search_catalog, search_index, create_request, start_build and explain_failure. They run
 on the server as the signed-in user, with that user's visibility (restricted packages and
 failures only for RCO-Admins).
@@ -41,6 +42,7 @@ router = APIRouter(tags=["chat"])  # mounted under /api/ in main.create_app
 
 MAX_TOKENS = 16000
 EFFORT = "medium"
+FALLBACK_EFFORT = "high"     # Q12: the fallback model thinks harder
 TOOL_ROUNDS = 8              # tool round-trips per user message
 CONV_TTL = 2 * 3600          # seconds a conversation is kept after its last message
 MAX_CONVERSATIONS = 500
@@ -338,12 +340,19 @@ async def chat(body: ChatBody, request: Request,
         messages = [*conv.messages, {"role": "user", "content": body.message}]
     proposals: list[dict[str, Any]] = []
     used: list[str] = []
-    reply = ""
-    try:
+    start = messages
+
+    async def turn(model: str, effort: str) -> tuple[list[dict[str, Any]] | None, str]:
+        """One whole turn on one model, from the stored history. -> (history, reply); the
+        history is None when the turn must not be kept."""
+        messages = list(start)
+        proposals.clear()
+        used.clear()
+        reply = ""
         for _ in range(TOOL_ROUNDS + 1):
             response = await client.beta.messages.create(
                 model=model, max_tokens=MAX_TOKENS, system=SYSTEM, tools=TOOLS,
-                messages=messages, output_config={"effort": EFFORT},
+                messages=messages, output_config={"effort": effort},
                 cache_control={"type": "ephemeral"},  # each round resends the history
                 betas=[FALLBACK_BETA], fallbacks="default")
             messages.append({"role": "assistant", "content": response.content})
@@ -381,16 +390,36 @@ async def chat(body: ChatBody, request: Request,
                                     "content": "Error: the tool failed.", "is_error": True})
             messages.append({"role": "user", "content": results})
         else:  # out of rounds: the history would end mid-tool-use, so it is not kept
-            return {"conversation": cid, "reply": "That took too many steps. Try asking more "
-                    "specifically.", "proposals": proposals, "tools": used}
-    except anthropic.RateLimitError:
-        raise HTTPException(503, "The assistant is busy. Try again in a minute.") from None
-    except anthropic.APIConnectionError:
-        raise HTTPException(503, "The assistant cannot be reached right now.") from None
-    except anthropic.APIStatusError as e:
-        log.error("chat: Anthropic API answered %s (request %s)", e.status_code,
-                  getattr(e, "request_id", None))
-        raise HTTPException(502, "The assistant failed. Try again.") from None
+            return None, "That took too many steps. Try asking more specifically."
+        return messages, reply
+
+    # Q12: Sonnet by default; on any API trouble the same turn runs again on the fallback
+    # model (Opus) with high effort. Refusals are handled server-side (fallbacks="default").
+    settings = request.app.state.settings
+    attempts = [(model, EFFORT)]
+    if settings.chat_fallback_model and settings.chat_fallback_model != model:
+        attempts.append((settings.chat_fallback_model, FALLBACK_EFFORT))
+    for i, (m, effort) in enumerate(attempts):
+        try:
+            messages, reply = await turn(m, effort)
+            break
+        except (anthropic.RateLimitError, anthropic.APIConnectionError,
+                anthropic.APIStatusError) as e:
+            if i + 1 < len(attempts):
+                log.warning("chat: %s failed (%s), retrying on %s", m, type(e).__name__,
+                            attempts[i + 1][0])
+                continue
+            if isinstance(e, anthropic.RateLimitError):
+                raise HTTPException(503, "The assistant is busy. Try again in a minute.") \
+                    from None
+            if isinstance(e, anthropic.APIConnectionError):
+                raise HTTPException(503, "The assistant cannot be reached right now.") \
+                    from None
+            log.error("chat: Anthropic API answered %s (request %s)", e.status_code,
+                      getattr(e, "request_id", None))
+            raise HTTPException(502, "The assistant failed. Try again.") from None
+    if messages is None:
+        return {"conversation": cid, "reply": reply, "proposals": proposals, "tools": used}
     conv.messages = messages
     conv.turns += 1
     conv.touched = state.clock()

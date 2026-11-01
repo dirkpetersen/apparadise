@@ -68,7 +68,8 @@ interval and cap are stored in the database as `retry.after_days` and `retry.max
 ## 7b. Assistant (optional)
 
 Set `ANTHROPIC_API_KEY` in `web/.env` to switch on the Ask page (`CHAT_MODEL` defaults to
-`claude-opus-5-5`, Q12, Q27). Without the key, the page says the assistant is off and
+`claude-sonnet-5-5`; a failed turn is retried on `CHAT_FALLBACK_MODEL`, `claude-opus-5-5`,
+with high effort, Q12). Without the key, the page says the assistant is off and
 everything else works.
 
 ## 8. First package, end to end

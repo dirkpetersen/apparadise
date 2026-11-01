@@ -104,7 +104,7 @@ def test_demo_uses_the_keyword_stand_in(tmp_path):
 
 def test_needs_sign_in_and_csrf(env):
     c, fake = env
-    assert c.get("/api/chat").json() == {"enabled": True, "model": "claude-opus-5-5"}
+    assert c.get("/api/chat").json() == {"enabled": True, "model": "claude-sonnet-5-5"}
     assert say(c, "hi").status_code == 401
     login(c)
     assert c.post("/api/chat", json={"message": "hi"}).status_code == 403
@@ -119,7 +119,7 @@ def test_tool_loop_runs_tools_and_passes_history_back(env):
     r = say(c, "is gromacs available?").json()
     assert r["reply"] == "Use module load gromacs/2026.3." and r["tools"] == ["search_catalog"]
     first, second = fake.sent
-    assert first["body"]["model"] == "claude-opus-5-5"
+    assert first["body"]["model"] == "claude-sonnet-5-5"  # Q12
     assert first["body"]["fallbacks"] == "default"
     assert "server-side-fallback-2026-07-01" in first["headers"]["anthropic-beta"]
     assert first["body"]["output_config"] == {"effort": "medium"}
@@ -217,10 +217,28 @@ def test_refusal_and_errors(env):
     login(c)
     fake.reply({"type": "text", "text": ""}, stop="refusal")
     assert say(c, "x").json()["reply"] == "I can't help with that request."
-    fake.script.append((500, {"type": "error", "error": {"type": "api_error",
-                                                         "message": "secret detail"}}))
+    for _ in range(2):  # Sonnet, then the Opus fallback
+        fake.script.append((500, {"type": "error", "error": {"type": "api_error",
+                                                             "message": "secret detail"}}))
     r = say(c, "y")
     assert r.status_code == 502 and "secret" not in r.text
+
+
+def test_overloaded_sonnet_falls_back_to_opus_with_high_effort(env):
+    c, fake = env
+    login(c)
+    fake.tool("search_catalog", {"query": "gromacs"})
+    fake.script.append((529, {"type": "error", "error": {"type": "overloaded_error",
+                                                         "message": "busy"}}))
+    fake.text("From Opus.")
+    r = say(c, "is gromacs there?").json()
+    assert r["reply"] == "From Opus."
+    models = [(s["body"]["model"], s["body"]["output_config"]["effort"]) for s in fake.sent]
+    assert models == [("claude-sonnet-5-5", "medium"), ("claude-sonnet-5-5", "medium"),
+                      ("claude-opus-5-5", "high")]
+    # the retry starts the turn over: Opus sees only the user's message, not Sonnet's half turn
+    assert [m["role"] for m in fake.sent[-1]["body"]["messages"]] == ["user"]
+    assert r["tools"] == []
 
 
 def test_failed_turn_leaves_history_untouched(env):
@@ -229,8 +247,9 @@ def test_failed_turn_leaves_history_untouched(env):
     fake.text("One.")
     cid = say(c, "first").json()["conversation"]
     fake.tool("search_catalog", {"query": "x"})
-    fake.script.append((529, {"type": "error", "error": {"type": "overloaded_error",
-                                                         "message": "busy"}}))
+    for _ in range(2):  # Sonnet mid-turn, then the Opus fallback
+        fake.script.append((529, {"type": "error", "error": {"type": "overloaded_error",
+                                                             "message": "busy"}}))
     assert say(c, "second", cid).status_code in (502, 503)
     fake.text("Three.")
     say(c, "third", cid)

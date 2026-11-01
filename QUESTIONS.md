@@ -364,7 +364,7 @@ Module wrappers pick `vr` by CPU architecture (aarch64) alone.
 **Default:** Claude via the Anthropic API (`ANTHROPIC_API_KEY`, model `claude-opus-5-5`, with
 the model as a setting). This is phase 4, so nothing is built yet.
 **Answer:** We are using Sonnet 5.5 as a default and if If there's any issues we're switching to Opus 5.5 immediately with high level thinking in that case 
-**Status (2026-11-01):** **Not implemented yet:** `CHAT_MODEL` still defaults to `claude-opus-5-5`. To do: Sonnet 5.5 by default, switching to Opus 5.5 with high effort when Sonnet fails.
+**Status (2026-11-01):** Done: `CHAT_MODEL=claude-sonnet-5-5`. A turn that fails on the API (overloaded, rate-limited, unreachable) runs again from the start on `CHAT_FALLBACK_MODEL=claude-opus-5-5` with effort `high`. Refusals still use the server-side fallback.
 
 ## Q11 (2026-10-31): Do the builder sandboxes get internet egress?
 
