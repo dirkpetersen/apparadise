@@ -36,7 +36,7 @@ RUN python3 -m venv /opt/easybuild \
  && /opt/easybuild/bin/pip install --no-cache-dir "easybuild==${EASYBUILD_VERSION}" \
  && ln -s /opt/easybuild/bin/eb /usr/local/bin/eb
 
-# Spack at a pinned release; its build cache lives in Harbor's `cache` project.
+# Spack at a pinned release; its build cache lives in the registry's `cache/` (Zot).
 RUN git clone --depth 1 --branch "${SPACK_REF}" https://github.com/spack/spack.git /opt/spack \
  && ln -s /opt/spack/bin/spack /usr/local/bin/spack
 
@@ -52,7 +52,12 @@ ENV APPARADISE_TARGET=${TARGET} \
     EASYBUILD_BUILDPATH=/scratch/eb-build \
     EASYBUILD_SOURCEPATH=/scratch/sources \
     EASYBUILD_MODULES_TOOL=Lmod \
+    LMOD_CMD=/usr/share/lmod/lmod/libexec/lmod \
     EASYBUILD_DOWNLOAD_TIMEOUT=30 \
     MODULEPATH=/opt/apps/modules/all
+
+# Ubuntu's lmod package sets LMOD_CMD only in login shells (/etc/profile.d); a plain
+# RUN does not read that, so it is set above. Fail here, not in the first build, if moved.
+RUN test -x "$LMOD_CMD"
 
 WORKDIR /work

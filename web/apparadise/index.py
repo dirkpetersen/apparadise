@@ -120,11 +120,15 @@ def scan_easybuild(root: str | Path) -> list[dict[str, Any]]:
 
 
 def pick_easyconfig(names: list[str]) -> str:
-    """Newest toolchain generation wins: RELION-5.0.1-foss-2025b-CUDA-12.9.1.eb over 2023a.
-    Sorting by the year-letter generation in the name, then by the name itself."""
+    """Newest toolchain generation wins: RELION-5.0.1-foss-2025b-CUDA-12.9.1.eb over 2023a,
+    and the new-style 2026.1 (EasyBuild's name for the first 2026 generation) over 2025b.
+    Sorting by the generation in the name, then by the name itself."""
     def key(n: str) -> tuple:
-        gen = re.findall(r"-(20\d\d[ab])\b", n)
-        return (gen[-1] if gen else "", version_key(n))
+        gens = re.findall(r"-(20\d\d)(?:([ab])|\.(\d+))(?=-|\.eb$)", n)
+        if not gens:
+            return ((0, 0), version_key(n))
+        year, letter, number = gens[-1]
+        return ((int(year), int(number) if number else " ab".index(letter)), version_key(n))
     return max(names, key=key)
 
 

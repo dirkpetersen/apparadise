@@ -220,3 +220,19 @@ def test_missing_digest_file_reports_failure_not_lost(world):
     row = db.query_one("SELECT status, stage, failure_id FROM build WHERE id = ?", (bid,))
     assert (row["status"], row["stage"]) == ("failed", "publish")
     assert "FileNotFoundError" in db.failures.get(row["failure_id"])["log_excerpt"]
+
+
+def test_containerfiles_expose_base_cuda_to_the_build_tools():
+    from apparadise_builder.agent import CONTAINERFILES
+
+    fmt = {"registry": "r.example", "base_builder": "b", "base_runtime": "r"}
+    eb = CONTAINERFILES["easybuild"].format(**fmt)
+    # easyblocks only build GPU code with EBROOTCUDA; root needs EasyBuild's explicit opt-in
+    assert "EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${CUDA_VERSION}" in eb
+    assert "EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1" in eb
+    assert "EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1" in eb
+    pixi = CONTAINERFILES["pixi"].format(**fmt)
+    # GPU-less builders: override __cuda; solve once, install that exact lock, ship it
+    assert 'CONDA_OVERRIDE_CUDA="${CUDA_VERSION%.*}"' in pixi
+    assert "pixi lock && pixi install --frozen" in pixi
+    assert "COPY --from=build /work/pixi.lock /opt/apparadise/pixi.lock" in pixi

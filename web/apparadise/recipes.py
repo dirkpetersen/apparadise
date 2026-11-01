@@ -48,6 +48,28 @@ def _per_platform(value: Any, platform: str) -> Any:
     return value[platform] if isinstance(value, dict) else value
 
 
+def dotted_cc(arch: str) -> str:
+    """Spack/nvcc style (120, 90a, 120f) to EasyBuild style (12.0, 9.0a, 12.0f)."""
+    m = re.fullmatch(r"(\d+)(\d)([af]?)", arch)
+    if not m:
+        raise RecipeError(f"bad cuda_arch {arch!r} in containers/targets.yml")
+    return f"{m[1]}.{m[2]}{m[3]}"
+
+
+def split_spec(spec: str, cuda_arch_csv: str) -> dict[str, str]:
+    """Split a Spack spec into the root part and its ^dep / %compiler part, so the CUDA
+    variants land on the root package (in Spack 1.x anything after ^x or %x applies to x)."""
+    cut = min((i for i in (spec.find("^"), spec.find("%")) if i >= 0), default=len(spec))
+    root, deps = spec[:cut].rstrip(), spec[cut:].strip()
+    words = root.replace("+", " +").replace("~", " ~").split()
+    cuda = ""
+    if "+cuda" not in words:
+        cuda += " +cuda"
+    if not any(w.startswith("cuda_arch=") for w in words):
+        cuda += f" cuda_arch={cuda_arch_csv}"
+    return {"SPEC_ROOT": root, "SPEC_CUDA": cuda, "SPEC_DEPS": f" {deps}" if deps else ""}
+
+
 def target_vars(target: str, platform: str | None = None,
                 targets: dict[str, Any] | None = None) -> dict[str, str]:
     """The template variables of one (target, platform). Refuses incomplete targets."""
@@ -71,8 +93,8 @@ def target_vars(target: str, platform: str | None = None,
         "CUDA_FULL": str(t["cuda_full"]),
         "CUDA_MAJOR": str(t["cuda_version"]).split(".")[0],
         "CUDA_ARCH_CSV": ",".join(arches),
-        # EasyBuild wants dotted compute capabilities: 120 -> 12.0, 89 -> 8.9
-        "CUDA_CC_CSV": ",".join(f"{a[:-1]}.{a[-1]}" for a in arches),
+        # EasyBuild wants dotted compute capabilities: 120 -> 12.0, 89 -> 8.9, 120f -> 12.0f
+        "CUDA_CC_CSV": ",".join(dotted_cc(a) for a in arches),
         "PTX_ARCH": str(t["ptx_arch"]),
         "SPACK_TARGET": str(_per_platform(t["spack_target"], platform)),
         "EASYBUILD_OPTARCH": str(_per_platform(t["easybuild_optarch"], platform)),
@@ -113,7 +135,7 @@ def render(source: str, name: str, version: str, target: str, *, registry: str,
     if source == "spack":
         if not SPEC_RE.match(spec or ""):
             raise RecipeError("--spec: a Spack spec such as gromacs@2026.3+mpi")
-        v["SPEC"] = spec
+        v.update(split_spec(spec, v["CUDA_ARCH_CSV"]))
     elif source == "easybuild":
         if not EASYCONFIG_RE.match(easyconfig or ""):
             raise RecipeError("--easyconfig: an easyconfig file name ending in .eb")

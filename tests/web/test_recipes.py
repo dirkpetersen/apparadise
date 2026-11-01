@@ -99,3 +99,25 @@ def test_targets_have_digest_slots():
 def test_render_pixi_without_build_marker():
     text = render("pixi", "cupy", "14.2.0", "rtx", registry="r", cuda_build_marker=False)
     assert tomllib.loads(text)["dependencies"]["cupy"] == {"version": "==14.2.0"}
+
+
+@pytest.mark.parametrize("spec,line", [
+    ("gromacs@2026.3+mpi", "gromacs@2026.3+mpi +cuda cuda_arch=120 target=x86_64_v4"),
+    ("gromacs@2026.3 %gcc@14 ^fftw+openmp",
+     "gromacs@2026.3 +cuda cuda_arch=120 target=x86_64_v4 %gcc@14 ^fftw+openmp"),
+    ("gromacs%gcc@14", "gromacs +cuda cuda_arch=120 target=x86_64_v4 %gcc@14"),
+    ("relion+cuda cuda_arch=90", "relion+cuda cuda_arch=90 target=x86_64_v4"),
+])
+def test_spack_cuda_variants_bind_to_the_root(spec, line):
+    # In Spack 1.x anything after ^x or %x applies to x: the CUDA variants must come first.
+    out = render("spack", "gromacs", "2026.3", "rtx", registry="r.example.org", spec=spec)
+    assert f'  - "{line}"' in out
+
+
+def test_dotted_cc():
+    from apparadise.recipes import dotted_cc
+
+    assert [dotted_cc(a) for a in ("120", "89", "90a", "120f", "70")] == [
+        "12.0", "8.9", "9.0a", "12.0f", "7.0"]
+    with pytest.raises(RecipeError):
+        dotted_cc("sm_120")

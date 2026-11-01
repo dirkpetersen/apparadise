@@ -208,3 +208,11 @@ def test_pick_easyconfig_prefers_newest_toolchain():
 
     assert pick_easyconfig(["X-1-foss-2023a-CUDA-12.1.1.eb", "X-1-foss-2025b-CUDA-12.9.1.eb",
                             "X-1-foss-2024a-CUDA-12.6.0.eb"]) == "X-1-foss-2025b-CUDA-12.9.1.eb"
+
+
+def test_pick_easyconfig_knows_new_style_generations():
+    from apparadise.index import pick_easyconfig
+
+    names = ["X-1-foss-2025b-CUDA-12.9.1.eb", "X-1-foss-2026.1-CUDA-13.3.0.eb",
+             "X-1-foss-2025a-CUDA-12.8.0.eb", "X-1-GCCcore-14.3.0.eb"]
+    assert pick_easyconfig(names) == "X-1-foss-2026.1-CUDA-13.3.0.eb"

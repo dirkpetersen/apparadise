@@ -77,7 +77,8 @@ def test_spack_failure_gets_one_repaired_build(env):
     # the fix goes to the dependency that failed, not to the package itself
     assert new["repair"] == "binutils-gprofng"
     assert new["spec"] == "lammps@20250722 ^binutils~gprofng"
-    assert "lammps@20250722 ^binutils~gprofng" in new["recipe"]
+    assert ("lammps@20250722 +cuda cuda_arch=120 target=x86_64_v4 ^binutils~gprofng"
+            in new["recipe"])  # root variants before the ^dep (Spack 1.x)
     assert new["requested_by"] == "system"
     f = db.query_one("SELECT repair_attempts FROM failure WHERE id = ?",
                      (build(db, bid)["failure_id"],))

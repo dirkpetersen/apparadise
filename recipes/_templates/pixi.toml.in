@@ -1,6 +1,8 @@
 # pixi workspace for $NAME $VERSION on target $TARGET ($PLATFORM).
-# conda-forge binaries are used as-is (not rebuilt per target). Lock with `pixi lock`
-# and commit pixi.lock next to this file.
+# conda-forge binaries are used as-is (not rebuilt per target). The builder solves once
+# (pixi lock, with CONDA_OVERRIDE_CUDA) and ships that pixi.lock in the image.
+# [system-requirements] is deprecated since pixi 0.71 (still read by 0.83); the new form is
+# platforms = [{ platform = ..., cuda = ... }]. Switch together with the pixi pin.
 [workspace]
 name = "$NAME"
 version = "$VERSION"

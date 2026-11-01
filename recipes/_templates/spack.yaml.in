@@ -2,7 +2,9 @@
 # Rendered by: python -m apparadise.recipes spack $NAME $VERSION $TARGET --spec '<spec>'
 spack:
   specs:
-  - "$SPEC +cuda cuda_arch=$CUDA_ARCH_CSV target=$SPACK_TARGET"
+  # Root variants come before any ^dep or %compiler: in Spack 1.x whatever follows ^x or %x
+  # applies to x, not to the package.
+  - "$SPEC_ROOT$SPEC_CUDA target=$SPACK_TARGET$SPEC_DEPS"
   packages:
     all:
       require: ["target=$SPACK_TARGET"]

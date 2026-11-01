@@ -54,6 +54,13 @@ ENV PATH=/opt/view/bin:$PATH
     "easybuild": """\
 FROM {registry}/{base_builder} AS build
 COPY easystack.yml /work/easystack.yml
+# CUDA comes from the base image (filter-deps: CUDA). Easyblocks such as GROMACS, PyTorch
+# and CMakeMake only build GPU code when $EBROOTCUDA is set, so point them at it; and fail
+# the CUDA sanity check (device code, PTX) instead of only warning. The build runs as root
+# inside a throw-away container, which EasyBuild refuses without the explicit opt-in.
+ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
+    EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1 \
+    EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1
 RUN eb --easystack /work/easystack.yml --installpath=/opt/apps --robot
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/apps /opt/apps
@@ -62,10 +69,16 @@ ENV MODULEPATH=/opt/apps/modules/all
     "pixi": """\
 FROM {registry}/{base_builder} AS build
 COPY pixi.toml /work/pixi.toml
-RUN cd /work && pixi install && pixi shell-hook -s bash > /work/activate.sh
+# Builders have no GPU: tell the solver which CUDA the target's driver offers (the base
+# image's major.minor), or packages that need __cuda (PyTorch...) are refused. Solve once,
+# install exactly that lock, and ship the lock in the image as the record of what is in it.
+RUN cd /work && : "${{CUDA_VERSION:?base image sets CUDA_VERSION}}" \
+ && export CONDA_OVERRIDE_CUDA="${{CUDA_VERSION%.*}}" \
+ && pixi lock && pixi install --frozen && pixi shell-hook -s bash > /work/activate.sh
 FROM {registry}/{base_runtime}
 COPY --from=build /work/.pixi/envs/default /work/.pixi/envs/default
 COPY --from=build /work/activate.sh /opt/apparadise/activate.sh
+COPY --from=build /work/pixi.lock /opt/apparadise/pixi.lock
 ENV PATH=/work/.pixi/envs/default/bin:$PATH
 """,
 }

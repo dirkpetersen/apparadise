@@ -28,9 +28,11 @@ database.
 | **PyTorch 2.9.1-foss-2025b** (150 modules planned, `bootstrap/dryrun.txt`) | 68 modules completed, then **failed at AOCL-BLAS 5.1** (#22) |
 | R 4.5.2-gfbf-2025b | **failed at util-linux 2.41** (#23) |
 
-EasyBuild exits with code 16 whenever any easyconfig in the dependency tree fails, so
-`PyTorch exit=16` in `chain.log` means "a dependency failed", not "PyTorch failed". The
-module that actually failed is in the `== FAILED:` line of the build log. Its compiler output
+EasyBuild 5 has granular exit codes (`EasyBuildExit`): 4 missing easyconfig, 15 configure
+step, **16 build step**, 22 sanity check. The code comes from the first easyconfig in the
+dependency tree that failed, so `PyTorch exit=16` in `chain.log` means "some package's build
+step failed" (here a dependency's), not necessarily PyTorch's. The module that actually
+failed is in the `== FAILED:` line of the build log. Its compiler output
 is in the `run-shell-cmd-output/<step>-*/out.txt` directory named on the line above it.
 
 ## The host

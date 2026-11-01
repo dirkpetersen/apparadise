@@ -9,6 +9,54 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q36 (2026-11-01): Container user identity on Slurm and Run:ai
+
+Jobs must run as the submitting user's own UID/GID. Pyxis/Enroot does this by design; Run:ai
+does not unless the workload sets it.
+**Default:** images are built to run as any UID (no named user, files world-readable,
+writable dirs under `$HOME`/`/tmp` only, no setuid). Run:ai workloads set
+`runAsUid`/`runAsGid` from AD (or Run:ai's "user identity from IdP" setting) and
+`runAsNonRoot`; a smoke test runs every image as an arbitrary UID. Run:ai integration is
+still to come.
+**Answer:**
+
+## Q35 (2026-11-01): Use E4S's binary build cache on builders?
+
+`cache.e4s.io` holds signed Spack binaries (cuda@12.9.1, cuda_arch 80/86/89/90/120,
+generic x86_64_v3/aarch64). They would end up inside images apparadise signs as its own,
+and they rarely match our targets anyway.
+**Default:** no. Use E4S's `spack.yaml` environments and its known-sm_120-failure list as a
+reference only.
+**Answer:**
+
+## Q34 (2026-11-01): EasyBuild toolchain generation: stay on foss/2025b or move to 2026.1?
+
+EasyBuild's newest generation is `2026.1` (GCC 15.2, CUDA 13.3 easyconfigs). GCC 15
+defaults to C23, which broke older code on the Ubuntu 26.04 host. The index now ranks
+2026.1 easyconfigs highest, but the bump target is still `foss,2025b`.
+**Default:** stay on `foss,2025b` (CUDA 12.9.1 easyconfigs, GCC 14) until a few 2026.1
+builds succeed; then decide.
+**Answer:**
+
+## Q33 (2026-11-01): Report EasyBuild dependency-resolution failures as `concretize`?
+
+Builders never report `concretize`, so EasyBuild robot/toolchain-bump failures land at
+`build`, and the `easybuild-toolchain-bump` repair (which matches `concretize`) never fires.
+**Default:** add an `eb --dry-run --robot` step before the container build and report its
+failure as `concretize` (not done yet).
+**Answer:**
+
+## Q32 (2026-11-01): Rubin cuda_arch 107 and the Vera CPU target
+
+Spack's newest package set lists `cuda_arch=107/107a/107f` as Rubin, needing CUDA >= 13.4
+(our `vr` is CUDA 13.0). archspec added `olympus` (Vera) on 2026-10-28, not derived from
+`neoverse_v2`. Spack's CUDA rules also forbid GCC 15 with CUDA <= 12.9 (`generic`), which
+matters only if builders move to an Ubuntu 26.04 base.
+**Default:** wait for `nvidia-smi --query-gpu=compute_cap` on real hardware (Q13); then
+move `vr` to the CUDA and Spack versions that know it. Keep the builder base on Ubuntu 24.04
+(GCC 13).
+**Answer:**
+
 ## Q31 (2026-11-01): Ship the glibc forced include in the builder image?
 
 The `gnulib-glibc-generic` repair rule appended `cflags==-std=gnu17`, which cannot work: old
