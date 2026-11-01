@@ -132,7 +132,7 @@ in a `spack-packages` checkout (`repos/spack_repo/builtin/packages/*/package.py`
 | Target | `cuda_arch` | CUDA external | Spack `target=` |
 |---|---|---|---|
 | `rtx` | `120` | 13.0.3 | `x86_64_v4` |
-| `generic` | `70,75,80,86,89,90,100,120` | 12.9.2 | `x86_64_v3` / `aarch64` |
+| `generic` | `75,80,86,89,90,100,120` | 13.0.3 | `x86_64_v3` / `aarch64` |
 | `vr` | none (`cuda_arch: null`, Q13; render refuses) | 13.0.3 | `neoverse_v2` |
 
 Minimum CUDA per value: `120` 12.8+, `120f` 12.9+, `110*` 13.0+, `70` only `cuda@9.0:12.9`.
@@ -225,16 +225,13 @@ MPI injection under Enroot (e4s-cl has no Enroot backend).
   `f"{a[:-1]}.{a[-1]}"` would turn `120f` into `120.f`, so it must change before `f` targets go
   in.
 
-### `generic` (sm_70–sm_120 + PTX, amd64 and arm64)
+### `generic` (sm_75–sm_120 + PTX, amd64 and arm64)
 
-- **CUDA 13 dropped sm_70, so `generic` stays on CUDA 12.9** (12.9.2 base). In Spack, `70` is
-  limited to `cuda@9.0:12.9`; on conda-forge sm_70 exists only in CUDA 12.x builds, so pixi pins
-  `cuda = "12"`.
-- **Spack forbids GCC 15 with CUDA ≤12.9** (CUDA 12.7–12.9 allow GCC ≤14). Today's Ubuntu 24.04
-  bases ship GCC 13, so this matters only if the base moves to Ubuntu 26.04 (GCC 15 default,
-  Q16): then register `gcc-14` as the compiler or keep `generic` on 24.04.
-- Spack `cuda_arch=70,75,80,86,89,90,100,120`, `target=x86_64_v3` or `aarch64`. EasyBuild
-  `7.0,7.5,8.0,8.6,8.9,9.0,10.0,12.0`, `optarch GCC:-march=x86-64-v3` / `GCC:-march=armv8.2-a`.
+- **CUDA 13.0.3 like the other targets; Volta (sm_70) is dropped** (Q38, owner, 2026-11-01),
+  because CUDA 13 cannot build sm_70. pixi recipes declare `cuda = "13"`.
+- With CUDA 13.0 on every target, Spack's ban on GCC 15 with CUDA ≤12.9 no longer applies.
+- Spack `cuda_arch=75,80,86,89,90,100,120`, `target=x86_64_v3` or `aarch64`. EasyBuild
+  `7.5,8.0,8.6,8.9,9.0,10.0,12.0`, `optarch GCC:-march=x86-64-v3` / `GCC:-march=armv8.2-a`.
 - E4S ships one `cuda_arch` per build, so no E4S binary matches the multi-arch list. EESSI picks
   per-CC directories at load time instead of one fat binary.
 

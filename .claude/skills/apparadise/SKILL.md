@@ -2,7 +2,7 @@
 name: apparadise
 description: >-
   Domain guide for apparadise, the CUDA software platform for HPC that builds each package once
-  per target (vr Vera Rubin aarch64, rtx x86-64 sm_120, generic sm_70-sm_120) as a signed OCI
+  per target (vr Vera Rubin aarch64, rtx x86-64 sm_120, generic sm_75-sm_120) as a signed OCI
   image and exposes it as a container and as `module load`. Use this skill whenever you work in
   the apparadise repo (resolver, index, recipes, builder, repairs, failure DB, catalog) or when
   someone asks which HPC package manager or software stack to use for a CUDA package:
@@ -32,7 +32,7 @@ Product decisions are never guessed: open questions go to `QUESTIONS.md`, newest
   easyconfig → CUDA port attempt (Spack, then EasyBuild, then pixi) → `no-recipe` failure.
 - **Targets:** `vr` (Vera Rubin NVL72, aarch64; CC still unknown, Q13, so `vr` builds refuse to
   render), `rtx` (x86-64-v4, RTX PRO 6000 Blackwell, `sm_120`, CUDA 13.0.3), `generic`
-  (`sm_70`–`sm_120`, CUDA 12.9.2 because CUDA 13 dropped `sm_70`). Always embed PTX for the
+  (`sm_75`–`sm_120`, CUDA 13.0.3; Volta/`sm_70` dropped, Q38). Always embed PTX for the
   highest arch. Prefer family (`f`) over arch-specific (`a`) targets. Tag
   `<name>:<version>-<target>` under a multi-arch manifest. `containers/targets.yml` holds every
   arch flag.
@@ -78,8 +78,8 @@ repeat them.
   multi-platform `pixi.lock`. Binaries are used as published: **you do not choose arch flags**,
   the feedstock does.
 - **CUDA:** conda-forge builds CUDA 12.9 and 13.4 variants. PyTorch, jaxlib, CuPy and vLLM have
-  CUDA builds on both arches and cover sm_120 (+PTX). sm_70 exists only in CUDA 12.x builds, so
-  `generic` pins CUDA 12. **TensorFlow has no linux-aarch64 CUDA build**, so it fails rule 2.
+  CUDA builds on both arches and cover sm_120 (+PTX). All targets are CUDA 13.0 now (Q38),
+  so every pixi recipe declares `cuda = "13"`. **TensorFlow has no linux-aarch64 CUDA build**, so it fails rule 2.
 - **In apparadise:** rule 2 needs `has_cuda`, `is_python`, CUDA builds on both subdirs, and no
   non-`py-` CUDA recipe in Spack (so GROMACS/LAMMPS go to Spack). Lock/solve failure →
   `concretize`; install failure → `build`.

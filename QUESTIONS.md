@@ -21,7 +21,7 @@ separate question. If the 20% is meant for Claude Code sessions working on appar
 this one: debugging builds, writing repairs), that happens outside the app and needs no code.
 If it is meant to cap the chatbot, I add a weekly token budget for the chatbot on the admin
 page, against the API key.
-**Answer:**
+**Answer:** the claude max is only for the build pahase of these 100s of packages not for the chat box
 
 ## Q40 (2026-11-01): Caps on retries and repairs vs "never stop"
 

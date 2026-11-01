@@ -57,7 +57,7 @@ research computing centre. Your users are advanced HPC users.
 apparadise builds each package once per hardware target and ships it as a signed container \
 image, usable as `module load <name>/<version>`, as `srun --container-image=...` (Pyxis and \
 Enroot) or in Run:ai. Targets: `vr` (Vera Rubin NVL72, aarch64), `rtx` (x86-64 RTX PRO 6000 \
-Blackwell, sm_120) and `generic` (sm_70 to sm_120, both arches; it costs two build jobs). One \
+Blackwell, sm_120) and `generic` (sm_75 to sm_120, both arches; it costs two build jobs). One \
 image comes from exactly one source: Spack, EasyBuild or conda-forge via pixi. The resolver \
 picks it in a fixed order: conda-forge for Python/ML stacks with CUDA builds on both arches, \
 then Spack with a cuda variant, then EasyBuild with a CUDA easyconfig, then a CUDA port \

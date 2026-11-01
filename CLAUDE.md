@@ -29,7 +29,7 @@ their question ID and date, for example "(Q4, owner, 2026-11-02)".
   builds for *both* linux-64 and linux-aarch64) → Spack with a `cuda` variant → EasyBuild CUDA
   easyconfig → CUDA port attempt → `no-recipe` failure.
 - **Targets:** `vr` (Vera Rubin NVL72, aarch64), `rtx` (x86-64, RTX PRO 6000 Blackwell, `sm_120`),
-  `generic` (`sm_70`–`sm_120`). Always embed PTX for the highest arch. Prefer family (`f`) targets
+  `generic` (`sm_75`–`sm_120`; Volta dropped, Q38). Always embed PTX for the highest arch. Prefer family (`f`) targets
   over arch-specific (`a`). Tag images `<name>:<version>-<target>` under a multi-arch manifest.
 - **Build natively, never under QEMU.** Building needs a CPU of the matching arch, but no GPU.
   GPU tests run on-premises on real target nodes as low-priority Slurm or Run:ai jobs.

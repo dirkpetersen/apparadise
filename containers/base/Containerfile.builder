@@ -20,7 +20,10 @@ LABEL io.apparadise.target="${TARGET}" io.apparadise.role="builder"
 # Ubuntu 26.04 host (FAILURES.md #10-#21). OS deps such as libibverbs-dev are installed
 # here, so --ignore-osdeps is never needed (Q10). autotools-dev ships a current
 # config.guess/config.sub, so nothing downloads them at build time (Q11).
-RUN apt-get update \
+# APT::Sandbox::User=root: apt's download helper otherwise switches to the _apt user, which
+# a rootless builder with a single UID mapping (no /etc/subuid range) cannot do.
+RUN printf 'APT::Sandbox::User "root";\n' > /etc/apt/apt.conf.d/00apparadise-sandbox \
+ && apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       build-essential gfortran git curl ca-certificates file patch unzip bzip2 xz-utils zstd \
       python3 python3-venv python3-pip pkg-config autoconf automake libtool autotools-dev \

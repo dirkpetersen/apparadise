@@ -12,7 +12,7 @@ pulled from the registry at run time. The target is chosen on the node, at run t
     APPARADISE_TARGET set   -> that target (for testing or to force `generic`)
     aarch64                 -> vr       (Vera Rubin NVL72)
     x86_64 and GPU cc >= 12 -> rtx      (RTX PRO 6000 Blackwell, sm_120 + PTX)
-    otherwise               -> generic  (sm_70 .. sm_120 + PTX)
+    otherwise               -> generic  (sm_75 .. sm_120 + PTX)
 
 and falls back to `generic` when the preferred image was not published. Rubin's compute
 capability is still open (QUESTIONS.md), so `vr` is chosen by CPU architecture alone.

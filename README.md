@@ -76,7 +76,7 @@ request / vote ──► resolver ──► build pipeline (per target) ──�
 |-----------|-------------------------------------------|-----------------------------------|------------------------------|
 | `vr`      | Vera Rubin NVL72 (Vera Armv9.2, Rubin GPU)| GCC 16.1+ / Clang 21+, Olympus    | Rubin CC (TBD on delivery) + PTX |
 | `rtx`     | RTX farm (x86-64, RTX PRO 6000 Blackwell) | `x86_64_v4` / exact Zen           | `sm_120` + `compute_120` PTX |
-| `generic` | Portable fallback                         | `x86_64_v3` / `armv8.2-a`         | `sm_70`–`sm_120` + PTX       |
+| `generic` | Portable fallback                         | `x86_64_v3` / `armv8.2-a`         | `sm_75`–`sm_120` + PTX       |
 
 Images are tagged by target (`gromacs:2026.3-vr`, `gromacs:2026.3-rtx`) under a multi-arch
 manifest. Builds always run natively and never under emulation.

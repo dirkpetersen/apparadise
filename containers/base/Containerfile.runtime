@@ -15,7 +15,10 @@ LABEL org.opencontainers.image.vendor="apparadise" \
       io.apparadise.target="${TARGET}"
 
 # RDMA userspace so MPI/UCX/NCCL use InfiniBand; the host injects its provider libs.
-RUN apt-get update \
+# APT::Sandbox::User=root: apt's download helper otherwise switches to the _apt user, which
+# a rootless builder with a single UID mapping (no /etc/subuid range) cannot do.
+RUN printf 'APT::Sandbox::User "root";\n' > /etc/apt/apt.conf.d/00apparadise-sandbox \
+ && apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       ca-certificates rdma-core libibverbs1 librdmacm1 ibverbs-providers \
       libnuma1 libgomp1 tini \

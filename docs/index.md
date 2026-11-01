@@ -8,7 +8,7 @@ Run:ai. Software comes from Spack, EasyBuild or pixi/conda-forge, with one sourc
 |-----------|-----------------------------------------------|
 | `vr`      | Vera Rubin NVL72 (Arm Vera CPU, Rubin GPU)    |
 | `rtx`     | x86-64 RTX PRO 6000 Blackwell farm (`sm_120`) |
-| `generic` | Portable fallback (`sm_70`–`sm_120` + PTX)    |
+| `generic` | Portable fallback (`sm_75`–`sm_120` + PTX)    |
 
 ## Where things are
 

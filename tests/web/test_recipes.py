@@ -37,7 +37,7 @@ def test_vr_refuses_until_rubin_cc_is_known():
 def test_generic_needs_matching_platform():
     v = target_vars("generic", "linux/arm64")
     assert v["SPACK_TARGET"] == "aarch64" and v["CONDA_PLATFORM"] == "linux-aarch64"
-    assert v["CUDA_CC_CSV"].startswith("7.0,7.5") and v["CUDA_CC_CSV"].endswith("12.0")
+    assert v["CUDA_CC_CSV"].startswith("7.5,8.0") and v["CUDA_CC_CSV"].endswith("12.0")
     with pytest.raises(RecipeError):
         target_vars("rtx", "linux/arm64")
 
@@ -64,7 +64,7 @@ def test_render_pixi():
     text = render("pixi", "pytorch", "2.9.1", "generic", registry="r", platform="linux/amd64")
     doc = tomllib.loads(text)
     assert doc["workspace"]["platforms"] == ["linux-64"]
-    assert doc["system-requirements"]["cuda"] == "12"
+    assert doc["system-requirements"]["cuda"] == "13"  # CUDA 13.0 everywhere since Q38
     assert doc["dependencies"]["pytorch"] == {"version": "==2.9.1", "build": "*cuda*"}
 
 
