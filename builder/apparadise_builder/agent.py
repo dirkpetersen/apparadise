@@ -85,7 +85,7 @@ COPY easystack.yml /work/easystack.yml
 ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
     EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1 \
     EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1 \
-    EASYBUILD_CLEANUP_BUILDDIR=0
+    EASYBUILD_DISABLE_CLEANUP_BUILDDIR=1
 RUN eb --easystack /work/easystack.yml --installpath=/opt/apps --robot \
  && rm -rf /scratch/eb-build/* /scratch/tmp/* \
  && chmod -R a+rX /opt/apps
