@@ -48,6 +48,9 @@ def _per_platform(value: Any, platform: str) -> Any:
     return value[platform] if isinstance(value, dict) else value
 
 
+TOOLCHAIN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,30},20\d\d(?:[ab]|\.\d{1,2})")
+
+
 def dotted_cc(arch: str) -> str:
     """Spack/nvcc style (120, 90a, 120f) to EasyBuild style (12.0, 9.0a, 12.0f)."""
     m = re.fullmatch(r"(\d+)(\d)([af]?)", arch)
@@ -98,7 +101,7 @@ def target_vars(target: str, platform: str | None = None,
         "PTX_ARCH": str(t["ptx_arch"]),
         "SPACK_TARGET": str(_per_platform(t["spack_target"], platform)),
         "EASYBUILD_OPTARCH": str(_per_platform(t["easybuild_optarch"], platform)),
-        "EASYBUILD_TOOLCHAIN": str(targets["easybuild_toolchain"]),
+        "EASYBUILD_TOOLCHAIN": str(targets["easybuild_toolchains"][0]),
     }
 
 
@@ -112,8 +115,8 @@ def _eb_options(options: dict[str, Any]) -> str:
     for key, value in sorted(options.items()):
         if key not in EB_OPTIONS:
             raise RecipeError(f"easystack option {key!r} is not allowed")
-        if value is None:
-            continue
+        if value is None or key == "try-toolchain":
+            continue  # try-toolchain replaces the template's line (render), never adds one
         if not isinstance(value, str) or len(value) > 300 or "\n" in value or "," in value:
             # EasyBuild splits option values on commas: one value, one line, no commas
             raise RecipeError(f"easystack option {key}: one line of text without commas")
@@ -141,7 +144,12 @@ def render(source: str, name: str, version: str, target: str, *, registry: str,
             raise RecipeError("--easyconfig: an easyconfig file name ending in .eb")
         v["EASYCONFIG"] = easyconfig
         v["EXTRA_OPTIONS"] = _eb_options(eb_options or {})
-        if (eb_options or {}).get("try-toolchain", "") is None:  # a repair dropped the bump
+        tc = (eb_options or {}).get("try-toolchain", "")
+        if tc:  # the toolchain-fallback repair picked an older generation
+            if not TOOLCHAIN_RE.fullmatch(tc):
+                raise RecipeError("try-toolchain: <name>,<version>, e.g. foss,2025b")
+            v["EASYBUILD_TOOLCHAIN"] = tc
+        if tc is None:  # the chain is used up: build with the easyconfig's own toolchain
             text = (TEMPLATES / TEMPLATE_FOR[source]).read_text()
             text = re.sub(r"(?m)^ *try-toolchain: .*\n", "", text)
             return Template(text).substitute(v)

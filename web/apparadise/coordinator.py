@@ -30,7 +30,10 @@ TARGET_PLATFORMS = {
     "rtx": ("linux/amd64",),
     "generic": ("linux/amd64", "linux/arm64"),
 }
-BUILDER_STAGES = ("build", "package", "test", "publish")  # resolve/generate run server-side
+# resolve/generate run server-side. The builder runs concretize first (a dry run of the
+# solver in the builder image), so solver and dependency failures are told apart from
+# compile failures and reach the repair rules that match `concretize` (Q33).
+BUILDER_STAGES = ("concretize", "build", "package", "test", "publish")
 LOG_LIMIT = 64 * 1024 * 1024
 DIGEST_RE = re.compile(r"sha256:[0-9a-f]{64}")
 

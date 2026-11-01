@@ -10,6 +10,7 @@
 # Actions per source:
 #   spack:      {spec_append: "<spec fragment>"}            appended to the Spack spec
 #   easybuild:  {eb_options: {<eb option>: <value|null>}}   easystack options; null drops one
+#   easybuild:  {next_toolchain: true}                      next try-toolchain in the chain
 #   any source: {switch_source: true}                       next source with a CUDA recipe
 #
 # Seeded from the bare-metal EasyBuild session (FAILURES.md #13, #17, #19-21) and the
@@ -37,13 +38,14 @@
     # == propagates the flag to every dependency, wherever the old code is
     spack: {spec_append: "cflags==-std=gnu17"}
 
-- id: easybuild-toolchain-bump
-  why: the try-toolchain bump to the platform generation found no matching dependencies;
-    build the easyconfig with the toolchain it names instead (Q22)
+- id: easybuild-toolchain-fallback
+  why: the try-toolchain bump found no matching dependencies; try the next older generation
+    in containers/targets.yml (easybuild_toolchains), and after the last one the toolchain
+    the easyconfig names (Q22, Q34). May repeat until the chain is used up.
   match: "no easyconfig found|missing dependencies|tweak|no such toolchain|failed to process easyconfig"
   stages: [concretize]
   actions:
-    easybuild: {eb_options: {try-toolchain: null}}
+    easybuild: {next_toolchain: true}
 
 - id: spack-unsatisfiable
   why: Spack cannot concretize this spec on this target; another source may have it

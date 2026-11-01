@@ -28,12 +28,13 @@ import yaml
 from .buildqueue import QueueError, queue_builds
 from .config import Settings
 from .db import Database, now
+from .recipes import load_targets
 from .resolver import PORT_ORDER, candidates
 
 log = logging.getLogger(__name__)
 LIBRARY = Path(__file__).resolve().parents[2] / "recipes" / "repairs.yml"
 MAX_KEY, MAX_DEFAULT = "repair.max_attempts", 2
-ACTIONS = {"spec_append", "eb_options", "switch_source"}
+ACTIONS = {"spec_append", "eb_options", "switch_source", "next_toolchain"}
 
 
 class LibraryError(ValueError):
@@ -68,6 +69,17 @@ def load(path: str = str(LIBRARY)) -> tuple[dict[str, Any], ...]:
     return tuple(out)
 
 
+def next_toolchain(eb_options: dict[str, Any]) -> str | None | bool:
+    """The try-toolchain after the one these options used: the next generation in
+    targets.yml, then None (the easyconfig's own toolchain), then False (nothing left)."""
+    chain = list(load_targets()["easybuild_toolchains"]) + [None]
+    current = eb_options.get("try-toolchain", chain[0])
+    if current is None:
+        return False
+    i = chain.index(current) if current in chain else len(chain) - 2
+    return chain[i + 1]
+
+
 def _release_builds(db: Database, b: dict[str, Any]) -> list[dict[str, Any]]:
     return db.query(
         "SELECT id, status, repair FROM build WHERE package_id = ? AND version = ? "
@@ -98,15 +110,25 @@ def plan(db: Database, build_id: int, rules=None) -> dict[str, Any] | None:
     used = {h["repair"] for h in history if h["repair"]}
     if len(used) >= int(db.settings.get(MAX_KEY, MAX_DEFAULT)):
         return None
+    prior = json.loads(b["eb_options"] or "{}")
     for rule in rules if rules is not None else load():
         action = rule["actions"].get(b["source"])
-        if action is None or rule["id"] in used or b["stage"] not in rule["stages"]:
+        if action is None or b["stage"] not in rule["stages"]:
             continue
         if not rule["rx"].search(b["error_line"] or ""):
             continue
+        if action.get("next_toolchain"):
+            # Walks the whole chain (newest generation first, then the easyconfig's own), so
+            # it may repeat; it counts as one repair rule against the cap.
+            nxt = next_toolchain(prior)
+            if nxt is False:
+                continue
+            return {"build": b, "rule": rule, "failure": b["fid"],
+                    "action": {"eb_options": {"try-toolchain": nxt}}}
+        if rule["id"] in used:
+            continue
         if action.get("spec_append") and action["spec_append"] in (b["spec"] or "").split():
             continue  # this fix is already in the spec (another rule added it)
-        prior = json.loads(b["eb_options"] or "{}")
         if set(action.get("eb_options") or {}) & set(prior):
             continue  # never overwrite an earlier fix's option
         return {"build": b, "rule": rule, "action": action, "failure": b["fid"]}

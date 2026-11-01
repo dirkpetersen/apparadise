@@ -99,7 +99,7 @@ defaults to C23, which broke older code on the Ubuntu 26.04 host. The index now 
 **Default (changed 2026-11-01, following your Q22 answer):** try `2026.1` first, then
 `foss,2025b`, then the easyconfig's own toolchain.
 **Answer:** no use GCC 15.2, CUDA 13.3 easyconfigs, debug this until you have come up with a fix 
-**Status (2026-11-01):** To do: bump EasyBuild recipes to `2026.1` (GCC 15.2, CUDA 13.3 easyconfigs), fall back to `foss,2025b`, then to the easyconfig's own toolchain (Q22). Debug GCC 15/C23 failures with real builds. The base image has CUDA 13.0.3, while 2026.1 easyconfigs name 13.3.0, so either `filter-deps` keeps the base CUDA or the base moves to 13.3. Needs Q33 first.
+**Status (2026-11-01):** Code done: recipes start with `foss,2026.1`, and `easybuild-toolchain-fallback` walks `foss,2025b` → the easyconfig's own toolchain on a `concretize` failure. Still to do: real 2026.1 builds and their GCC 15 debugging; the builder base image is building with podman now. The base has CUDA 13.0.3 (`filter-deps: CUDA`), while 2026.1 easyconfigs name 13.3.0.
 
 ## Q33 (2026-11-01): Report EasyBuild dependency-resolution failures as `concretize`?
 
@@ -108,7 +108,7 @@ Builders never report `concretize`, so EasyBuild robot/toolchain-bump failures l
 **Default:** add an `eb --dry-run --robot` step before the container build and report its
 failure as `concretize` (not done yet).
 **Answer:** ok
-**Status (2026-11-01):** Needed for Q22/Q34: without it, the toolchain fallback never fires. To do.
+**Status (2026-11-01):** Done: builders run a `concretize` stage (`spack concretize`, `eb --robot --dry-run`, `pixi lock`) in the builder image, so these failures now reach the repair rules.
 
 ## Q32 (2026-11-01): Rubin cuda_arch 107 and the Vera CPU target
 

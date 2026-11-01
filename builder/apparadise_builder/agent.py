@@ -38,6 +38,16 @@ RECIPE_FILE = {"spack": "spack.yaml", "easybuild": "easystack.yml", "pixi": "pix
 ERROR_RE = re.compile(rb"^.*\b(error|fatal|failed)\b.*$", re.I | re.M)
 LOG_FLUSH_BYTES = 64 * 1024
 HEARTBEAT_SECONDS = 60  # well under the coordinator's BUILDER_STALE_MINUTES
+# The concretize stage: the solver alone, in the job's builder image, on the rendered recipe
+# (mounted read-only except for pixi, which writes pixi.lock). Constant commands: no job data
+# goes through a shell.
+CONCRETIZE = {
+    "spack": ["spack", "-e", "/work", "concretize", "--fresh"],
+    "easybuild": ["env", "EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1",
+                  "eb", "--easystack", "/work/easystack.yml", "--robot", "--dry-run"],
+    "pixi": ["sh", "-c", 'export CONDA_OVERRIDE_CUDA="${CUDA_VERSION%.*}" && cd /work '
+             '&& pixi lock'],
+}
 # A uid/gid no image knows: the package must work for it (user-identity.md).
 ANY_UID = "54321:54321"
 ANY_UID_CHECK = ('test "$(id -u)" = 54321 && bad="$(find /opt /work -xdev ! -readable '
@@ -110,6 +120,11 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
     local = f"apparadise-local/{job['id']}"
     labels = [f"--label=io.apparadise.{k}={job[k]}" for k in ("package", "version", "target",
                                                                 "source")]
+    if stage == "concretize":
+        mode = "rw" if job["source"] == "pixi" else "ro"
+        return [[tool, "run", "--rm", "--platform", job["platform"], *auth,
+                 "-v", f"{workdir}:/work:{mode}", f"{s.registry_host}/{job['baseBuilder']}",
+                 *CONCRETIZE[job["source"]]]]
     if stage == "build":
         return [[tool, "build", "--platform", job["platform"], "--target", "build",
                  "-t", f"{local}-build", "-f", "Containerfile", "."]]

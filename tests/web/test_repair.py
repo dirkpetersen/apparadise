@@ -99,14 +99,30 @@ def test_attempts_are_capped_per_release(env):
     assert repair.attempt(db, c.settings, retry) is None  # c23 would match, but the cap
 
 
-def test_easybuild_toolchain_bump_is_dropped(env):
+def test_easybuild_toolchain_fallback_walks_the_chain(env):
+    # Q22/Q34: newest generation first, then the next, then the easyconfig's own toolchain
     c, db = env, env.app_db
     bid = eb_build(c)
-    assert "try-toolchain" in build(db, bid)["recipe"]
-    fail(db, bid, "concretize", "ERROR: No easyconfig found for dependency libtiff 4.6.0")
-    new = build(db, repair.attempt(db, c.settings, bid)["retry"])
-    assert "try-toolchain" not in new["recipe"] and "filter-deps" in new["recipe"]
-    assert json.loads(new["eb_options"]) == {"try-toolchain": None}
+    assert 'try-toolchain: "foss,2026.1"' in build(db, bid)["recipe"]
+    err = "ERROR: No easyconfig found for dependency libtiff 4.6.0"
+    seen = []
+    for _ in range(3):
+        fail(db, bid, "concretize", err)
+        res = repair.attempt(db, c.settings, bid)
+        if res is None:
+            break
+        bid = res["retry"]
+        new = build(db, bid)
+        seen.append(json.loads(new["eb_options"]).get("try-toolchain", "?"))
+        assert new["repair"] == "easybuild-toolchain-fallback" and "filter-deps" in new["recipe"]
+    assert seen == ["foss,2025b", None]
+    assert "try-toolchain" not in new["recipe"]  # the easyconfig's own toolchain
+
+
+def test_next_toolchain():
+    assert repair.next_toolchain({}) == "foss,2025b"
+    assert repair.next_toolchain({"try-toolchain": "foss,2025b"}) is None
+    assert repair.next_toolchain({"try-toolchain": None}) is False
 
 
 def test_easybuild_options_are_quoted_and_vetted():

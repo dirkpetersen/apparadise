@@ -121,12 +121,14 @@ Detail: `references/spack.md`.
   default.
 - **In apparadise:** rule 4, picked only when Spack has no CUDA recipe (or on request). The
   renderer writes an easystack with `optarch`, `cuda-compute-capabilities`,
-  `try-toolchain: foss,2025b` and `filter-deps: CUDA`.
+  `try-toolchain: foss,2026.1` and `filter-deps: CUDA`; on a `concretize` failure the
+  `easybuild-toolchain-fallback` repair moves to `foss,2025b`, then to the easyconfig's own.
 - **Gotchas:** with `filter-deps: CUDA` and no `EBROOTCUDA`, easyblocks may take their **CPU
   path** and the sanity check is skipped (the builder sets `EBROOTCUDA`/`EBVERSIONCUDA`, fails
-  on CUDA sanity-check errors and opts in to running as root); `--try-amend` reaches only the top-level easyconfig; never `--ignore-osdeps`;
-  `optarch` needs the full `GCC:-march=...` flag; toolchain-bump failures land at `build`, not
-  `concretize`; the index ranks `2026.1` above `2025b`.
+  on CUDA sanity-check errors and opts in to running as root); `--try-amend` reaches only the
+  top-level easyconfig; never `--ignore-osdeps`; `optarch` needs the full `GCC:-march=...`
+  flag; builders run `eb --robot --dry-run` as the `concretize` stage; the index ranks `2026.1`
+  above `2025b`.
 
 Detail: `references/easybuild.md`.
 

@@ -87,10 +87,14 @@ def test_happy_path_publishes(world):
     job, status = asyncio.run(one_job(agent))
     assert job["id"] == bid and status == "published"
     tools = [c[:2] for c in runner.calls]
-    assert tools == [["podman", "build"], ["podman", "build"], ["podman", "run"],
-                     ["podman", "push"], ["srun", "-p"], ["podman", "push"]]
-    assert runner.calls[2][runner.calls[2].index("--user") + 1] == "54321:54321"
-    srun = runner.calls[4]
+    assert tools == [["podman", "run"], ["podman", "build"], ["podman", "build"],
+                     ["podman", "run"], ["podman", "push"], ["srun", "-p"], ["podman", "push"]]
+    # concretize: the solver alone, in the job's builder image, recipe mounted read-only
+    conc = runner.calls[0]
+    assert conc[-5:] == ["spack", "-e", "/work", "concretize", "--fresh"]
+    assert any(a.endswith(":/work:ro") for a in conc)
+    assert runner.calls[3][runner.calls[3].index("--user") + 1] == "54321:54321"
+    srun = runner.calls[5]
     assert f"--container-image=registry.example.org#cache/test-gromacs:{bid}" in srun
     assert srun[-1] == "nvidia-smi -L && gmx_mpi --version"
     row = db.query_one("SELECT status, image_digest, log_path FROM build WHERE id = ?", (bid,))
@@ -144,6 +148,22 @@ def test_plan_has_no_shell_except_smoke(world, tmp_path):
 
                 assert argv[-2:] == ["-c", ANY_UID_CHECK] and argv[argv.index("--user") + 1] \
                     == "54321:54321"
+
+
+def test_concretize_commands_are_constant(world, tmp_path):
+    from apparadise_builder.agent import CONCRETIZE
+
+    _, _, make_agent, _, _ = world
+    s = make_agent(FakeRunner()).s
+    for source in ("spack", "easybuild", "pixi"):
+        job = {"id": 7, "image": "public/x:1-rtx", "package": "x", "version": "1",
+               "target": "rtx", "source": source, "platform": "linux/amd64",
+               "baseBuilder": "cache/base-builder:13.0-rtx", "smoke": "true"}
+        [argv] = plan(job, "concretize", s, tmp_path)
+        assert argv[-len(CONCRETIZE[source]):] == CONCRETIZE[source]
+        assert f"{s.registry_host}/cache/base-builder:13.0-rtx" in argv
+        assert any(a.endswith(":/work:rw" if source == "pixi" else ":/work:ro") for a in argv)
+    assert "--dry-run" in CONCRETIZE["easybuild"] and "--robot" in CONCRETIZE["easybuild"]
 
 
 def test_settings_validation():

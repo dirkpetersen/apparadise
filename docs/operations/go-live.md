@@ -83,7 +83,7 @@ These are untested on the development host:
 - the base image builds,
 - the per-source Containerfiles in `builder/apparadise_builder/agent.py`,
 - `enroot start` from a `.sqsh` file (Q14),
-- the EasyBuild toolchain bump (Q22),
+- the EasyBuild toolchain chain `foss,2026.1` → `foss,2025b` → the easyconfig's own (Q22, Q34),
 - the auto-repair rules in `recipes/repairs.yml` against real build logs (Q29),
 - the Ask page against the real Claude API (the tests and the demo use a fake),
 - Spack concretization of the rendered `spack.yaml`.

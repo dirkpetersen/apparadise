@@ -13,7 +13,9 @@
 
 # EasyBuild recipes are bumped to one platform toolchain generation (architecture doc, rule 4)
 # and use the base image's CUDA instead of building their own (filter-deps: CUDA). Q22.
-easybuild_toolchain: "foss,2025b"
+# Newest first (Q22, Q34, owner): recipes start with the first; the toolchain-fallback repair
+# moves to the next on a concretize failure, and after the last to the easyconfig's own.
+easybuild_toolchains: ["foss,2026.1", "foss,2025b"]
 
 vr:
   title: Vera Rubin NVL72

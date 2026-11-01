@@ -113,7 +113,7 @@ async def append_log(build_id: int, request: Request, builder: Builder,
 
 
 class ReportBody(BaseModel):
-    stage: Literal["build", "package", "test", "publish"]
+    stage: Literal["concretize", "build", "package", "test", "publish"]
     ok: bool
     digest: str = Field("", max_length=80)
     test: str = Field("", max_length=500)
