@@ -1,5 +1,7 @@
 """Per-job Harbor robots: created on claim, deleted when the job ends, released on outage."""
 
+import asyncio
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -84,3 +86,30 @@ def test_harbor_settings_validated():
         Settings(_env_file=None, **REQUIRED, harbor_url="https://h.example")  # no creds
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **REQUIRED, **{**HARBOR, "harbor_url": "http://h.example"})
+
+
+def test_client_never_sends_harbor_session_cookie():
+    # Live Harbor 2.14 sets `sid` on every answer and refuses a DELETE carrying it without a
+    # CSRF token (403), so a client that keeps cookies could never delete its robots.
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.headers.get("cookie")))
+        if request.method == "DELETE" and request.headers.get("cookie"):
+            return httpx.Response(403, json={"errors": [{"message": "CSRF token not found"}]})
+        body = {"id": 7, "name": "robot$x", "secret": "s"} if request.method == "POST" else {}
+        return httpx.Response(201 if request.method == "POST" else 200, json=body,
+                              headers={"set-cookie": "sid=abc; Path=/; HttpOnly"})
+
+    s = Settings(_env_file=None, harbor_url="https://harbor.example.org",
+                 harbor_username="admin", harbor_password="pw", **REQUIRED)
+
+    async def run():
+        h = HarborClient(s, transport=httpx.MockTransport(handler))
+        robot = await h.create_robot(1, "public")
+        await h.delete_robot(robot["id"])
+        await h.aclose()
+
+    asyncio.run(run())
+    assert [m for m, _ in seen] == ["POST", "DELETE"]
+    assert all(cookie is None for _, cookie in seen)

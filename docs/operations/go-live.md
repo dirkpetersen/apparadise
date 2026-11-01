@@ -16,7 +16,8 @@ runbook or setting it needs. Open decisions are in `QUESTIONS.md`.
 ## 2. Registry
 
 Install Harbor and create the `public`, `restricted` and `cache` projects plus the `nvcr.io`
-proxy cache ([Harbor](harbor.md)). Create an admin account that can create system robots.
+proxy cache with `tools/harbor-setup` ([Harbor](harbor.md)). Create an admin account that
+can create system robots.
 
 ## 3. Web app (appmotel app 1, `web/`)
 

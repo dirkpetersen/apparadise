@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import re
 import secrets
+from http.cookiejar import CookieJar, DefaultCookiePolicy
 from typing import Any
 from urllib.parse import quote
 
@@ -45,7 +46,11 @@ class HarborClient:
         self.client = httpx.AsyncClient(
             base_url=settings.harbor_url.rstrip("/") + "/api/v2.0",
             auth=(settings.harbor_username, settings.harbor_password.get_secret_value()),
-            timeout=15, transport=transport, headers={"Accept": "application/json"})
+            timeout=15, transport=transport, headers={"Accept": "application/json"},
+            # Keep no cookies. Harbor answers with a `sid` session cookie, and a later
+            # POST/PUT/DELETE that carries it is treated as a browser session and refused
+            # with 403 "CSRF token not found": robots would never be deleted.
+            cookies=CookieJar(policy=DefaultCookiePolicy(allowed_domains=[])))
 
     async def aclose(self) -> None:
         await self.client.aclose()

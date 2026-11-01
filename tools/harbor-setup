@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""Create the Harbor projects apparadise needs. Safe to run again: it only adds what's missing.
+
+    HARBOR_URL=https://registry.example.org HARBOR_USERNAME=admin HARBOR_PASSWORD=... \
+        tools/harbor-setup [--dry-run]
+
+Creates (docs/operations/harbor.md):
+  public       anonymous pull
+  restricted   private (sysadmins and on-prem build robots only)
+  cache        private (base images, build caches, test tags)
+  nvcr         proxy cache of nvcr.io (NGC), private, so nodes and builders never pull
+               from the internet. Pull through it as <registry>/nvcr/nvidia/cuda:<tag>.
+
+Credentials come only from the environment and are never printed. Standard library only.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import os
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+PROJECTS = [
+    {"project_name": "public", "metadata": {"public": "true"}},
+    {"project_name": "restricted", "metadata": {"public": "false"}},
+    {"project_name": "cache", "metadata": {"public": "false"}},
+]
+NGC = {"name": "nvcr.io", "type": "docker-registry", "url": "https://nvcr.io",
+       "description": "NVIDIA NGC, proxied for base images (apparadise)", "insecure": False}
+PROXY_PROJECT = "nvcr"
+
+
+class Harbor:
+    def __init__(self, url: str, user: str, password: str):
+        self.base = url.rstrip("/") + "/api/v2.0"
+        self.auth = "Basic " + base64.b64encode(f"{user}:{password}".encode()).decode()
+
+    def call(self, method: str, path: str, body: dict | None = None,
+             query: dict | None = None):
+        url = self.base + path + ("?" + urllib.parse.urlencode(query) if query else "")
+        data = json.dumps(body).encode() if body is not None else None
+        req = urllib.request.Request(url, data=data, method=method, headers={
+            "Authorization": self.auth, "Accept": "application/json",
+            "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                raw = r.read()
+                return json.loads(raw) if raw.strip() else None
+        except urllib.error.HTTPError as e:
+            try:
+                msg = json.loads(e.read())["errors"][0]["message"]
+            except Exception:  # noqa: BLE001 - any unreadable error body
+                msg = e.reason
+            raise SystemExit(f"Harbor {method} {path}: HTTP {e.code}: {msg}") from None
+        except urllib.error.URLError as e:
+            raise SystemExit(f"Harbor unreachable: {e.reason}") from None
+
+    def project(self, name: str):
+        rows = self.call("GET", "/projects", query={"name": name}) or []
+        return next((p for p in rows if p["name"] == name), None)
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--dry-run", action="store_true", help="only report what is missing")
+    args = ap.parse_args(argv)
+    try:
+        h = Harbor(os.environ["HARBOR_URL"], os.environ["HARBOR_USERNAME"],
+                   os.environ["HARBOR_PASSWORD"])
+    except KeyError as e:
+        print(f"set {e.args[0]} in the environment", file=sys.stderr)
+        return 2
+    print("Harbor", h.call("GET", "/systeminfo")["harbor_version"])
+
+    for spec in PROJECTS:
+        name = spec["project_name"]
+        if h.project(name):
+            print(f"  project {name}: exists")
+        elif args.dry_run:
+            print(f"  project {name}: missing")
+        else:
+            h.call("POST", "/projects", spec)
+            print(f"  project {name}: created")
+
+    reg = next((r for r in h.call("GET", "/registries") or [] if r["url"] == NGC["url"]), None)
+    if reg:
+        print(f"  registry endpoint {NGC['url']}: exists")
+    elif args.dry_run:
+        print(f"  registry endpoint {NGC['url']}: missing")
+    else:
+        h.call("POST", "/registries", NGC)
+        reg = next(r for r in h.call("GET", "/registries") if r["url"] == NGC["url"])
+        print(f"  registry endpoint {NGC['url']}: created")
+    if reg:
+        try:
+            h.call("POST", "/registries/ping", {"id": reg["id"]})
+            print(f"  registry endpoint {NGC['url']}: reachable")
+        except SystemExit as e:
+            print(f"  registry endpoint {NGC['url']}: NOT reachable ({e})")
+
+    if h.project(PROXY_PROJECT):
+        print(f"  proxy cache {PROXY_PROJECT}: exists")
+    elif args.dry_run or not reg:
+        print(f"  proxy cache {PROXY_PROJECT}: missing")
+    else:
+        h.call("POST", "/projects", {"project_name": PROXY_PROJECT, "registry_id": reg["id"],
+                                     "metadata": {"public": "false"}})
+        print(f"  proxy cache {PROXY_PROJECT}: created "
+              f"(pull <registry>/{PROXY_PROJECT}/nvidia/...)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
