@@ -69,6 +69,7 @@ def test_render_pixi():
     assert doc["workspace"]["platforms"] == ["linux-64"]
     assert doc["system-requirements"]["cuda"] == "13"  # CUDA 13.0 everywhere since Q38
     assert doc["dependencies"]["pytorch"] == {"version": "==2.9.1", "build": "*cuda*"}
+    assert doc["dependencies"]["cuda-version"] == "13.0.*"  # no newer CUDA than the base
 
 
 @pytest.mark.parametrize("kw", [{"spec": "gromacs; rm -rf /"}, {"spec": ""},

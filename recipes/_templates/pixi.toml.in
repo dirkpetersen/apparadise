@@ -14,3 +14,6 @@ cuda = "$CUDA_MAJOR"
 
 [dependencies]
 $PIXI_DEPENDENCY
+# The CUDA of the base image and the target (containers/targets.yml), never a newer one: PTX
+# from a newer NVRTC does not load on an older driver.
+cuda-version = "$CUDA_VERSION.*"
