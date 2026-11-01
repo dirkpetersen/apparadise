@@ -102,6 +102,7 @@ def target_vars(target: str, platform: str | None = None,
         "SPACK_TARGET": str(_per_platform(t["spack_target"], platform)),
         "EASYBUILD_OPTARCH": str(_per_platform(t["easybuild_optarch"], platform)),
         "EASYBUILD_TOOLCHAIN": str(targets["easybuild_toolchains"][0]),
+        "E4S_RELEASE": str(targets["e4s_release"]),
     }
 
 

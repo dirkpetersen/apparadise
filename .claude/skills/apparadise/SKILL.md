@@ -163,8 +163,8 @@ Detail: `references/eessi.md`.
   public failure DB.
 - **Gotchas:** cache hit rate for apparadise `+cuda` specs is effectively zero (`x86_64_v3` vs
   `v4`, CUDA 12.9.1 vs 13.0.3/12.9.2, single vs multi-arch); images are non-NGC and
-  multi-product, so never catalog or re-tag them; adding `cache.e4s.io` as a mirror is an owner
-  trust decision; e4s-cl has no Enroot backend.
+  multi-product, so never catalog or re-tag them; `cache.e4s.io/<e4s_release>` is a second, signed
+  mirror in every rendered `spack.yaml` (Q35, owner), keys trusted in the build stage; e4s-cl has no Enroot backend.
 
 Detail: `references/e4s.md`.
 

@@ -17,6 +17,10 @@
 # moves to the next on a concretize failure, and after the last to the easyconfig's own.
 easybuild_toolchains: ["foss,2026.1", "foss,2025b"]
 
+# E4S binary cache release used as a second Spack mirror, signed by E4S (Q35, owner).
+# Expect few hits: E4S builds against its own CUDA, and the hash must match exactly.
+e4s_release: "26.06"
+
 vr:
   title: Vera Rubin NVL72
   platform: linux/arm64

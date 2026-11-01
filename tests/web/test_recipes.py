@@ -11,6 +11,7 @@ from apparadise.recipes import RecipeError, load_targets, render, target_vars
 def test_targets_file_shape():
     t = load_targets()
     assert t.pop("easybuild_toolchains") == ["foss,2026.1", "foss,2025b"]
+    assert t.pop("e4s_release")
     assert set(t) == {"vr", "rtx", "generic"}
     assert t["rtx"]["cuda_arch"] == ["120"] and t["rtx"]["ptx_arch"] == "120"
     for name, spec in t.items():
@@ -22,7 +23,7 @@ def test_targets_file_shape():
 def test_easybuild_optarch_is_full_flag():
     """A bare arch name becomes -x86-64-v3 and breaks gcc (FAILURES.md #15)."""
     for name, spec in load_targets().items():
-        if name == "easybuild_toolchains":
+        if not isinstance(spec, dict):  # easybuild_toolchains, e4s_release
             continue
         values = spec["easybuild_optarch"]
         for v in values.values() if isinstance(values, dict) else [values]:
@@ -48,6 +49,8 @@ def test_render_spack():
     doc = yaml.safe_load(text)["spack"]
     assert doc["specs"] == ["gromacs@2026.3+mpi +cuda cuda_arch=120 target=x86_64_v4"]
     assert doc["container"]["images"]["final"] == "reg.example/cache/base-runtime:13.0-rtx"
+    e4s = doc["mirrors"]["e4s"]  # Q35
+    assert e4s["url"].startswith("https://cache.e4s.io/") and e4s["signed"] is True
 
 
 def test_render_easybuild():
@@ -91,7 +94,7 @@ def test_base_refs_pin_digest_when_known(monkeypatch):
 
 def test_targets_have_digest_slots():
     for name, spec in load_targets().items():
-        if name == "easybuild_toolchains":
+        if not isinstance(spec, dict):  # easybuild_toolchains, e4s_release
             continue
         assert set(spec["base_digests"]) == {"builder", "runtime"}, name
 

@@ -64,7 +64,8 @@ CONTAINERFILES = {
     "spack": """\
 FROM {registry}/{base_builder} AS build
 COPY spack.yaml /work/spack.yaml
-RUN spack -e /work concretize --fresh && spack -e /work install --fail-fast \\
+RUN spack -e /work buildcache keys --install --trust \\
+ && spack -e /work concretize --fresh && spack -e /work install --fail-fast \\
  && spack -e /work gc -y && chmod -R a+rX /opt/software /opt/view
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/software /opt/software

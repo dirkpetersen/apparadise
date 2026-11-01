@@ -31,6 +31,10 @@ spack:
     apparadise-cache:
       url: oci://$REGISTRY/cache/spack-$TARGET
       signed: false
+    # E4S's signed binary cache (Q35). The builder trusts its keys before installing.
+    e4s:
+      url: https://cache.e4s.io/$E4S_RELEASE
+      signed: true
   container:
     format: docker
     images:
