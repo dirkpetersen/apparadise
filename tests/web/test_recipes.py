@@ -133,3 +133,9 @@ def test_render_pixi_jax_requires_a_cuda_jaxlib():
     deps = tomllib.loads(render("pixi", "jax", "0.12.0.1", "rtx", registry="r"))["dependencies"]
     assert deps["jax"] == {"version": "==0.12.0.1"}
     assert deps["jaxlib"] == {"build": "*cuda*"}
+
+
+def test_render_pixi_cellpose_requires_a_cuda_pytorch():
+    deps = tomllib.loads(render("pixi", "cellpose", "4.1.1", "rtx", registry="r",
+                                cuda_build_marker=False))["dependencies"]
+    assert deps["cellpose"] == {"version": "==4.1.1"} and deps["pytorch"] == {"build": "*cuda*"}

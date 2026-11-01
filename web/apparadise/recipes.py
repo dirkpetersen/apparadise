@@ -50,8 +50,8 @@ def _per_platform(value: Any, platform: str) -> Any:
 
 # conda-forge packages that are pure Python (noarch) while their CUDA code ships in a
 # companion package: the recipe installs the package and requires a CUDA build of the
-# companion. jax: conda-forge's documented `jax` + `jaxlib=*=*cuda*`.
-CUDA_COMPANION = {"jax": "jaxlib"}
+# companion. jax: conda-forge's documented `jax` + `jaxlib=*=*cuda*`. cellpose: PyTorch (Q44).
+CUDA_COMPANION = {"jax": "jaxlib", "cellpose": "pytorch"}
 TOOLCHAIN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,30},20\d\d(?:[ab]|\.\d{1,2})")
 
 

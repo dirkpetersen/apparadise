@@ -9,6 +9,16 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q44 (2026-11-01): Cellpose from conda-forge instead of EasyBuild?
+
+EasyBuild has only `Cellpose-2.2.2-foss-2022a-CUDA-11.7.0.eb`. Its toolchain (GCC 11.3.0)
+failed to build on the Ubuntu 24.04 builder after 32 minutes, and CUDA 11.7 cannot target
+`sm_120` in any case. conda-forge has cellpose 4.1.1 (`noarch`, CUDA through PyTorch).
+**Default:** `catalog/cellpose.yml` now says `source: pixi`, and the recipe requires a CUDA
+build of `pytorch` (the Q42 mapping). Cellpose 4 is a major-version jump from 2.2 (new
+`cpsam` model), so scripts written for 2.x may need changes.
+**Answer:**
+
 ## Q43 (2026-11-01): HPL and RAPIDS have no CUDA recipe in their catalog source
 
 The first catalog run on motuz (`rtx`) found two catalog entries whose source cannot give a

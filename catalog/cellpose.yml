@@ -3,7 +3,9 @@ name: cellpose
 title: "Cellpose"
 description: "Generalist cell segmentation."
 homepage: https://www.cellpose.org
-source: easybuild
+# pixi, not EasyBuild: EasyBuild has only Cellpose 2.2.2 on foss-2022a (GCC 11.3, CUDA 11.7),
+# which does not build on Ubuntu 24.04 and cannot target sm_120 (Q44).
+source: pixi
 visibility: public
 tags: [imaging, machine-learning]
 aliases: {easybuild: Cellpose, pixi: cellpose}
