@@ -9,6 +9,18 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q40 (2026-11-01): Caps on retries and repairs vs "never stop"
+
+Q30 and Q31 say keep trying and never stop. Q29 and the code cap the work: at most 2
+repaired builds and 3 failed builds per release (`repair.max_attempts`, `retry.max_attempts`,
+both editable on the admin page). CLAUDE.md also says "Auto-repair attempts are capped".
+**Default:** the pipeline as a whole never stops. Every other package keeps building, the
+nightly retries run forever, and a new rule, toolchain or upstream release gets a fresh try.
+A single release stops after its caps, so one broken package can't use up the builders. If
+you want no caps at all, set both to a large number on the admin page; nothing needs a
+code change.
+**Answer:**
+
 ## Q39 (2026-11-01): Two answers that look misplaced (Q23, Q24)
 
 Q24 (failure DB and vote defaults) was answered "switch to zot", and Q23 (who may browse the
@@ -17,7 +29,7 @@ Registry page) was answered "everyone".
 public, restricted failures are sysadmin-only, voting needs sign-in. For Q23, "everyone" means
 everyone may browse `public` without signing in, as now. `restricted`, `cache` and `nvcr` stay
 sysadmin-only, because CLAUDE.md makes restricted visible to sysadmins only.
-**Answer:**
+**Answer:** ok
 
 ## Q38 (2026-11-01): `generic` on CUDA 13.0 means dropping sm_70 (V100)
 
@@ -25,7 +37,7 @@ Q6 was answered "13.0", but `generic` covers sm_70–sm_120, and CUDA 13 cannot 
 sm_70 (Volta). conda-forge's CUDA 13 builds and EESSI 2026.06 dropped sm_70 too.
 **Default:** keep `generic` on CUDA 12.9.2 with sm_70 for now (this is what `targets.yml`
 does). If there are no V100s left, switch `generic` to CUDA 13.0 with sm_75–sm_120.
-**Answer:**
+**Answer:** ditch volta, only 13.0
 
 ## Q37 (2026-11-01): Ubuntu 24.04 or 26.04 inside the images? (Q5 vs Q16)
 
@@ -37,7 +49,7 @@ Spack forbids GCC 15 with CUDA ≤ 12.9, so `generic` would not concretize.
 **Default:** nodes run DGX OS 8.1. Images stay on NGC `cuda:<ver>-{devel,runtime}-ubuntu24.04`
 (GCC 13, glibc 2.39) with CUDA 13.0 for `vr`/`rtx`. If you want 26.04 images, I add the
 forced-include fix (Q31) and a GCC 14 for `generic`.
-**Answer:**
+**Answer:** ok Ubuntu 24.04 inside images for now 
 
 ## Q36 (2026-11-01): Container user identity on Slurm and Run:ai
 
@@ -58,16 +70,16 @@ generic x86_64_v3/aarch64). They would end up inside images apparadise signs as 
 and they rarely match our targets anyway.
 **Default:** no. Use E4S's `spack.yaml` environments and its known-sm_120-failure list as a
 reference only.
-**Answer:**
+**Answer:** yes
 
 ## Q34 (2026-11-01): EasyBuild toolchain generation: stay on foss/2025b or move to 2026.1?
 
 EasyBuild's newest generation is `2026.1` (GCC 15.2, CUDA 13.3 easyconfigs). GCC 15
 defaults to C23, which broke older code on the Ubuntu 26.04 host. The index now ranks
 2026.1 easyconfigs highest, but the bump target is still `foss,2025b`.
-**Default:** stay on `foss,2025b` (CUDA 12.9.1 easyconfigs, GCC 14) until a few 2026.1
-builds succeed; then decide.
-**Answer:**
+**Default (changed 2026-11-01, following your Q22 answer):** try `2026.1` first, then
+`foss,2025b`, then the easyconfig's own toolchain.
+**Answer:** no use GCC 15.2, CUDA 13.3 easyconfigs, debug this until you have come up with a fix 
 **Status (2026-11-01):** Your Q22 answer decides this: always try the newest toolchain first, then fall back. So the order becomes `2026.1` → `foss,2025b` → the easyconfig's own toolchain. That fallback only works once Q33 is done; both are to do next.
 
 ## Q33 (2026-11-01): Report EasyBuild dependency-resolution failures as `concretize`?
@@ -76,7 +88,7 @@ Builders never report `concretize`, so EasyBuild robot/toolchain-bump failures l
 `build`, and the `easybuild-toolchain-bump` repair (which matches `concretize`) never fires.
 **Default:** add an `eb --dry-run --robot` step before the container build and report its
 failure as `concretize` (not done yet).
-**Answer:**
+**Answer:** ok
 **Status (2026-11-01):** Needed for Q22/Q34: without it, the toolchain fallback never fires. To do.
 
 ## Q32 (2026-11-01): Rubin cuda_arch 107 and the Vera CPU target
@@ -84,11 +96,11 @@ failure as `concretize` (not done yet).
 Spack's newest package set lists `cuda_arch=107/107a/107f` as Rubin, needing CUDA >= 13.4
 (our `vr` is CUDA 13.0). archspec added `olympus` (Vera) on 2026-10-28, not derived from
 `neoverse_v2`. Spack's CUDA rules also forbid GCC 15 with CUDA <= 12.9 (`generic`), which
-matters only if builders move to an Ubuntu 26.04 base.
+matters only if builders move to an Ubuntu 2.04 base.
 **Default:** wait for `nvidia-smi --query-gpu=compute_cap` on real hardware (Q13); then
 move `vr` to the CUDA and Spack versions that know it. Keep the builder base on Ubuntu 24.04
 (GCC 13).
-**Answer:**
+**Answer:** OK
 **Status (2026-11-01):** Folded into Q13: same hardware check. Note also Q37: an Ubuntu 26.04 base would bring GCC 15.
 
 ## Q31 (2026-11-01): Ship the glibc forced include in the builder image?
@@ -135,6 +147,7 @@ site robot path (`recipes/easybuild-overrides/`), shipped in the builder image.
 **Open:** should a repaired build that passes be published automatically, or wait for a
 sysadmin to approve it?
 **Answer:** automatic 
+**Status (2026-11-01):** Your Q30/Q31 answers ("try try try", "never stop") conflict with the caps here. See Q40.
 
 ## Q28 (2026-10-31): Is it acceptable that a restricted name can be inferred?
 
@@ -161,6 +174,7 @@ mustn't have it.
   message was sent and which tools ran, never the text.
 - The demo uses a keyword-rule stand-in (`mock/claude_mock.py`), never the real API.
 **Answer:** ok fine 
+**Status (2026-11-01):** The model default here contradicts your Q12 answer (Sonnet 5.5, Opus 5.5 with high effort as the fallback). Q12 wins. The rest of these defaults stand.
 
 ## Q26 (2026-10-31): Who can watch a live build log?
 
@@ -421,6 +435,7 @@ requests and the failure DB stay in phase 3.
 **Default:** anyone in `LDAP_REQUIRED_GROUP_DN` (REQUIRED). If every domain user should be
 allowed in, set it to the Domain Users group DN.
 **Answer:** If this is empty everyone can log in 
+**Status (2026-11-01):** Done: `LDAP_REQUIRED_GROUP_DN` is optional (default empty), and empty means every AD user may sign in.
 
 ## Q1 (2026-10-31): What is the full DN of the RCO-Admins group?
 
