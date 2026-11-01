@@ -9,6 +9,36 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q39 (2026-11-01): Two answers that look misplaced (Q23, Q24)
+
+Q24 (failure DB and vote defaults) was answered "switch to zot", and Q23 (who may browse the
+Registry page) was answered "everyone".
+**Default:** "switch to zot" was meant for Q8/Q23. The Q24 defaults stand: the failure DB is
+public, restricted failures are sysadmin-only, voting needs sign-in. For Q23, "everyone" means
+everyone may browse `public` without signing in, as now. `restricted`, `cache` and `nvcr` stay
+sysadmin-only, because CLAUDE.md makes restricted visible to sysadmins only.
+**Answer:**
+
+## Q38 (2026-11-01): `generic` on CUDA 13.0 means dropping sm_70 (V100)
+
+Q6 was answered "13.0", but `generic` covers sm_70–sm_120, and CUDA 13 cannot build for
+sm_70 (Volta). conda-forge's CUDA 13 builds and EESSI 2026.06 dropped sm_70 too.
+**Default:** keep `generic` on CUDA 12.9.2 with sm_70 for now (this is what `targets.yml`
+does). If there are no V100s left, switch `generic` to CUDA 13.0 with sm_75–sm_120.
+**Answer:**
+
+## Q37 (2026-11-01): Ubuntu 24.04 or 26.04 inside the images? (Q5 vs Q16)
+
+Q5 says "ubuntu 24.06 (DGX OS 8.1.0)", which doesn't exist; Q16 says "DGX OS 8.1 based on
+Ubuntu 26.04". The host OS and the OS inside an image don't have to match: an image only
+needs a host driver new enough for its CUDA. Building on Ubuntu 26.04 brings GCC 15 and
+glibc 2.43: C23 by default, the `_Generic` clashes from the EasyBuild session (Q31), and
+Spack forbids GCC 15 with CUDA ≤ 12.9, so `generic` would not concretize.
+**Default:** nodes run DGX OS 8.1. Images stay on NGC `cuda:<ver>-{devel,runtime}-ubuntu24.04`
+(GCC 13, glibc 2.39) with CUDA 13.0 for `vr`/`rtx`. If you want 26.04 images, I add the
+forced-include fix (Q31) and a GCC 14 for `generic`.
+**Answer:**
+
 ## Q36 (2026-11-01): Container user identity on Slurm and Run:ai
 
 Jobs must run as the submitting user's own UID/GID. Pyxis/Enroot does this by design; Run:ai
@@ -18,7 +48,8 @@ writable dirs under `$HOME`/`/tmp` only, no setuid). Run:ai workloads set
 `runAsUid`/`runAsGid` from AD (or Run:ai's "user identity from IdP" setting) and
 `runAsNonRoot`; a smoke test runs every image as an arbitrary UID. Run:ai integration is
 still to come.
-**Answer:**
+**Answer:** yes, implement it, and write the user-identity doc (owner, 2026-11-01)
+**Status (2026-11-01):** Done: images run as any UID, a non-root default `USER 65534`, an arbitrary-UID check in the `package` stage, and `docs/operations/user-identity.md` with the Run:ai 3.0 settings.
 
 ## Q35 (2026-11-01): Use E4S's binary build cache on builders?
 
@@ -37,6 +68,7 @@ defaults to C23, which broke older code on the Ubuntu 26.04 host. The index now 
 **Default:** stay on `foss,2025b` (CUDA 12.9.1 easyconfigs, GCC 14) until a few 2026.1
 builds succeed; then decide.
 **Answer:**
+**Status (2026-11-01):** Your Q22 answer decides this: always try the newest toolchain first, then fall back. So the order becomes `2026.1` → `foss,2025b` → the easyconfig's own toolchain. That fallback only works once Q33 is done; both are to do next.
 
 ## Q33 (2026-11-01): Report EasyBuild dependency-resolution failures as `concretize`?
 
@@ -45,6 +77,7 @@ Builders never report `concretize`, so EasyBuild robot/toolchain-bump failures l
 **Default:** add an `eb --dry-run --robot` step before the container build and report its
 failure as `concretize` (not done yet).
 **Answer:**
+**Status (2026-11-01):** Needed for Q22/Q34: without it, the toolchain fallback never fires. To do.
 
 ## Q32 (2026-11-01): Rubin cuda_arch 107 and the Vera CPU target
 
@@ -56,6 +89,7 @@ matters only if builders move to an Ubuntu 26.04 base.
 move `vr` to the CUDA and Spack versions that know it. Keep the builder base on Ubuntu 24.04
 (GCC 13).
 **Answer:**
+**Status (2026-11-01):** Folded into Q13: same hardware check. Note also Q37: an Ubuntu 26.04 base would bring GCC 15.
 
 ## Q31 (2026-11-01): Ship the glibc forced include in the builder image?
 
@@ -69,6 +103,7 @@ builder images ship glibc 2.39, which does not have these macros, so builds ther
 hit it. If newer bases are used, ship the header at a fixed path in `base-builder` and add a
 repair action that adds exactly that `-include`.
 **Answer:** don't are your recommendation: but note: I want to continue building and never stop 
+**Status (2026-11-01):** Noted: the pipeline never stops. Failures are recorded, repairs and retries continue. Matters only if the builder base moves to Ubuntu 26.04 (see Q37).
 
 ## Q30 (2026-10-31): How should auto-repair fix a failing EasyBuild dependency?
 
@@ -81,6 +116,7 @@ or propagate a flag (`cflags==-std=gnu17`).
 dropping the toolchain bump. An EasyBuild-side fix would need patched easyconfigs in a
 site robot path (`recipes/easybuild-overrides/`), shipped in the builder image.
 **Answer:** yes try fixing easyconfigs also, try try try 
+**Status (2026-11-01):** To do: patched easyconfigs in `recipes/easybuild-overrides/`, shipped in the builder image, and repair rules that point at them. EESSI's `eb_hooks.py` (same `foss/2025b` toolchain) is a good source of known fixes.
 
 ## Q29 (2026-10-31): Auto-repair scope
 
@@ -139,6 +175,7 @@ mustn't have it.
 
 Making scrubbed live logs public for all public builds would be a one-line change.
 **Answer:** everyone can see it
+**Status (2026-11-01):** **Not implemented yet:** live logs are still shown only to sysadmins and the requester (`web/apparadise/live.py`). To do: scrubbed logs for everyone; raw logs and restricted builds stay sysadmin-only.
 
 ## Q25 (2026-10-31): Requests: default targets, weekly quota, and unknown names
 
@@ -171,6 +208,7 @@ with phase 3 code, as Q17 did for phase 2.
   can take it back.
 - Votes are counted, but nothing is ranked or scheduled by them yet.
 **Answer:**  switch to zot 
+**Status (2026-11-01):** "switch to zot" looks like the answer to Q8/Q23, not to this question. I kept the defaults above; see Q39.
 
 ## Q23 (2026-10-31): Who may browse the Registry page, and with which Harbor account?
 
@@ -182,6 +220,7 @@ and anyone else gets a 404 for them. The server reads Harbor with the same
 Harbor's API, and answers are cached for 30 seconds. If you'd rather keep reads off the admin
 account, a separate read-only robot (pull + list on all three projects) would be a small change.
 **Answer:** everyone 
+**Status (2026-11-01):** Superseded by the move to Zot. Everyone sees `public`. `restricted`, `cache` and `nvcr` stay sysadmin-only (a CLAUDE.md rule); see Q39. Zot is read with its own read-only account.
 
 ## Q22 (2026-10-31): How should EasyBuild recipes get bumped to the platform toolchain?
 
@@ -217,6 +256,7 @@ want:
 - **relion** goes to Spack (it has a cuda variant), not EasyBuild as I guessed in the
   catalog file.
 **Answer:** build all cuda packages on all 3 platforms, and if there is apackage with the samename and  version on multiple platforms (eb, pixi) then point this out in the module file meta data 
+**Status (2026-11-01):** To do (large): queue CUDA builds from every source that has a recipe, not only the first resolver hit, and say "also available from X" in `module help` and `whatis`. One image still has exactly one source.
 
 ## Q20 (2026-10-31): Is a per-project robot scope enough?
 
@@ -224,6 +264,7 @@ Harbor scopes robot accounts to projects, not single repositories. **Default:** 
 gets push/pull on its image's project plus `cache`, lasts 1 day at most, and is deleted
 when the job ends. CLAUDE.md says "one repository"; this is the closest Harbor offers.
 **Answer:** ok 
+**Status (2026-11-01):** Resolved by Zot: each job's login now covers exactly its own repositories. No more per-project robots.
 
 ## Q19 (2026-10-31): How do GPU nodes pull the test tag from the `cache` project?
 
@@ -233,6 +274,7 @@ with `srun --container-image`. Pyxis/Enroot pulls it as the user who runs the te
 (`~/.config/enroot/.credentials`) with pull access to `cache`. A retention rule in Harbor
 deletes `cache/test-*` tags after 2 days.
 **Answer:** ok 
+**Status (2026-11-01):** Changed by Zot: `cache/test-*` needs a login. Default now: the builder gives the test job the job's own registry login (it may pull `cache/test-<pkg>`) instead of a site service account. To do. Zot retention for `cache/test-*` tags is still to set up.
 
 ## Q18 (2026-10-31): Where does the comparison CSV `cuda_spack_easybuild_pixi.csv` live?
 
@@ -256,6 +298,7 @@ generation, coordinator and builder API. Nothing user-facing from phase 3 or 4 g
 `5.4.2`, pixi `0.83.0`, NGC CUDA `13.0.3` and `12.9.2` on Ubuntu 24.04. The image builds
 themselves still haven't run, because no container runtime is available here.
 **Answer:** We should use DGX OS 8.1 based on Ubuntu 26.04
+**Status (2026-11-01):** Conflicts with Q5. See Q37.
 
 ## Q15 (2026-10-31): Should the frontend keep Bucketeer's look with a new accent?
 
@@ -263,6 +306,7 @@ themselves still haven't run, because no container runtime is available here.
 from orange to indigo `#4f46e5` and cool neutrals, so the two apps are related but easy to
 tell apart.
 **Answer:** no use same colors 
+**Status (2026-11-01):** **Not implemented yet:** the accent is still indigo `#4f46e5`. To do: Bucketeer's colours.
 
 ## Q14 (2026-10-31): How should module wrappers start the image?
 
@@ -280,12 +324,14 @@ refuse to render until someone reads the value with `nvidia-smi --query-gpu=comp
 the NVL72. The CPU tuning uses `neoverse_v2` (Grace, Armv9.0) until Spack and GCC know Vera.
 Module wrappers pick `vr` by CPU architecture (aarch64) alone.
 **Answer:** ok
+**Status (2026-11-01):** Also Q32: Spack calls Rubin `cuda_arch=107` (CUDA ≥ 13.4), and archspec now has `olympus` for Vera. Both still need the real hardware.
 
 ## Q12 (2026-10-31): Which LLM should the chatbot use?
 
 **Default:** Claude via the Anthropic API (`ANTHROPIC_API_KEY`, model `claude-opus-5-5`, with
 the model as a setting). This is phase 4, so nothing is built yet.
 **Answer:** We are using Sonnet 5.5 as a default and if If there's any issues we're switching to Opus 5.5 immediately with high level thinking in that case 
+**Status (2026-11-01):** **Not implemented yet:** `CHAT_MODEL` still defaults to `claude-opus-5-5`. To do: Sonnet 5.5 by default, switching to Opus 5.5 with high effort when Sonnet fails.
 
 ## Q11 (2026-10-31): Do the builder sandboxes get internet egress?
 
@@ -295,6 +341,7 @@ The EasyBuild session lost time to blocked `git.savannah.gnu.org` (config.guess 
 conda-forge, PyPI, the Spack mirror and the EasyBuild sources) is a setting. Builder images ship a
 current `config.guess`/`config.sub`, and EasyBuild's download of them is disabled.
 **Answer:** apparadise shoul dhave access to the entire internet, If other tools are not configured as such they can use up Paradise as a proxy 
+**Status (2026-11-01):** Decided. CLAUDE.md and the security notes still say "network-restricted sandboxes"; they need updating. Builds now download at build time (`pixi lock`, Spack and EasyBuild sources).
 
 ## Q10 (2026-10-31): Should InfiniBand/RDMA headers go into every builder base image?
 
@@ -304,6 +351,7 @@ silently cost OpenMPI/UCX their InfiniBand support.
 `--ignore-osdeps` is never used. A missing OS dependency is a `concretize` failure, not
 something to skip.
 **Answer:** Yes we need Infiniband support for everything but we need the Infiniband support specifically for ARM based packages in Vera Rubin umm the other packages for the RTX do not require Infiniband 
+**Status (2026-11-01):** Default kept: RDMA headers in every builder image (cheap, and harmless for `rtx`). InfiniBand matters for the `vr` images.
 
 ## Q9 (2026-10-31): Should the EasyBuild source share installs across images?
 
@@ -314,12 +362,14 @@ later builds reuse".
 generation) tree** at a time. The tree is read-only-mounted into other builds. Spack and pixi
 builds run in parallel.
 **Answer:** You need to figure this out we want to maximize performance we want to use as many cores as possible but we also um want to have no data corruption so you need to find a middle ground how this all works 
+**Status (2026-11-01):** To do: my proposal is one EasyBuild job per (target, toolchain) install tree, each using all of the builder's cores; Spack and pixi jobs run in parallel with per-job scratch.
 
 ## Q8 (2026-10-31): Is Harbor already installed, and what is its hostname?
 
 **Default:** not installed yet. Settings use `HARBOR_URL` (REQUIRED) and the demo uses
 `registry.example`. The phase 1 runbook in `docs/operations/harbor.md` describes installing it.
 **Answer:** you You're installing it right now I installed Docker and Docker Compose 
+**Status (2026-11-01):** Done: Zot (owner, 2026-11-01), tested on 127.0.0.1:5005 with the real token service. Production hostname still open; the first test is `motuz.hpc.domain.edu/apparadise`.
 
 ## Q7 (2026-10-31): Where do things live on shared storage?
 
@@ -335,6 +385,7 @@ builds run in parallel.
 CUDA 13 dropped Volta (`sm_70`). So `generic` is built with CUDA 12.9 or starts at `sm_75`.
 I picked **`generic` = CUDA 12.9, sm_70–sm_120**, pending confirmation.
 **Answer:** 13.0 
+**Status (2026-11-01):** Conflicts with `generic` = sm_70: CUDA 13 cannot build for sm_70. See Q38.
 
 ## Q5 (2026-10-31): What base OS should the per-target base images use?
 
@@ -344,6 +395,7 @@ Ubuntu 26.04 / GCC 15 / glibc (C23 defaults, `_Generic` clashes in gnulib, gprof
 `...-runtime-ubuntu24.04` for runtime images. Never build on the host OS. Images are multi-arch
 (amd64 + arm64), with the CUDA version pinned by digest.
 **Answer:** build everything with ubuntu 24.06 (DGX OS 8.1.0) and cuda13 
+**Status (2026-11-01):** "Ubuntu 24.06" does not exist. See Q37.
 
 ## Q4 (2026-10-31): Which packages are the phase 1 "top 20"?
 

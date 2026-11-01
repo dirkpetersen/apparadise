@@ -12,6 +12,7 @@ nav = [
   { "Operations" = [
     { "Go-live checklist" = "operations/go-live.md" },
     { "Registry (Zot)" = "operations/registry.md" },
+    { "User identity in containers" = "operations/user-identity.md" },
     { "Base images" = "operations/base-images.md" },
     { "Hand-building a package" = "operations/hand-build.md" },
     { "Builders" = "operations/builders.md" },

@@ -101,7 +101,7 @@ happened.
 |---|-----------|--------------------------------------------------------------|---------------|
 | 1 | Resolve   | Pick source and targets                                      | `no-recipe`   |
 | 2 | Generate  | Write pinned `spack.yaml` / easystack / `pixi.toml`+lock     | `concretize`  |
-| 3 | Build     | Disposable, network-restricted builder of matching arch      | `build`       |
+| 3 | Build     | Disposable builder of matching arch (internet access, Q11)   | `build`       |
 | 4 | Package   | OCI image on per-target NGC-derived CUDA base, plus SBOM     | `package`     |
 | 5 | Test      | Unprivileged smoke test on a real GPU node (low-prio job)    | `test`        |
 | 6 | Publish   | Sign, push to Zot, write `.sqsh` to CephFS, modulefile       | `publish`     |

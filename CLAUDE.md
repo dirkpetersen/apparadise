@@ -42,6 +42,11 @@ their question ID and date, for example "(Q4, owner, 2026-11-02)".
   builds go to on-prem builders only. A launcher implements exactly `start` and `stop`.
 - **Slurm runtime:** Pyxis + Enroot as shipped by BCM. Do not add another container runtime to
   Slurm. Base images derive from NGC (`nvcr.io`), mirrored on demand by Zot under `nvcr/`.
+- **User identity:** every container runs as the submitting user's own UID/GID, inside and
+  outside (Pyxis does this; Run:ai takes it from AD via SSO). Kubernetes cannot map root
+  inside to the user outside, so every image must work as any UID: install trees `a+rX`,
+  no entrypoint, `USER 65534:65534`, checked in the `package` stage (Q36, owner, 2026-11-01;
+  `docs/operations/user-identity.md`).
 - **Module delivery:** an shpc-*style* generator of our own. It writes one Lmod file per image
   and one wrapper script per exposed executable, takes `module help` text from the catalog, and
   picks the `vr` or `rtx` image from the node's architecture. The wrappers run **Enroot**
@@ -244,8 +249,8 @@ in step with `requirements*.txt` and the frontend layout.
 ## Security notes
 
 Anyone can trigger a build through the chatbot, so treat recipes, package names, chatbot input
-and log content as untrusted. Builders run in fresh, network-restricted sandboxes with only a
-per-job push token. Auto-repair attempts are capped and logged. Scrub paths, hostnames and tokens
+and log content as untrusted. Builders run in fresh, disposable sandboxes (with internet
+access, Q11) holding only a per-job push token. Auto-repair attempts are capped and logged. Scrub paths, hostnames and tokens
 from log excerpts before they reach the public failure database. Restricted packages never
 appear in public catalog, index or failure responses. Test that.
 

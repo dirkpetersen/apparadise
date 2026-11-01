@@ -87,9 +87,10 @@ def test_happy_path_publishes(world):
     job, status = asyncio.run(one_job(agent))
     assert job["id"] == bid and status == "published"
     tools = [c[:2] for c in runner.calls]
-    assert tools == [["podman", "build"], ["podman", "build"], ["podman", "push"],
-                     ["srun", "-p"], ["podman", "push"]]
-    srun = runner.calls[3]
+    assert tools == [["podman", "build"], ["podman", "build"], ["podman", "run"],
+                     ["podman", "push"], ["srun", "-p"], ["podman", "push"]]
+    assert runner.calls[2][runner.calls[2].index("--user") + 1] == "54321:54321"
+    srun = runner.calls[4]
     assert f"--container-image=registry.example.org#cache/test-gromacs:{bid}" in srun
     assert srun[-1] == "nvidia-smi -L && gmx_mpi --version"
     row = db.query_one("SELECT status, image_digest, log_path FROM build WHERE id = ?", (bid,))
@@ -136,8 +137,13 @@ def test_plan_has_no_shell_except_smoke(world, tmp_path):
     for stage in ("build", "package", "test", "publish"):
         for argv in plan(job, stage, s, tmp_path):
             assert argv[0] in {"podman", "srun", "cosign"}
-            if argv[0] != "srun":
-                assert "sh" not in argv
+            if argv[0] == "srun":
+                continue
+            if "sh" in argv:  # only the constant any-uid check, never job data in a shell
+                from apparadise_builder.agent import ANY_UID_CHECK
+
+                assert argv[-2:] == ["-c", ANY_UID_CHECK] and argv[argv.index("--user") + 1] \
+                    == "54321:54321"
 
 
 def test_settings_validation():
@@ -236,3 +242,35 @@ def test_containerfiles_expose_base_cuda_to_the_build_tools():
     assert 'CONDA_OVERRIDE_CUDA="${CUDA_VERSION%.*}"' in pixi
     assert "pixi lock && pixi install --frozen" in pixi
     assert "COPY --from=build /work/pixi.lock /opt/apparadise/pixi.lock" in pixi
+
+
+def test_images_run_as_any_uid():
+    from apparadise_builder.agent import CONTAINERFILES
+
+    fmt = {"registry": "r.example", "base_builder": "b", "base_runtime": "r"}
+    for source, paths in (("spack", "/opt/software /opt/view"), ("easybuild", "/opt/apps"),
+                          ("pixi", "/work/.pixi/envs/default")):
+        text = CONTAINERFILES[source].format(**fmt)
+        build, final = text.split("FROM r.example/r")
+        assert f"chmod -R a+rX {paths}" in build  # in the build stage: no second copy
+        assert final.rstrip().endswith("USER 65534:65534")
+        assert "ENTRYPOINT" not in text and "chmod" not in final
+
+
+def test_any_uid_check_flags_unreadable_files(tmp_path):
+    import subprocess
+
+    from apparadise_builder.agent import ANY_UID_CHECK
+
+    # The check's logic, without a container: fake `id` and `find`
+    bin_ = tmp_path / "bin"
+    bin_.mkdir()
+    (bin_ / "id").write_text("#!/bin/sh\necho 54321\n")
+    for out, code in (("", 0), ("/opt/view/lib/secret.so", 1)):
+        (bin_ / "find").write_text(f"#!/bin/sh\necho -n '{out}'\n")
+        for f in bin_.iterdir():
+            f.chmod(0o755)
+        r = subprocess.run(["sh", "-c", ANY_UID_CHECK], env={"PATH": f"{bin_}:/usr/bin:/bin"},
+                           capture_output=True, text=True)
+        assert r.returncode == code, r.stderr
+        assert (out in r.stderr) if out else r.stderr == ""

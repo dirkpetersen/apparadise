@@ -38,18 +38,29 @@ RECIPE_FILE = {"spack": "spack.yaml", "easybuild": "easystack.yml", "pixi": "pix
 ERROR_RE = re.compile(rb"^.*\b(error|fatal|failed)\b.*$", re.I | re.M)
 LOG_FLUSH_BYTES = 64 * 1024
 HEARTBEAT_SECONDS = 60  # well under the coordinator's BUILDER_STALE_MINUTES
+# A uid/gid no image knows: the package must work for it (user-identity.md).
+ANY_UID = "54321:54321"
+ANY_UID_CHECK = ('test "$(id -u)" = 54321 && bad="$(find /opt /work -xdev ! -readable '
+                 '-print 2>/dev/null | head -5)" && { [ -z "$bad" ] || '
+                 '{ echo "unreadable as a non-root user: $bad" >&2; exit 1; }; }')
 
 # Containerfiles per source. Build stage named `build`, final stage FROM the runtime base.
+# Every image must run as ANY uid (docs/operations/user-identity.md): Pyxis/Enroot run it as
+# the submitting user, Run:ai as the uid/gid from AD. So the build stage makes everything
+# readable by all (a+rX; done there, so the final image gets no second copy of each file),
+# the final stage has no entrypoint and a numeric non-root default user, and nothing needs
+# to be written inside the image at runtime.
 CONTAINERFILES = {
     "spack": """\
 FROM {registry}/{base_builder} AS build
 COPY spack.yaml /work/spack.yaml
 RUN spack -e /work concretize --fresh && spack -e /work install --fail-fast \\
- && spack -e /work gc -y
+ && spack -e /work gc -y && chmod -R a+rX /opt/software /opt/view
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/software /opt/software
 COPY --from=build /opt/view /opt/view
 ENV PATH=/opt/view/bin:$PATH
+USER 65534:65534
 """,
     "easybuild": """\
 FROM {registry}/{base_builder} AS build
@@ -61,10 +72,12 @@ COPY easystack.yml /work/easystack.yml
 ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
     EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1 \
     EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1
-RUN eb --easystack /work/easystack.yml --installpath=/opt/apps --robot
+RUN eb --easystack /work/easystack.yml --installpath=/opt/apps --robot \
+ && chmod -R a+rX /opt/apps
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/apps /opt/apps
 ENV MODULEPATH=/opt/apps/modules/all
+USER 65534:65534
 """,
     "pixi": """\
 FROM {registry}/{base_builder} AS build
@@ -74,12 +87,14 @@ COPY pixi.toml /work/pixi.toml
 # install exactly that lock, and ship the lock in the image as the record of what is in it.
 RUN cd /work && : "${{CUDA_VERSION:?base image sets CUDA_VERSION}}" \
  && export CONDA_OVERRIDE_CUDA="${{CUDA_VERSION%.*}}" \
- && pixi lock && pixi install --frozen && pixi shell-hook -s bash > /work/activate.sh
+ && pixi lock && pixi install --frozen && pixi shell-hook -s bash > /work/activate.sh \
+ && chmod -R a+rX /work/.pixi/envs/default /work/activate.sh /work/pixi.lock
 FROM {registry}/{base_runtime}
 COPY --from=build /work/.pixi/envs/default /work/.pixi/envs/default
 COPY --from=build /work/activate.sh /opt/apparadise/activate.sh
 COPY --from=build /work/pixi.lock /opt/apparadise/pixi.lock
 ENV PATH=/work/.pixi/envs/default/bin:$PATH
+USER 65534:65534
 """,
 }
 
@@ -100,7 +115,11 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
                  "-t", f"{local}-build", "-f", "Containerfile", "."]]
     if stage == "package":
         return [[tool, "build", "--platform", job["platform"], *labels, "-t", local,
-                 "-f", "Containerfile", "."]]
+                 "-f", "Containerfile", "."],
+                # Runs as an arbitrary uid, as on Slurm or Run:ai, and fails if anything
+                # installed is unreadable to it. No GPU needed.
+                [tool, "run", "--rm", "--platform", job["platform"], "--user", ANY_UID,
+                 "--entrypoint", "sh", local, "-c", ANY_UID_CHECK]]
     if stage == "test":
         if s.test_mode == "none":
             return []
