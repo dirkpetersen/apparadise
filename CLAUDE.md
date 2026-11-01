@@ -14,7 +14,8 @@ chatbot, and see every failed build in a public failure database.
 The repo is greenfield. The design source of truth is the architecture document *CUDA Software
 Platform — Architecture* (Claude Docs). `README.md` summarizes it. The planned work is in
 `TODO.md`, and questions for the owner go in `QUESTIONS.md`. **Don't guess at product
-decisions.** Ask in `QUESTIONS.md` and work on something else meanwhile. Label decisions with
+decisions.** Ask in `QUESTIONS.md` (newest question at the top) and work on something else
+meanwhile. Label decisions with
 their question ID and date, for example "(Q4, owner, 2026-11-02)".
 
 ## Decisions already made (do not re-litigate)
