@@ -9,6 +9,21 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q43 (2026-11-01): HPL and RAPIDS have no CUDA recipe in their catalog source
+
+The first catalog run on motuz (`rtx`) found two catalog entries whose source cannot give a
+CUDA build:
+- **hpl** (`source: spack`): Spack's `hpl` has no `cuda` variant (`No such variant {'cuda',
+  'cuda_arch'}`). GPU HPL is NVIDIA's HPC-Benchmarks, which ship only as the NGC container
+  `nvcr.io/nvidia/hpc-benchmarks`.
+- **rapids** (`source: pixi`): conda-forge's `rapids` is a 0.0.1 placeholder. RAPIDS is
+  published in the `rapidsai` channel, and our rule is conda-forge only.
+**Default:** both stay `no-recipe` failures in the failure DB. Users get pointed at
+`nvcr.io/nvidia/hpc-benchmarks` and `nvcr.io/nvidia/rapidsai/base` (through our `nvcr/` mirror)
+in the catalog text. Alternatives: allow the `rapidsai` channel for RAPIDS only, or catalog
+NGC images as-is.
+**Answer:**
+
 ## Q42 (2026-11-01): Which conda-forge package carries a package's CUDA code?
 
 The first catalog builds found two kinds of pixi package where `name *cuda*` cannot work:
