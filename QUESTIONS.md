@@ -99,7 +99,7 @@ defaults to C23, which broke older code on the Ubuntu 26.04 host. The index now 
 **Default (changed 2026-11-01, following your Q22 answer):** try `2026.1` first, then
 `foss,2025b`, then the easyconfig's own toolchain.
 **Answer:** no use GCC 15.2, CUDA 13.3 easyconfigs, debug this until you have come up with a fix 
-**Status (2026-11-01):** Code done: recipes start with `foss,2026.1`, and `easybuild-toolchain-fallback` walks `foss,2025b` → the easyconfig's own toolchain on a `concretize` failure. Still to do: real 2026.1 builds and their GCC 15 debugging; the builder base image is building with podman now. The base has CUDA 13.0.3 (`filter-deps: CUDA`), while 2026.1 easyconfigs name 13.3.0.
+**Status (2026-11-01):** Code done, first real runs on motuz. `--try-toolchain=foss,2026.1` alone keeps the easyconfig's dependency versions, which GCCcore-15.2.0 lacks (OSU 7.5.1: `Missing dependencies: UCX/1.19.0-GCCcore-15.2.0, zlib/1.3.1...`). Fix: every bumped easystack also sets `try-update-deps` (experimental in EasyBuild 5), which resolved OSU's whole chain to OpenMPI 5.0.10-GCC-15.2.0 / `gompi/2026.1`. If that still fails, the `easybuild-toolchain-fallback` repair moves to `foss,2025b`, then to the easyconfig's own toolchain. Base CUDA is 13.0.3 (`filter-deps: CUDA`).
 
 ## Q33 (2026-11-01): Report EasyBuild dependency-resolution failures as `concretize`?
 

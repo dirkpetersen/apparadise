@@ -61,6 +61,8 @@ def test_render_easybuild():
     assert opts["cuda-compute-capabilities"] == "12.0"
     assert "ignore-osdeps" not in opts
     assert opts["try-toolchain"] == "foss,2026.1" and opts["filter-deps"] == "CUDA"
+    # Q34: the bump also moves dependencies to versions the new generation has
+    assert opts["try-update-deps"] is True and opts["experimental"] is True
 
 
 def test_render_pixi():

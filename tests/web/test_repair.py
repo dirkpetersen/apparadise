@@ -117,6 +117,7 @@ def test_easybuild_toolchain_fallback_walks_the_chain(env):
         assert new["repair"] == "easybuild-toolchain-fallback" and "filter-deps" in new["recipe"]
     assert seen == ["foss,2025b", None]
     assert "try-toolchain" not in new["recipe"]  # the easyconfig's own toolchain
+    assert "try-update-deps" not in new["recipe"] and "experimental" not in new["recipe"]
 
 
 def test_next_toolchain():

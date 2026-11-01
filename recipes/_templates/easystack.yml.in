@@ -9,6 +9,11 @@ easyconfigs:
         # Bump to the platform toolchain generation and use the base image's CUDA
         # (/usr/local/cuda) instead of the CUDA version the easyconfig names (Q22).
         try-toolchain: "$EASYBUILD_TOOLCHAIN"
+        # The bump keeps the easyconfig's dependency versions, which a newer generation
+        # rarely has (UCX 1.19.0 for GCCcore-15.2.0...): move them to the versions that
+        # generation ships. Experimental in EasyBuild 5 (Q34).
+        try-update-deps: true
+        experimental: true
         filter-deps: CUDA
         # Never --ignore-osdeps: a missing OS dependency is a concretize failure (Q10).
         robot: true

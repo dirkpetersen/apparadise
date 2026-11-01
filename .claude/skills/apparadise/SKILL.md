@@ -124,7 +124,8 @@ Detail: `references/spack.md`.
   default.
 - **In apparadise:** rule 4, picked only when Spack has no CUDA recipe (or on request). The
   renderer writes an easystack with `optarch`, `cuda-compute-capabilities`,
-  `try-toolchain: foss,2026.1` and `filter-deps: CUDA`; on a `concretize` failure the
+  `try-toolchain: foss,2026.1` + `try-update-deps` (experimental; without it the bump keeps
+  dependency versions 2026.1 lacks) and `filter-deps: CUDA`; on a `concretize` failure the
   `easybuild-toolchain-fallback` repair moves to `foss,2025b`, then to the easyconfig's own.
 - **Gotchas:** with `filter-deps: CUDA` and no `EBROOTCUDA`, easyblocks may take their **CPU
   path** and the sanity check is skipped (the builder sets `EBROOTCUDA`/`EBVERSIONCUDA`, fails

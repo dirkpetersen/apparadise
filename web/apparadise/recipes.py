@@ -152,7 +152,8 @@ def render(source: str, name: str, version: str, target: str, *, registry: str,
             v["EASYBUILD_TOOLCHAIN"] = tc
         if tc is None:  # the chain is used up: build with the easyconfig's own toolchain
             text = (TEMPLATES / TEMPLATE_FOR[source]).read_text()
-            text = re.sub(r"(?m)^ *try-toolchain: .*\n", "", text)
+            text = re.sub(r"(?m)^ *(try-toolchain|try-update-deps|experimental): .*\n", "",
+                          text)
             return Template(text).substitute(v)
     else:
         conda = conda_name or name
