@@ -1,8 +1,9 @@
 """Live build logs as server-sent events: GET /api/builds/{id}/events.
 
-Who may watch: sysadmins (raw log) and the user who requested the build (scrubbed with
-failures.scrub, like the public failure database). Anyone else, and anyone but sysadmins for
-a restricted build, gets the same 404 as for a build that does not exist (Q26).
+Who may watch (Q26, owner: "everyone can see it"): anyone, signed in or not, gets the log
+scrubbed with failures.scrub, like the public failure database. Sysadmins get the raw log.
+A restricted build (or a non-public package) is sysadmin-only; anyone else gets the same 404
+as for a build that does not exist.
 
 The stream sends only complete lines, so scrubbing never sees half a token. Each `log`
 event carries one or more lines and an `id` that is the byte offset after them, so a
@@ -145,17 +146,14 @@ async def build_events(
 ) -> StreamingResponse:
     user = current_user(request)
     # Visibility is read now, from the package, not copied when the build was queued: a
-    # package made restricted later hides its old builds too. A nightly retry is queued by
-    # `system` but belongs to whoever made the original request.
+    # package made restricted later hides its old builds too.
     row: dict[str, Any] | None = await db.run(
         db.query_one,
-        "SELECT b.requested_by, b.restricted, p.visibility, r.requested_by AS asked_by "
-        "FROM build b JOIN package p ON p.id = b.package_id "
-        "LEFT JOIN request r ON r.id = b.request_id WHERE b.id = ?", (build_id,))
+        "SELECT b.restricted, p.visibility FROM build b JOIN package p ON p.id = b.package_id "
+        "WHERE b.id = ?", (build_id,))
     admin = bool(user and user.is_admin)
-    own = bool(user and row and user.username in (row["requested_by"], row["asked_by"]))
     hidden = bool(row and (row["restricted"] or row["visibility"] != "public"))
-    if row is None or not (admin or (own and not hidden)):
+    if row is None or (hidden and not admin):
         raise HTTPException(404, "No such build.")
     offset = from_
     if last_event_id and last_event_id.isdigit():

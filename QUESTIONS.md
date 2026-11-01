@@ -208,7 +208,7 @@ mustn't have it.
 
 Making scrubbed live logs public for all public builds would be a one-line change.
 **Answer:** everyone can see it
-**Status (2026-11-01):** **Not implemented yet:** live logs are still shown only to sysadmins and the requester (`web/apparadise/live.py`). To do: scrubbed logs for everyone; raw logs and restricted builds stay sysadmin-only.
+**Status (2026-11-01):** Done: anyone, signed in or not, can watch a public build's live log, scrubbed. Sysadmins see the raw log; restricted builds stay sysadmin-only.
 
 ## Q25 (2026-10-31): Requests: default targets, weekly quota, and unknown names
 

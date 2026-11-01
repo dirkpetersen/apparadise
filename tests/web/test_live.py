@@ -94,12 +94,15 @@ def test_sysadmin_sees_raw_log(env):
 
 
 @pytest.mark.parametrize("who", [None, "bob"])
-def test_others_get_404(env, who):
+def test_everyone_gets_the_scrubbed_log(env, who):
+    # Q26: everyone can watch a public build, scrubbed; unknown builds are 404
     c, db, bid = env
     c.cookies.clear()
     if who:
         c.post("/api/login", json={"login": who, "password": "demo"}, headers=H)
-    assert c.get(f"/api/builds/{bid}/events").status_code == 404
+    text = "\n".join(e["data"] for e in events(c, f"/api/builds/{bid}/events")
+                     if e["event"] == "log")
+    assert text and "/home/alice/stage" not in text
     assert c.get("/api/builds/99999/events").status_code == 404
 
 

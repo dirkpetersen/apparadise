@@ -52,6 +52,8 @@ two build jobs), then request the build.
 - **Duplicates are free:** a release that is already available or queued is skipped. If
   someone already asked for what you need, upvote their request instead.
 - **Your requests:** the *Mine* tab lists them. Each build job links to its live log.
+- **Live logs** of public builds are open to everyone, with paths, host names and tokens
+  scrubbed. Restricted builds are visible to sysadmins only.
 
 ## Live build logs (`#/b/<id>`)
 
