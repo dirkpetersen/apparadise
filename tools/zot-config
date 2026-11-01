@@ -11,7 +11,7 @@ What it sets up:
 - htpasswd: one read-only account (REGISTRY_USERNAME) for the web app's Registry page.
 - nvcr.io mirror: `<registry>/nvcr/nvidia/...` is fetched from NGC on first pull, then kept.
 - search extension (the Registry page reads it), Docker v2 manifests (NGC uses them),
-  garbage collection, dedupe.
+  garbage collection, dedupe, and 2-day retention for cache/test-* tags.
 
 Standard library only. Prints JSON; never writes files or secrets.
 """
@@ -26,8 +26,20 @@ import sys
 def config(a: argparse.Namespace) -> dict:
     return {
         "distSpecVersion": "1.1.1",
-        "storage": {"rootDirectory": a.storage, "dedupe": True, "gc": True,
-                    "gcDelay": "1h", "gcInterval": "24h"},
+        "storage": {
+            "rootDirectory": a.storage, "dedupe": True, "gc": True,
+            "gcDelay": "1h", "gcInterval": "24h",
+            # Test tags (cache/test-<name>:<job>) live 2 days (Q19). A repository applies the
+            # first policy it matches; the last one keeps everything else as it is. Check the
+            # glob with `zot verify-feature retention` (a dry run) before going live.
+            "retention": {"dryRun": False, "delay": "24h", "policies": [
+                {"repositories": ["cache/test-*"], "deleteReferrers": True,
+                 "deleteUntagged": True,
+                 "keepTags": [{"patterns": [".*"], "pushedWithin": f"{a.test_tag_hours}h"}]},
+                {"repositories": ["**"], "deleteUntagged": False,
+                 "keepTags": [{"patterns": [".*"]}]},
+            ]},
+        },
         "http": {
             "address": a.address, "port": str(a.port),
             # NGC publishes Docker v2 manifest lists; without this the mirror cannot sync them.
@@ -67,6 +79,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--address", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=5000)
     ap.add_argument("--log-dir", default="/var/log/zot")
+    ap.add_argument("--test-tag-hours", type=int, default=48,
+                    help="how long cache/test-* tags are kept (Q19)")
     a = ap.parse_args(argv)
     for name in ("storage", "verify_key", "htpasswd", "log_dir"):
         if not getattr(a, name).startswith("/"):

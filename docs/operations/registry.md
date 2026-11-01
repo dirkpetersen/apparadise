@@ -33,7 +33,7 @@ stronger separation, run a second Zot for it with its own storage (owner, 2026-1
 | `public/<package>` | Published images, `<version>-<target>` tags, signed |
 | `restricted/<package>` | Licence- or weight-gated images |
 | `cache/base-builder`, `cache/base-runtime` | The per-target base images |
-| `cache/test-<package>` | Test tags the GPU smoke test pulls |
+| `cache/test-<package>` | Test tags the GPU smoke test pulls (with the job's own login); deleted 48 h after push by a Zot retention policy (`tools/zot-config --test-tag-hours`) |
 | `cache/<source>-<target>` | Build caches |
 | `nvcr/nvidia/...` | On-demand mirror of `nvcr.io/nvidia/...`: fetched on first pull, then kept |
 

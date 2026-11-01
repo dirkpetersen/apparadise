@@ -307,7 +307,7 @@ with `srun --container-image`. Pyxis/Enroot pulls it as the user who runs the te
 (`~/.config/enroot/.credentials`) with pull access to `cache`. A retention rule in Harbor
 deletes `cache/test-*` tags after 2 days.
 **Answer:** ok 
-**Status (2026-11-01):** Changed by Zot: `cache/test-*` needs a login. Done: the builder writes the job's own login as an Enroot `.credentials` file (0600) in the job dir and runs `srun --export=ALL,ENROOT_CONFIG_PATH=...`, so no site account is needed. `WORK_DIR` must be on storage the GPU nodes mount. Still to do: Zot retention for `cache/test-*` tags (2 days).
+**Status (2026-11-01):** Changed by Zot: `cache/test-*` needs a login. Done: the builder writes the job's own login as an Enroot `.credentials` file (0600) in the job dir and runs `srun --export=ALL,ENROOT_CONFIG_PATH=...`, so no site account is needed. `WORK_DIR` must be on storage the GPU nodes mount. `tools/zot-config` now sets a Zot retention policy: `cache/test-*` tags are kept 48 h after push, every other repository keeps everything. Check it once with `zot verify-feature retention` (dry run).
 
 ## Q18 (2026-10-31): Where does the comparison CSV `cuda_spack_easybuild_pixi.csv` live?
 
