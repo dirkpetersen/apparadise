@@ -33,7 +33,10 @@ To retire a builder, use **Disable** on the admin page. It can no longer claim j
 - **Credentials:** each job gets its own one-time registry login (`job-<id>`), valid only
   while the job runs ([Registry](registry.md)). The builder
   writes it to a 0600 `auth.json` in the job directory, never to the command line or the
-  log, and deletes the directory when the job ends.
+  log, and deletes the directory when the job ends. For the test stage it also writes an
+  Enroot `.credentials` file (0600, in a 0700 `enroot/` dir) and runs `srun` with
+  `ENROOT_CONFIG_PATH` pointing at it, so Pyxis pulls `cache/test-<name>` with the job's
+  own login (Q19). `WORK_DIR` must therefore be on storage the GPU nodes mount.
 - **Logs:** output streams to the coordinator in 64 KiB chunks. A heartbeat every minute
   keeps a quiet job alive. A builder that stays silent for `BUILDER_STALE_MINUTES` has its
   job failed as "builder lost".

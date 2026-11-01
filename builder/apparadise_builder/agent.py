@@ -140,9 +140,15 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
         if s.test_mode == "none":
             return []
         test_ref = f"{s.registry_host}/cache/test-{job['package']}:{job['id']}"
+        # Q19: Pyxis/Enroot on the GPU node pulls the test tag with the job's own login,
+        # from a 0600 .credentials file in the job's work dir (WORK_DIR must be on storage
+        # the GPU nodes mount). Never a site account.
+        enroot = workdir / "enroot"
+        env = (["--export=ALL,ENROOT_CONFIG_PATH=" + str(enroot)]
+               if (enroot / ".credentials").exists() else [])
         return [
             [tool, "push", *auth, local, f"docker://{test_ref}"],
-            ["srun", "-p", s.test_partition, "--gpus=1", "--nice=1000",
+            ["srun", "-p", s.test_partition, "--gpus=1", "--nice=1000", *env,
              f"--container-image={s.registry_host}#cache/test-{job['package']}:{job['id']}",
              "sh", "-c", job["smoke"]],
         ]
@@ -152,6 +158,17 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
         return [[tool, "push", *auth, "--digestfile", str(workdir / "digest"), local,
                  f"docker://{ref}"]]
     raise ValueError(stage)
+
+
+def write_enroot_credentials(path: Path, host: str, tok: dict[str, str]) -> None:
+    """The job login in Enroot's netrc format, in a 0700 dir, file 0600 (Q19)."""
+    path.mkdir(mode=0o700, exist_ok=True)
+    for v in (host, tok["username"], tok["password"]):
+        if not v or any(c.isspace() for c in v):
+            raise ValueError("registry login must not contain whitespace")
+    fd = os.open(path / ".credentials", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as fh:
+        fh.write(f"machine {host} login {tok['username']} password {tok['password']}\n")
 
 
 async def subprocess_runner(argv: list[str], cwd: Path,
@@ -231,6 +248,7 @@ class Agent:
             fd = os.open(authfile, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
             with os.fdopen(fd, "w") as fh:
                 json.dump({"auths": {self.s.registry_host: {"auth": cred}}}, fh)
+            write_enroot_credentials(workdir / "enroot", self.s.registry_host, tok)
         (workdir / "Containerfile").write_text(CONTAINERFILES[job["source"]].format(
             registry=self.s.registry_host, base_builder=job["baseBuilder"],
             base_runtime=job["baseRuntime"]))
@@ -308,6 +326,7 @@ class Agent:
             beat.cancel()
             await asyncio.gather(beat, return_exceptions=True)
             authfile.unlink(missing_ok=True)
+            (workdir / "enroot" / ".credentials").unlink(missing_ok=True)
             # The log lives on the coordinator; the work tree only fills the scratch disk.
             shutil.rmtree(workdir, ignore_errors=True)
             self.current = None

@@ -96,6 +96,9 @@ def test_happy_path_publishes(world):
     assert runner.calls[3][runner.calls[3].index("--user") + 1] == "54321:54321"
     srun = runner.calls[5]
     assert f"--container-image=registry.example.org#cache/test-gromacs:{bid}" in srun
+    # Q19: Enroot pulls the test tag with the job's own login, not a site account
+    [export] = [a for a in srun if a.startswith("--export=")]
+    assert export.startswith("--export=ALL,ENROOT_CONFIG_PATH=") and export.endswith("/enroot")
     assert srun[-1] == "nvidia-smi -L && gmx_mpi --version"
     row = db.query_one("SELECT status, image_digest, log_path FROM build WHERE id = ?", (bid,))
     assert row["status"] == "published" and row["image_digest"] == DIGEST
@@ -188,6 +191,12 @@ def test_registry_token_goes_to_authfile_not_argv(world):
                 f = Path(argv[argv.index("--authfile") + 1])
                 seen["mode"] = f.stat().st_mode & 0o777
                 seen["auth"] = f.read_text()
+            if argv[0] == "srun":
+                d = Path(next(a for a in argv if a.startswith("--export="))
+                         .split("ENROOT_CONFIG_PATH=", 1)[1])
+                seen["enroot"] = ((d / ".credentials").read_text(),
+                                  (d / ".credentials").stat().st_mode & 0o777,
+                                  d.stat().st_mode & 0o777)
             return await super().__call__(argv, cwd, on_output)
 
     runner = Spy()
@@ -202,6 +211,8 @@ def test_registry_token_goes_to_authfile_not_argv(world):
     job, status = asyncio.run(go())
     assert status == "published" and seen["mode"] == 0o600
     assert "registry.example.org" in seen["auth"]
+    assert seen["enroot"] == ("machine registry.example.org login robot$x password s3cret\n",
+                              0o600, 0o700)
     assert not any("s3cret" in a for argv in runner.calls for a in argv)
     assert not (tmp / "work" / str(job["id"])).exists()  # work tree and auth file removed
 
