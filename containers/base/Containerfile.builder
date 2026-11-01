@@ -36,7 +36,7 @@ RUN printf 'APT::Sandbox::User "root";\n' > /etc/apt/apt.conf.d/00apparadise-san
 # EasyBuild: a regular (non-editable) install, so the easybuild namespace package resolves
 # (FAILURES.md #3). Lmod comes from the distro package above (FAILURES.md #2, #4-#6).
 RUN python3 -m venv /opt/easybuild \
- && /opt/easybuild/bin/pip install --no-cache-dir "easybuild==${EASYBUILD_VERSION}" \
+ && /opt/easybuild/bin/pip install --no-cache-dir "easybuild==${EASYBUILD_VERSION}" PyYAML archspec \
  && ln -s /opt/easybuild/bin/eb /usr/local/bin/eb
 
 # Spack at a pinned release; its build cache lives in the registry's `cache/` (Zot).
@@ -65,7 +65,7 @@ ENV APPARADISE_TARGET=${TARGET} \
 # RUN does not read that, so it is set above. Fail here, not in the first build, if moved.
 # TMPDIR and the EasyBuild paths must exist even without a mounted scratch volume
 # (the concretize stage runs without one).
-RUN test -x "$LMOD_CMD" && eb --version \
+RUN test -x "$LMOD_CMD" && eb --version && /opt/easybuild/bin/python -c "import yaml, archspec" \
  && mkdir -p /scratch/tmp /scratch/eb-build /scratch/sources && chmod 1777 /scratch/tmp
 
 WORKDIR /work
