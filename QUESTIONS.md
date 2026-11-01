@@ -9,6 +9,20 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q41 (2026-11-01): Which work should the 20% of the Claude Max tokens pay for?
+
+Your Q40 answer ties the caps to "20% of the weekly tokens of a Claude Max $200 account".
+Build retries and auto-repairs use no LLM at all (Q29): they cost builder time, not tokens.
+apparadise's only LLM use is the chatbot, through `ANTHROPIC_API_KEY`. That is Anthropic API
+billing, a separate thing from a Claude Max subscription. As far as I know, a Max plan's
+usage is for Claude apps and Claude Code, and a server can't spend it through an API key.
+**Default:** keep the build caps as they are (Q40 default) and treat the token budget as a
+separate question. If the 20% is meant for Claude Code sessions working on apparadise (like
+this one: debugging builds, writing repairs), that happens outside the app and needs no code.
+If it is meant to cap the chatbot, I add a weekly token budget for the chatbot on the admin
+page, against the API key.
+**Answer:**
+
 ## Q40 (2026-11-01): Caps on retries and repairs vs "never stop"
 
 Q30 and Q31 say keep trying and never stop. Q29 and the code cap the work: at most 2
@@ -19,7 +33,8 @@ nightly retries run forever, and a new rule, toolchain or upstream release gets 
 A single release stops after its caps, so one broken package can't use up the builders. If
 you want no caps at all, set both to a large number on the admin page; nothing needs a
 code change.
-**Answer:**
+**Answer:** ok this is lealated to our weekly token limit on a Claude Max $200 account. We want to designate 20% of the total of these weekly taokens to apparadize 
+**Status (2026-11-01):** Needs clarifying, see Q41. Retries and repairs use no LLM, only builder CPU time.
 
 ## Q39 (2026-11-01): Two answers that look misplaced (Q23, Q24)
 
@@ -30,6 +45,7 @@ public, restricted failures are sysadmin-only, voting needs sign-in. For Q23, "e
 everyone may browse `public` without signing in, as now. `restricted`, `cache` and `nvcr` stay
 sysadmin-only, because CLAUDE.md makes restricted visible to sysadmins only.
 **Answer:** ok
+**Status (2026-11-01):** Done: the Q23/Q24 defaults stand as described.
 
 ## Q38 (2026-11-01): `generic` on CUDA 13.0 means dropping sm_70 (V100)
 
@@ -38,6 +54,7 @@ sm_70 (Volta). conda-forge's CUDA 13 builds and EESSI 2026.06 dropped sm_70 too.
 **Default:** keep `generic` on CUDA 12.9.2 with sm_70 for now (this is what `targets.yml`
 does). If there are no V100s left, switch `generic` to CUDA 13.0 with sm_75–sm_120.
 **Answer:** ditch volta, only 13.0
+**Status (2026-11-01):** To do: `generic` moves to CUDA 13.0 with sm_75–sm_120; update CLAUDE.md, the README and the docs to match.
 
 ## Q37 (2026-11-01): Ubuntu 24.04 or 26.04 inside the images? (Q5 vs Q16)
 
@@ -50,6 +67,7 @@ Spack forbids GCC 15 with CUDA ≤ 12.9, so `generic` would not concretize.
 (GCC 13, glibc 2.39) with CUDA 13.0 for `vr`/`rtx`. If you want 26.04 images, I add the
 forced-include fix (Q31) and a GCC 14 for `generic`.
 **Answer:** ok Ubuntu 24.04 inside images for now 
+**Status (2026-11-01):** Matches the current images (NGC Ubuntu 24.04). Nodes run DGX OS 8.1.
 
 ## Q36 (2026-11-01): Container user identity on Slurm and Run:ai
 
@@ -71,6 +89,7 @@ and they rarely match our targets anyway.
 **Default:** no. Use E4S's `spack.yaml` environments and its known-sm_120-failure list as a
 reference only.
 **Answer:** yes
+**Status (2026-11-01):** To do: add `cache.e4s.io` as a Spack mirror, with its signing key trusted. Expect few hits: E4S 26.06 builds against cuda@12.9.1, and every target is now CUDA 13.0 (Q38).
 
 ## Q34 (2026-11-01): EasyBuild toolchain generation: stay on foss/2025b or move to 2026.1?
 
@@ -80,7 +99,7 @@ defaults to C23, which broke older code on the Ubuntu 26.04 host. The index now 
 **Default (changed 2026-11-01, following your Q22 answer):** try `2026.1` first, then
 `foss,2025b`, then the easyconfig's own toolchain.
 **Answer:** no use GCC 15.2, CUDA 13.3 easyconfigs, debug this until you have come up with a fix 
-**Status (2026-11-01):** Your Q22 answer decides this: always try the newest toolchain first, then fall back. So the order becomes `2026.1` → `foss,2025b` → the easyconfig's own toolchain. That fallback only works once Q33 is done; both are to do next.
+**Status (2026-11-01):** To do: bump EasyBuild recipes to `2026.1` (GCC 15.2, CUDA 13.3 easyconfigs), fall back to `foss,2025b`, then to the easyconfig's own toolchain (Q22). Debug GCC 15/C23 failures with real builds. The base image has CUDA 13.0.3, while 2026.1 easyconfigs name 13.3.0, so either `filter-deps` keeps the base CUDA or the base moves to 13.3. Needs Q33 first.
 
 ## Q33 (2026-11-01): Report EasyBuild dependency-resolution failures as `concretize`?
 
