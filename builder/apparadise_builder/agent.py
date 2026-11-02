@@ -63,12 +63,9 @@ CONTAINERFILES = {
     "spack": """\
 FROM {registry}/{base_builder} AS build
 COPY spack.yaml /work/spack.yaml
-# Spack keeps some stage dirs in TMPDIR (bison: gnulib's deliberately deep confdir3/... tree),
-# which podman then cannot commit (lstat: path too long). Remove them in the same RUN.
 RUN spack -e /work buildcache keys --install --trust --yes-to-all \\
  && spack -e /work concretize --fresh && spack -e /work install --fail-fast \\
- && spack -e /work gc -y && rm -rf /scratch/tmp/* \\
- && chmod -R a+rX /opt/software /opt/view
+ && spack -e /work gc -y && chmod -R a+rX /opt/software /opt/view
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/software /opt/software
 COPY --from=build /opt/view /opt/view
@@ -83,14 +80,12 @@ COPY easystack.yml /work/easystack.yml
 # the CUDA sanity check (device code, PTX) instead of only warning. The build runs as root
 # inside a throw-away container, which EasyBuild refuses without the explicit opt-in.
 # EasyBuild's own build-dir cleanup chmods every path first and fails on M4's deliberately
-# over-long confdir3/confdir3/... test tree; rm -rf (relative walks) does not, and in the
-# same RUN keeps the build trees out of the layer.
+# over-long confdir3/confdir3/... test tree; the build dir is the job's /scratch mount (plan()).
 ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
     EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1 \
     EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1 \
     EASYBUILD_DISABLE_CLEANUP_BUILDDIR=1
 RUN eb --easystack /work/easystack.yml --installpath=/opt/apps --robot \
- && rm -rf /scratch/eb-build/* /scratch/tmp/* \
  && chmod -R a+rX /opt/apps
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/apps /opt/apps
@@ -135,11 +130,20 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
         return [[tool, "run", "--rm", "--platform", job["platform"], *auth,
                  "-v", f"{workdir}:/work:{mode}", f"{s.registry_host}/{job['baseBuilder']}",
                  *CONCRETIZE[job["source"]]]]
+    if stage in ("build", "package"):
+        # Build trees, Spack stages and downloads go to the job's own dir, never into a layer:
+        # gnulib's deliberately deep confdir3/confdir3/... test trees (M4, bison, tar) can be
+        # neither committed nor removed on overlayfs over CephFS. Deleted with the workdir.
+        scratch = workdir / "scratch"
+        for d in ("tmp", "eb-build", "sources"):
+            (scratch / d).mkdir(parents=True, exist_ok=True)
+        (scratch / "tmp").chmod(0o1777)
+        vol = ["-v", f"{scratch}:/scratch"]
     if stage == "build":
-        return [[tool, "build", "--platform", job["platform"], "--target", "build",
+        return [[tool, "build", "--platform", job["platform"], *vol, "--target", "build",
                  "-t", f"{local}-build", "-f", "Containerfile", "."]]
     if stage == "package":
-        return [[tool, "build", "--platform", job["platform"], *labels, "-t", local,
+        return [[tool, "build", "--platform", job["platform"], *vol, *labels, "-t", local,
                  "-f", "Containerfile", "."],
                 # Runs as an arbitrary uid, as on Slurm or Run:ai, and fails if anything
                 # installed is unreadable to it. No GPU needed.

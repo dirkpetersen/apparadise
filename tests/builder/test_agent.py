@@ -170,6 +170,19 @@ def test_concretize_commands_are_constant(world, tmp_path):
     assert "--dry-run" in CONCRETIZE["easybuild"] and "--robot" in CONCRETIZE["easybuild"]
 
 
+
+def test_build_trees_stay_out_of_the_image(world, tmp_path):
+    # gnulib's confdir3 trees can be neither committed nor removed on overlayfs over CephFS
+    _, _, make_agent, _, _ = world
+    s = make_agent(FakeRunner()).s
+    job = {"id": 7, "image": "public/x:1-rtx", "package": "x", "version": "1",
+           "target": "rtx", "source": "spack", "platform": "linux/amd64",
+           "baseBuilder": "cache/base-builder:13.0-rtx", "smoke": "true"}
+    for stage in ("build", "package"):
+        argv = plan(job, stage, s, tmp_path)[0]
+        assert argv[argv.index("-v") + 1] == f"{tmp_path / 'scratch'}:/scratch"
+    assert (tmp_path / "scratch" / "tmp").stat().st_mode & 0o1777 == 0o1777
+
 def test_settings_validation():
     from pydantic import ValidationError
 
