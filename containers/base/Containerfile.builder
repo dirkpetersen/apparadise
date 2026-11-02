@@ -43,10 +43,13 @@ RUN python3 -m venv /opt/easybuild \
 # Its package recipes (spack-packages, branch releases/v2026.06 for Spack 1.2.2) are
 # fetched here, not by every build: one base image digest = one recipe snapshot. The index
 # must scan the same branch (docs/operations/go-live.md, index refresh), or it offers versions builders lack.
+# `spack bootstrap now`: the solver (clingo) is installed here once; otherwise every job's
+# concretize and build stage compiled it from source again.
 RUN git clone --depth 1 --branch "${SPACK_REF}" https://github.com/spack/spack.git /opt/spack \
  && ln -s /opt/spack/bin/spack /usr/local/bin/spack \
  && { spack repo update || spack list zlib; } >/dev/null 2>&1 \
- && spack repo list && spack versions --safe zlib | head -1
+ && spack repo list && spack versions --safe zlib | head -1 \
+ && spack bootstrap now
 
 # pixi: one static binary.
 RUN arch="$(uname -m)" \
