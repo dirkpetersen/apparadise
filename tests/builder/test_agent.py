@@ -87,14 +87,14 @@ def test_happy_path_publishes(world):
     job, status = asyncio.run(one_job(agent))
     assert job["id"] == bid and status == "published"
     tools = [c[:2] for c in runner.calls]
-    assert tools == [["podman", "run"], ["podman", "build"], ["podman", "build"],
-                     ["podman", "run"], ["podman", "push"], ["srun", "-p"], ["podman", "push"]]
+    assert tools == [["podman", "run"], ["podman", "build"], ["podman", "run"],
+                     ["podman", "push"], ["srun", "-p"], ["podman", "push"]]
     # concretize: the solver alone, in the job's builder image (Spack writes its lock)
     conc = runner.calls[0]
     assert conc[-5:] == ["spack", "-e", "/work", "concretize", "--fresh"]
     assert any(a.endswith(":/work:rw") for a in conc)
-    assert runner.calls[3][runner.calls[3].index("--user") + 1] == "54321:54321"
-    srun = runner.calls[5]
+    assert runner.calls[2][runner.calls[2].index("--user") + 1] == "54321:54321"
+    srun = runner.calls[4]
     assert f"--container-image=registry.example.org#cache/test-gromacs:{bid}" in srun
     # Q19: Enroot pulls the test tag with the job's own login, not a site account
     [export] = [a for a in srun if a.startswith("--export=")]
@@ -112,7 +112,7 @@ def test_happy_path_publishes(world):
 def test_failure_reports_stage_and_error(world):
     tc, db, make_agent, queue, _ = world
     bid = queue()
-    job, status = asyncio.run(one_job(make_agent(FakeRunner(fail_on="--target"))))
+    job, status = asyncio.run(one_job(make_agent(FakeRunner(fail_on="build"))))
     assert status == "failed"
     row = db.query_one("SELECT status, stage, failure_id FROM build WHERE id = ?", (bid,))
     assert (row["status"], row["stage"]) == ("failed", "build")
@@ -178,9 +178,8 @@ def test_build_trees_stay_out_of_the_image(world, tmp_path):
     job = {"id": 7, "image": "public/x:1-rtx", "package": "x", "version": "1",
            "target": "rtx", "source": "spack", "platform": "linux/amd64",
            "baseBuilder": "cache/base-builder:13.0-rtx", "smoke": "true"}
-    for stage in ("build", "package"):
-        argv = plan(job, stage, s, tmp_path)[0]
-        assert argv[argv.index("-v") + 1] == f"{tmp_path / 'scratch'}:/scratch"
+    argv = plan(job, "build", s, tmp_path)[0]
+    assert argv[argv.index("-v") + 1] == f"{tmp_path / 'scratch'}:/scratch"
     assert (tmp_path / "scratch" / "tmp").stat().st_mode & 0o1777 == 0o1777
 
 def test_settings_validation():

@@ -130,7 +130,7 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
         return [[tool, "run", "--rm", "--platform", job["platform"], *auth,
                  "-v", f"{workdir}:/work:{mode}", f"{s.registry_host}/{job['baseBuilder']}",
                  *CONCRETIZE[job["source"]]]]
-    if stage in ("build", "package"):
+    if stage == "build":
         # Build trees, Spack stages and downloads go to the job's own dir, never into a layer:
         # gnulib's deliberately deep confdir3/confdir3/... test trees (M4, bison, tar) can be
         # neither committed nor removed on overlayfs over CephFS. Deleted with the workdir.
@@ -139,13 +139,13 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
             (scratch / d).mkdir(parents=True, exist_ok=True)
         (scratch / "tmp").chmod(0o1777)
         vol = ["-v", f"{scratch}:/scratch"]
-    if stage == "build":
-        return [[tool, "build", "--platform", job["platform"], *vol, "--target", "build",
-                 "-t", f"{local}-build", "-f", "Containerfile", "."]]
-    if stage == "package":
+        # One podman build makes the final, labelled image. A second build in `package`
+        # would resolve the base-builder tag again and rebuild everything if the base was
+        # updated meanwhile (layer-cache miss).
         return [[tool, "build", "--platform", job["platform"], *vol, *labels, "-t", local,
-                 "-f", "Containerfile", "."],
-                # Runs as an arbitrary uid, as on Slurm or Run:ai, and fails if anything
+                 "-f", "Containerfile", "."]]
+    if stage == "package":
+        return [# Runs as an arbitrary uid, as on Slurm or Run:ai, and fails if anything
                 # installed is unreadable to it. No GPU needed.
                 [tool, "run", "--rm", "--platform", job["platform"], "--user", ANY_UID,
                  "--entrypoint", "sh", local, "-c", ANY_UID_CHECK]]
