@@ -38,6 +38,13 @@
     # == propagates the flag to every dependency, wherever the old code is
     spack: {spec_append: "cflags==-std=gnu17"}
 
+- id: kokkos-cuda-wrapper
+  why: Kokkos with +cuda and GCC needs nvcc_wrapper (Spack raises InstallError otherwise)
+  match: 'requires \+wrapper when using \+cuda'
+  stages: [build]
+  actions:
+    spack: {spec_append: "+wrapper"}
+
 - id: easybuild-toolchain-fallback
   why: the try-toolchain bump found no matching dependencies; try the next older generation
     in containers/targets.yml (easybuild_toolchains), and after the last one the toolchain

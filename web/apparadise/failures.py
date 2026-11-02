@@ -19,6 +19,8 @@ from .db import STAGES, Database, get_db
 
 # The first line that looks like an error, in priority order.
 ERROR_LINE_RES = [
+    # Spack's own exception names the cause; its "==> Error:" line after it is a generic summary
+    re.compile(r"^.*\bspack\.error\.\w+: .*$", re.M),
     re.compile(r"^.*\berror\b[: ].*$", re.I | re.M),
     re.compile(r"^.*\b(fatal|failed|cannot|undefined reference)\b.*$", re.I | re.M),
 ]

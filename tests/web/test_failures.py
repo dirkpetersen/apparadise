@@ -24,6 +24,9 @@ def test_first_error_line():
     log = "checking for gcc... yes\nconfigure: error: Cannot find socklen_t\nmore\n"
     assert first_error_line(log) == "configure: error: Cannot find socklen_t"
     assert first_error_line("all good\nlast line") == "last line"
+    spack = ("  spack.error.InstallError: Kokkos requires +wrapper when using +cuda\n"
+             "==> Error: The following packages failed to install:\n")
+    assert first_error_line(spack).startswith("spack.error.InstallError: Kokkos")
     assert first_error_line("") == ""
 
 
