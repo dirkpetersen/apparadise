@@ -9,6 +9,16 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q45 (2026-11-01): No `generic` image for single-architecture packages such as Kokkos?
+
+Kokkos compiles for exactly one GPU architecture. Spack's recipe refuses a list
+(`multiple values are not allowed for variant 'cuda_arch' in package 'kokkos'`), so the
+`generic` target (sm_75 to sm_120 in one image) cannot be built for it.
+**Default:** Kokkos is built for `rtx` (and `vr`) only, and its `generic` build stays a
+`concretize` failure in the failure DB. The alternative is one image per architecture
+(`kokkos:<v>-sm80`, ...), which adds targets the data model does not have.
+**Answer:**
+
 ## Q44 (2026-11-01): Cellpose from conda-forge instead of EasyBuild?
 
 EasyBuild has only `Cellpose-2.2.2-foss-2022a-CUDA-11.7.0.eb`. Its toolchain (GCC 11.3.0)
