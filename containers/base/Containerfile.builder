@@ -76,4 +76,11 @@ ENV APPARADISE_TARGET=${TARGET} \
 RUN test -x "$LMOD_CMD" && eb --version && /opt/easybuild/bin/python -c "import yaml, archspec" \
  && mkdir -p /scratch/tmp /scratch/eb-build /scratch/sources && chmod 1777 /scratch/tmp
 
+# No GPU driver here, only CUDA's stub libcuda.so. Packages that call the driver API (LAMMPS
+# GPU, GROMACS) link a shared library that needs libcuda.so.1, and the final link fails
+# with "undefined reference to cuModuleLoad". Spack clears LIBRARY_PATH, so the stub dir goes
+# to ld.so.conf, which GNU ld also searches. Builder only: base-runtime never sees the stub.
+RUN ln -sf libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 \
+ && echo /usr/local/cuda/lib64/stubs > /etc/ld.so.conf.d/zz-cuda-stubs.conf && ldconfig
+
 WORKDIR /work
