@@ -9,6 +9,18 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q46 (2026-11-01): Spack packages that get CUDA only through a dependency (cryoDRGN)
+
+EasyBuild has no cryoDRGN, and conda-forge has none either. Spack has `cryodrgn` 3.4.3, a
+Python package with no `cuda` variant of its own: its GPU code is PyTorch's
+(`depends_on("py-torch")`). The resolver accepts Spack only with a `cuda` variant, so the
+build is `no-recipe`.
+**Default:** it stays `no-recipe` for now. I fixed the catalog alias (`py-cryodrgn` to
+`cryodrgn`). The alternative is the Q42 companion idea for Spack: render
+`cryodrgn@3.4.3 ^py-torch+cuda cuda_arch=...` and let the resolver accept such pairs. That
+changes the resolver rule in CLAUDE.md, so it needs your go-ahead.
+**Answer:**
+
 ## Q45 (2026-11-01): No `generic` image for single-architecture packages such as Kokkos?
 
 Kokkos compiles for exactly one GPU architecture. Spack's recipe refuses a list

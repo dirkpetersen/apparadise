@@ -6,6 +6,6 @@ homepage: https://github.com/ml-struct-bio/cryodrgn
 source: easybuild
 visibility: public
 tags: [cryo-em, machine-learning]
-aliases: {easybuild: cryoDRGN, spack: py-cryodrgn}
+aliases: {easybuild: cryoDRGN, spack: cryodrgn}
 executables: [cryodrgn]
 versions: {}
