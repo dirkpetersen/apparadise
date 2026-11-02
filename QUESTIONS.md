@@ -9,6 +9,21 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q47 (2026-11-01): Who fills the Spack binary cache (`cache/spack-<target>`)?
+
+Every Spack recipe reads the `apparadise-cache` mirror, but nothing ever pushes to it, so
+each job compiles its whole dependency tree. Right now gromacs, lammps, openmpi and
+nccl-tests are each compiling the same `openmpi@5.0.10` at the same time. Pushing needs
+write access to a repository shared by all builds. Anyone signed in can trigger a build
+(also through the chatbot), so a job that can push could plant binaries that later builds
+install.
+**Default:** no change for now. The job login stays limited to the job's own repositories,
+and builds compile their dependencies. Proposal: only builds of catalog packages (not
+chatbot or user requests) and only on on-prem builders push their dependencies with
+`spack buildcache push`, signed with a key that only those builders hold, and every build
+installs only signed binaries from `cache/`.
+**Answer:**
+
 ## Q46 (2026-11-01): Spack packages that get CUDA only through a dependency (cryoDRGN)
 
 EasyBuild has no cryoDRGN, and conda-forge has none either. Spack has `cryodrgn` 3.4.3, a
