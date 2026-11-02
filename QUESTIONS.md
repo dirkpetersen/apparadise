@@ -72,6 +72,8 @@ NGC images as-is.
 **Status (2026-11-02):** since pixi packages without CUDA builds get no `*cuda*` filter (Q42),
 the 0.0.1 placeholder now solves and would build an empty "rapids" image. I stopped that
 build. Until you answer, the local catalog runs skip rapids; the catalog entry needs a fix.
+**rapids-singlecell** (`source: pixi`) has the same problem: it is not on conda-forge at all
+(only the `rapidsai` channel and PyPI), so it is `no-recipe` on both targets.
 **Answer:**
 
 ## Q42 (2026-11-01): Which conda-forge package carries a package's CUDA code?
