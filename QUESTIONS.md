@@ -69,6 +69,9 @@ CUDA build:
 `nvcr.io/nvidia/hpc-benchmarks` and `nvcr.io/nvidia/rapidsai/base` (through our `nvcr/` mirror)
 in the catalog text. Alternatives: allow the `rapidsai` channel for RAPIDS only, or catalog
 NGC images as-is.
+**Status (2026-11-02):** since pixi packages without CUDA builds get no `*cuda*` filter (Q42),
+the 0.0.1 placeholder now solves and would build an empty "rapids" image. I stopped that
+build. Until you answer, the local catalog runs skip rapids; the catalog entry needs a fix.
 **Answer:**
 
 ## Q42 (2026-11-01): Which conda-forge package carries a package's CUDA code?
