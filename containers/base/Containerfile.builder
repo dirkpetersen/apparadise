@@ -83,4 +83,7 @@ RUN test -x "$LMOD_CMD" && eb --version && /opt/easybuild/bin/python -c "import 
 RUN ln -sf libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 \
  && echo /usr/local/cuda/lib64/stubs > /etc/ld.so.conf.d/zz-cuda-stubs.conf && ldconfig
 
+COPY eb-hooks.py /opt/easybuild/hooks.py
+ENV EASYBUILD_HOOKS=/opt/easybuild/hooks.py
+
 WORKDIR /work
