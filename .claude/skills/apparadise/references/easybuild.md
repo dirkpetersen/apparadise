@@ -354,6 +354,8 @@ these cost one 4 to 8 hour GCC build to find:
 | EasyBuild crashes with `RecursionError` in `make_builddir` → `shutil.rmtree` | an old build dir with that deep tree; Python 3.12.3's rmtree recurses per level | a fresh `/scratch` per job (the agent deletes the job dir) |
 | deleting a job dir: `Permission denied` | sources unpacked as container root keep tarball owners, which are sub-UIDs on the host | `rm -rf`, then `podman unshare rm -rf` |
 | LAMMPS/GROMACS final link: `undefined reference to cuModuleLoad` | no driver on the builder, so no `libcuda.so.1` | `libcuda.so.1` stub symlink plus `ld.so.conf` entry in `base-builder` only |
+| MotionCor3: `cufft.h: No such file or directory` | makefile passes `CUDAHOME=$CUDA_HOME`; with CUDA filtered nothing sets it | `CUDA_HOME`/`CUDA_ROOT`/`CUDA_PATH` in the EasyBuild template |
+| FlexiBLAS: checksum verification failed; the "tarball" is 7 KB of HTML ("Making sure you're not a bot") | `gitlab.mpi-magdeburg.mpg.de` serves an anti-bot page with HTTP 200, so EasyBuild never tries another URL | hook puts `https://csc.mpi-magdeburg.mpg.de/mpcsc/software/flexiblas/` first (same files, 3.2.0 to 3.5.0) |
 
 Read the real error in the job's `scratch/tmp/eb-*/.../run-shell-cmd-output/*/out.txt`, not
 in the podman log, which shows only the last lines of the failing command.

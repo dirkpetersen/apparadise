@@ -198,8 +198,10 @@ def test_shared_cache_mounts(world, tmp_path):
     ap = tmp_path / "ap"
     assert mounts("spack", True) == [f"{ap}/spack/rtx-amd64:/cache:rw"]
     assert mounts("spack", False) == [f"{ap}/spack/rtx-amd64:/cache:ro"]
-    assert mounts("easybuild", True) == [f"{ap}/eb/rtx-amd64:/opt/apps"]
-    assert mounts("easybuild", False) == []  # requests never write to the shared tree
+    assert mounts("easybuild", True) == [f"{ap}/eb/sources:/scratch/sources",
+                                         f"{ap}/eb/rtx-amd64:/opt/apps"]
+    # requests never write to the shared tree or sources
+    assert mounts("easybuild", False) == [f"{ap}/eb/sources:/opt/eb-sources:ro"]
     assert mounts("pixi", True) == []
 
 

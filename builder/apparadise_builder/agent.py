@@ -95,7 +95,10 @@ ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
     EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1 \
     EASYBUILD_DISABLE_CLEANUP_BUILDDIR=1 \
     EASYBUILD_ACCEPT_EULA_FOR=cuDNN \
-    TAR_OPTIONS=--no-same-owner
+    TAR_OPTIONS=--no-same-owner \
+    EASYBUILD_SOURCEPATH=/scratch/sources:/opt/eb-sources
+# EasyBuild downloads into the first source path and finds files in any (plan() mounts
+# the shared source dir at one of them).
 # --no-same-owner: tar as (namespaced) root restores the tarball's owners, which fails for
 # UIDs outside the user namespace (Perl 5.36.1: uid 197609) and leaves sub-UID files behind.
 # /opt/apps may be the builder's shared install tree (plan()): the coordinator runs one
@@ -168,13 +171,21 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
                 cache = Path(s.cache_dir) / "spack" / key
                 cache.mkdir(parents=True, exist_ok=True)
                 vol += ["-v", f"{cache}:/cache:{'rw' if push else 'ro'}"]
-            elif job["source"] == "easybuild" and push:
-                # shortcut: user requests still build their whole EasyBuild tree (a writable
-                # shared tree would let them plant modules); give them a read-only lower
-                # tree if that gets too slow.
-                tree = Path(s.cache_dir) / "eb" / key
-                tree.mkdir(parents=True, exist_ok=True)
-                vol += ["-v", f"{tree}:/opt/apps"]
+            elif job["source"] == "easybuild":
+                # Sources are arch-independent and EasyBuild checks every checksum, so all
+                # builds read one shared dir; only sysadmin builds download into it.
+                # shortcut: two targets fetching one file at once can clash; the checksum then
+                # fails one build, which a retry fixes. Download to a temp name if that recurs.
+                src = Path(s.cache_dir) / "eb" / "sources"
+                src.mkdir(parents=True, exist_ok=True)
+                vol += ["-v", f"{src}:/scratch/sources" if push else f"{src}:/opt/eb-sources:ro"]
+                if push:
+                    # shortcut: user requests still build their whole EasyBuild tree (a
+                    # writable shared tree would let them plant modules); give them a
+                    # read-only lower tree if that gets too slow.
+                    tree = Path(s.cache_dir) / "eb" / key
+                    tree.mkdir(parents=True, exist_ok=True)
+                    vol += ["-v", f"{tree}:/opt/apps"]
         # One podman build makes the final, labelled image. A second build in `package`
         # would resolve the base-builder tag again and rebuild everything if the base was
         # updated meanwhile (layer-cache miss).

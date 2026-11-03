@@ -11,3 +11,24 @@ def parse_hook(ec, *args, **kwargs):
     # UID 0 and open raw sockets, which the container cannot (alphafold3, 5.38.2).
     if ec.name == "Perl":
         ec["runtest"] = False
+    # The MPI GitLab answers downloads with an HTML anti-bot page (HTTP 200), so EasyBuild
+    # never tries a second URL and the checksum fails: every foss toolchain needs FlexiBLAS.
+    # The group's own web server has the same files (checksums match for 3.2.0 to 3.5.0).
+    _mirror_first(ec, "gitlab.mpi-magdeburg.mpg.de/", FLEXIBLAS_MIRROR)
+
+
+FLEXIBLAS_MIRROR = "https://csc.mpi-magdeburg.mpg.de/mpcsc/software/flexiblas/"
+
+
+def _mirror_first(ec, host, mirror):
+    def fix(urls):
+        return [mirror, *urls] if any(host in u for u in urls) else urls
+
+    urls = list(ec.get("source_urls") or [])
+    if fix(urls) != urls:
+        ec["source_urls"] = fix(urls)
+    comps = ec.get("components") or []
+    if any(len(c) > 2 for c in comps):
+        ec["components"] = [
+            (*c[:2], {**c[2], "source_urls": fix(list(c[2].get("source_urls") or []))}, *c[3:])
+            if len(c) > 2 else c for c in comps]
