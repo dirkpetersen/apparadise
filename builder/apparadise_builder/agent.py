@@ -343,8 +343,14 @@ class Agent:
             # The log lives on the coordinator; the work tree only fills the scratch disk.
             # rm, not shutil.rmtree: Python 3.12's rmtree recurses per directory level and
             # raises RecursionError (ignore_errors does not cover it) on gnulib's confdir3 trees.
-            rm = await asyncio.create_subprocess_exec("rm", "-rf", "--", str(workdir))
-            await rm.wait()
+            # Rootless podman: sources a build unpacked as root keep their tarball owners,
+            # which map to sub-UIDs the builder user cannot delete outside the user namespace.
+            rm = ["rm", "-rf", "--", str(workdir)]
+            for argv in (rm, [self.s.container_tool, "unshare", *rm]):
+                proc = await asyncio.create_subprocess_exec(
+                    *argv, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+                if await proc.wait() == 0 or os.geteuid() == 0:
+                    break
             self.current = None
 
     # -- the loop ---------------------------------------------------------------------------
