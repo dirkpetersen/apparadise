@@ -85,9 +85,12 @@ COPY easystack.yml /work/easystack.yml
 # and CMakeMake only build GPU code when $EBROOTCUDA is set, so point them at it; and fail
 # the CUDA sanity check (device code, PTX) instead of only warning. The build runs as root
 # inside a throw-away container, which EasyBuild refuses without the explicit opt-in.
+# CUDA_HOME/CUDA_ROOT/CUDA_PATH: what EasyBuild's CUDA module would set; makefile builds
+# (MotionCor3: CUDAHOME=$CUDA_HOME) otherwise miss cufft.h.
 # EasyBuild's own build-dir cleanup chmods every path first and fails on M4's deliberately
 # over-long confdir3/confdir3/... test tree; the build dir is the job's /scratch mount (plan()).
 ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
+    CUDA_HOME=/usr/local/cuda CUDA_ROOT=/usr/local/cuda CUDA_PATH=/usr/local/cuda \
     EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1 \
     EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1 \
     EASYBUILD_DISABLE_CLEANUP_BUILDDIR=1 \

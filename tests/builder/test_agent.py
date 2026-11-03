@@ -325,6 +325,7 @@ def test_containerfiles_expose_base_cuda_to_the_build_tools():
     eb = CONTAINERFILES["easybuild"].format(**fmt)
     # easyblocks only build GPU code with EBROOTCUDA; root needs EasyBuild's explicit opt-in
     assert "EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${CUDA_VERSION}" in eb
+    assert "CUDA_HOME=/usr/local/cuda" in eb  # makefile builds (MotionCor3) read it
     assert "EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1" in eb
     assert "EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1" in eb
     pixi = CONTAINERFILES["pixi"].format(**fmt)

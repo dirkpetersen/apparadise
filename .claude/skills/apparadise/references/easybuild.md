@@ -154,9 +154,9 @@ easyblocks detect CUDA through `get_software_root('CUDA')`, which simply reads
 `$EBROOTCUDA` (`tools/modules.py`); 28 easyblocks do this, including GROMACS, PyTorch and
 generic `CMakeMake`. With CUDA filtered and no `EBROOTCUDA` / `EBVERSIONCUDA` in the build
 environment, those easyblocks take their **CPU path**, so the build can succeed without
-CUDA. The builder image does not set `EBROOTCUDA` today (grep of `containers/` and
-`builder/`). Possible fixes: set `EBROOTCUDA=/usr/local/cuda` and
-`EBVERSIONCUDA=<cuda_full>` in the builder image, or provide CUDA as an external module
+CUDA. The builder's EasyBuild template now sets `EBROOTCUDA`, `EBVERSIONCUDA` and also
+`CUDA_HOME`/`CUDA_ROOT`/`CUDA_PATH` (what the CUDA module sets; MotionCor3's makefile reads
+`$CUDA_HOME` and misses `cufft.h` without it). Another option is CUDA as an external module
 (`EXTERNAL_MODULE` plus metadata, see "Using external modules" in the docs). Either way,
 apparadise's own test stage should verify that the binary contains GPU code. Whether a
 `ENV EBROOTCUDA` survives EasyBuild's environment handling is **(unverified)**. Dependencies
