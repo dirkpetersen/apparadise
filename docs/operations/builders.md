@@ -64,6 +64,11 @@ needed:
 | test | push `cache/test-<name>:<job>`, then `srun --gpus=1 --nice` to run the smoke test on a GPU node |
 | publish | push the release tag, record the digest, `cosign sign` if `SIGN_KEY` is set |
 
+- **EasyBuild hooks** (`containers/base/eb-hooks.py`, set in `base-builder`): GCCcore is built
+  without its nvptx GPU offload compiler (CUDA 13's `ptxas` rejects GCC's default `sm_50`;
+  CUDA code uses nvcc), and Perl's own test suite is skipped (its Net-Ping ICMP tests need
+  raw sockets, which a rootless build container does not have).
+
 - **Credentials:** each job gets its own one-time registry login (`job-<id>`), valid only
   while the job runs ([Registry](registry.md)). The builder
   writes it to a 0600 `auth.json` in the job directory, never to the command line or the
