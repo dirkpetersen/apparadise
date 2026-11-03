@@ -1,6 +1,7 @@
 """The builder agent against the real coordinator (in-process, ASGI), with a fake runner."""
 
 import asyncio
+import os
 from pathlib import Path
 
 import httpx
@@ -181,6 +182,32 @@ def test_build_trees_stay_out_of_the_image(world, tmp_path):
     argv = plan(job, "build", s, tmp_path)[0]
     assert argv[argv.index("-v") + 1] == f"{tmp_path / 'scratch'}:/scratch"
     assert (tmp_path / "scratch" / "tmp").stat().st_mode & 0o1777 == 0o1777
+
+
+def test_a_deep_build_tree_is_removed(world):
+    # M4's gnulib confdir3 test tree is ~450 levels deep. Ubuntu 24.04's Python 3.12.3
+    # shutil.rmtree recursed on it and raised RecursionError, so the job dir stayed and filled
+    # the disk. Later 3.12 releases (this venv: 3.12.14) do not, so this guards the behaviour,
+    # not that exact crash.
+    class DeepTree(FakeRunner):
+        async def __call__(self, argv, cwd, on_output):
+            if argv[1] == "build":
+                d = cwd / "scratch" / "eb-build"
+                d.mkdir(parents=True, exist_ok=True)
+                fd = os.open(d, os.O_RDONLY)
+                for _ in range(1100):
+                    os.mkdir("confdir3", dir_fd=fd)
+                    fd, old = os.open("confdir3", os.O_RDONLY, dir_fd=fd), fd
+                    os.close(old)
+                os.close(fd)
+            return await super().__call__(argv, cwd, on_output)
+
+    _, _, make_agent, queue, tmp = world
+    bid = queue()
+    job, status = asyncio.run(one_job(make_agent(DeepTree())))
+    assert status == "published"
+    assert not (tmp / "work" / str(bid)).exists()
+
 
 def test_settings_validation():
     from pydantic import ValidationError

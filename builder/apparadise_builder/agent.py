@@ -5,8 +5,9 @@ the coordinator. The command runner is injectable, so tests run without podman/s
 
 Stages run by the builder (resolve and generate already happened on the coordinator):
 
-    build    podman build --target build      (the source's own tool inside base-builder)
-    package  podman build                     (final image FROM base-runtime, labelled)
+    build    podman build                     (the source's own tool inside base-builder, then
+                                              the final image FROM base-runtime, labelled)
+    package  podman run --user <any uid>      (every installed file readable to any user)
     test     push a test tag, srun it on a GPU node of the target, run the smoke test
     publish  push the release tag, record the digest, sign (if a key is configured)
 """
@@ -21,7 +22,6 @@ import logging
 import os
 import re
 import shlex
-import shutil
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
@@ -341,7 +341,10 @@ class Agent:
             authfile.unlink(missing_ok=True)
             (workdir / "enroot" / ".credentials").unlink(missing_ok=True)
             # The log lives on the coordinator; the work tree only fills the scratch disk.
-            shutil.rmtree(workdir, ignore_errors=True)
+            # rm, not shutil.rmtree: Python 3.12's rmtree recurses per directory level and
+            # raises RecursionError (ignore_errors does not cover it) on gnulib's confdir3 trees.
+            rm = await asyncio.create_subprocess_exec("rm", "-rf", "--", str(workdir))
+            await rm.wait()
             self.current = None
 
     # -- the loop ---------------------------------------------------------------------------
