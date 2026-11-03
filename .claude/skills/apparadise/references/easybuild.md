@@ -342,6 +342,27 @@ patched easyconfigs in a site robot path. The owner answered Q30 "yes try fixing
 also". The planned mechanism (`recipes/easybuild-overrides/` in the builder image) is not
 built yet.
 
+**Rootless podman builds on CephFS (2026-11-02, alphafold3, relion, motioncor3).** Each of
+these cost one 4 to 8 hour GCC build to find:
+
+| Symptom | Cause | Fix in the repo |
+|---|---|---|
+| GCCcore `make` fails at the end: `ptxas fatal: Value 'sm_50' is not defined` (in `build-nvptx-gcc/.../libgcc/config.log`) | GCCcore's `withnvptx` offload compiler runs the image's CUDA 13 `ptxas`, which dropped `sm_50` | `parse_hook` in `containers/base/eb-hooks.py` sets `withnvptx = False` |
+| Perl test step fails: Net-Ping `*_icmp*.t`, `perl5db.t` | tests see UID 0 and open raw ICMP sockets; a rootless container has no `CAP_NET_RAW` | same hook: `runtest = False` for Perl |
+| `cuDNN ... EULA is currently not accepted` | EasyBuild needs explicit acceptance | `EASYBUILD_ACCEPT_EULA_FOR=cuDNN` (Q48) |
+| `podman commit` fails on `lstat ... confdir3/confdir3/...`, or `rm -rf` says "Directory not empty" | gnulib's deliberately deep test tree (M4, Bison, tar) on overlayfs over CephFS | build trees on the job's `/scratch` bind mount, never in a layer |
+| EasyBuild crashes with `RecursionError` in `make_builddir` → `shutil.rmtree` | an old build dir with that deep tree; Python 3.12.3's rmtree recurses per level | a fresh `/scratch` per job (the agent deletes the job dir) |
+| deleting a job dir: `Permission denied` | sources unpacked as container root keep tarball owners, which are sub-UIDs on the host | `rm -rf`, then `podman unshare rm -rf` |
+| LAMMPS/GROMACS final link: `undefined reference to cuModuleLoad` | no driver on the builder, so no `libcuda.so.1` | `libcuda.so.1` stub symlink plus `ld.so.conf` entry in `base-builder` only |
+
+Read the real error in the job's `scratch/tmp/eb-*/.../run-shell-cmd-output/*/out.txt`, not
+in the podman log, which shows only the last lines of the failing command.
+
+**Shared install tree.** With `CACHE_DIR`, sysadmin-started builds install into
+`/opt/ap/eb/<target>-<arch>` (one EasyBuild job per tree), and the image copies only the
+modules `eb --dry-run` lists for its easystack (`software/<mod>` and
+`modules/all/<mod>.lua`). A GCCcore once built for a target is reused by every later build.
+
 ## 7. How apparadise uses EasyBuild
 
 **Place in the resolver (`resolver.py`), rule 4:** requested source → pixi (Python/ML with
