@@ -91,7 +91,10 @@ ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
     EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1 \
     EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1 \
     EASYBUILD_DISABLE_CLEANUP_BUILDDIR=1 \
-    EASYBUILD_ACCEPT_EULA_FOR=cuDNN
+    EASYBUILD_ACCEPT_EULA_FOR=cuDNN \
+    TAR_OPTIONS=--no-same-owner
+# --no-same-owner: tar as (namespaced) root restores the tarball's owners, which fails for
+# UIDs outside the user namespace (Perl 5.36.1: uid 197609) and leaves sub-UID files behind.
 # /opt/apps may be the builder's shared install tree (plan()): the coordinator runs one
 # EasyBuild job per tree at a time, so a lock left there is stale. The image gets only this
 # package's dependency closure (the modules the dry run lists), not the whole tree.
