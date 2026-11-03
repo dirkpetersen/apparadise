@@ -80,7 +80,8 @@ class JobError(Exception):
 def enqueue(db: Database, package_id: int, version: str, source: str, target: str,
             platform: str, recipe: str, *, requested_by: str, restricted: bool,
             request_id: int | None = None, spec: str = "", easyconfig: str = "",
-            eb_options: dict[str, Any] | None = None, repair: str = "") -> int:
+            eb_options: dict[str, Any] | None = None, repair: str = "",
+            cache_push: bool = False) -> int:
     """Queue one build of one (target, platform); `generic` is queued once per platform."""
     if platform not in TARGET_PLATFORMS[target]:
         raise ValueError(f"{target} does not build for {platform}")
@@ -89,12 +90,12 @@ def enqueue(db: Database, package_id: int, version: str, source: str, target: st
         return c.execute(
                 "INSERT INTO build (package_id, version, source, target, platform, origin, "
                 "request_id, requested_by, recipe, stage, status, restricted, created_at, "
-                "spec, easyconfig, eb_options, repair) "
+                "spec, easyconfig, eb_options, repair, cache_push) "
                 "VALUES (?, ?, ?, ?, ?, 'pipeline', ?, ?, ?, 'concretize', 'queued', ?, ?, ?, ?, "
-                "?, ?) RETURNING id",
+                "?, ?, ?) RETURNING id",
                 (package_id, version, source, target, platform, request_id, requested_by,
                  recipe, int(restricted), ts, spec, easyconfig,
-                 json.dumps(eb_options or {}, sort_keys=True), repair),
+                 json.dumps(eb_options or {}, sort_keys=True), repair, int(cache_push)),
         ).fetchone()[0]
 
 
@@ -141,6 +142,8 @@ def claim(db: Database, builder: dict[str, Any]) -> dict[str, Any] | None:
         "image": f"{project}/{pkg['name']}:"
                  f"{release_tag(job['version'], job['target'], job['platform'])}",
         "cache": f"cache/{job['source']}-{job['target']}",
+        # Restricted builds never feed a cache that public builds read from.
+        "cachePush": bool(job["cache_push"]) and not job["restricted"],
         "stages": list(BUILDER_STAGES),
         "baseBuilder": base_ref("builder", job["target"], cuda),
         "baseRuntime": base_ref("runtime", job["target"], cuda),

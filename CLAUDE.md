@@ -36,6 +36,10 @@ their question ID and date, for example "(Q4, owner, 2026-11-02)".
 - **The pipeline has six stages:** `resolve → generate → build → package → test → publish`.
   Failure stage names are fixed: `no-recipe`, `concretize`, `build`, `package`, `test`,
   `publish`. Do not add new ones without updating the data model and docs.
+- **Shared build caches** (Q9, Q47, owner, 2026-11-02): with `CACHE_DIR` (`/opt/ap`), a
+  builder keeps a Spack binary cache and an EasyBuild install tree per `<target>-<arch>`.
+  Only builds a sysadmin started (`build.cache_push`) write to them; requests only read the
+  Spack cache. An EasyBuild image gets only its own dependency closure from the tree.
 - **Builders pull, and the server never pushes.** Builders register with a one-time token, poll
   `/api/builder/...`, stream logs, and report stage, status and image digest. Each job gets one
   short-lived registry login (`job-<id>`) for its own repositories and never site credentials. Restricted

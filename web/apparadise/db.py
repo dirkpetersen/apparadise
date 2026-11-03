@@ -242,6 +242,12 @@ MIGRATIONS: list[str] = [
     """
     ALTER TABLE build ADD COLUMN registry_secret TEXT;
     """,
+    # 13: may this build write to the builders' shared caches (Spack binary cache, EasyBuild
+    # install tree)? Set when queued, so no later step can widen it: 1 for builds a sysadmin
+    # starts, 0 for user and chatbot requests; repairs and retries copy their build's value.
+    """
+    ALTER TABLE build ADD COLUMN cache_push INTEGER NOT NULL DEFAULT 0;
+    """,
 ]
 
 _SECRET_KEY = re.compile(

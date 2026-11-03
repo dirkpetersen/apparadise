@@ -184,6 +184,25 @@ def test_build_trees_stay_out_of_the_image(world, tmp_path):
     assert (tmp_path / "scratch" / "tmp").stat().st_mode & 0o1777 == 0o1777
 
 
+def test_shared_cache_mounts(world, tmp_path):
+    _, _, make_agent, _, _ = world
+    s = make_agent(FakeRunner(), cache_dir=str(tmp_path / "ap")).s
+
+    def mounts(source, push):
+        job = {"id": 7, "image": "public/x:1-rtx", "package": "x", "version": "1",
+               "target": "rtx", "source": source, "platform": "linux/amd64",
+               "baseBuilder": "b", "smoke": "true", "cachePush": push}
+        argv = plan(job, "build", s, tmp_path / "w")[0]
+        return [argv[i + 1] for i, a in enumerate(argv) if a == "-v"][1:]
+
+    ap = tmp_path / "ap"
+    assert mounts("spack", True) == [f"{ap}/spack/rtx-amd64:/cache:rw"]
+    assert mounts("spack", False) == [f"{ap}/spack/rtx-amd64:/cache:ro"]
+    assert mounts("easybuild", True) == [f"{ap}/eb/rtx-amd64:/opt/apps"]
+    assert mounts("easybuild", False) == []  # requests never write to the shared tree
+    assert mounts("pixi", True) == []
+
+
 def test_a_deep_build_tree_is_removed(world):
     # M4's gnulib confdir3 test tree is ~450 levels deep. Ubuntu 24.04's Python 3.12.3
     # shutil.rmtree recursed on it and raised RecursionError, so the job dir stayed and filled
@@ -319,7 +338,7 @@ def test_images_run_as_any_uid():
     from apparadise_builder.agent import CONTAINERFILES
 
     fmt = {"registry": "r.example", "base_builder": "b", "base_runtime": "r"}
-    for source, paths in (("spack", "/opt/software /opt/view"), ("easybuild", "/opt/apps"),
+    for source, paths in (("spack", "/opt/software /opt/view"), ("easybuild", "/opt/image-apps"),
                           ("pixi", "/work/.pixi/envs/default")):
         text = CONTAINERFILES[source].format(**fmt)
         build, final = text.split("FROM r.example/r")

@@ -161,7 +161,8 @@ def attempt(db: Database, settings: Settings, build_id: int, rules=None) -> dict
         res = queue_builds(db, settings, package=name, version=b["version"],
                            targets=[b["target"]], platforms=[b["platform"]],
                            requested_by="system", admin=True, skip_existing=True,
-                           request_id=b["request_id"], repair=rule["id"], **kwargs)
+                           request_id=b["request_id"], repair=rule["id"],
+                           cache_push=bool(b["cache_push"]), **kwargs)
     except QueueError as e:
         log.info("repair %s of build %s not queued: %s", rule["id"], build_id, e.message)
         return None

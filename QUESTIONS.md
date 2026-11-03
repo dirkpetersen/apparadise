@@ -9,6 +9,14 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q48 (2026-11-02): Accept NVIDIA's cuDNN licence for EasyBuild builds?
+
+AlphaFold3 (both targets) failed at `cuDNN-9.5.1.17-CUDA-12.6.0.eb`: EasyBuild refuses to
+install cuDNN until its End User License Agreement is accepted. Accepting it is a licence
+decision in your name. NGC base images already ship cuDNN under the same licence.
+**Default:** the builder base accepts it (`EASYBUILD_ACCEPT_EULA_FOR=cuDNN`), only for cuDNN.
+**Answer:**
+
 ## Q47 (2026-11-01): Who fills the Spack binary cache (`cache/spack-<target>`)?
 
 Every Spack recipe reads the `apparadise-cache` mirror, but nothing ever pushes to it, so
@@ -22,7 +30,13 @@ and builds compile their dependencies. Proposal: only builds of catalog packages
 chatbot or user requests) and only on on-prem builders push their dependencies with
 `spack buildcache push`, signed with a key that only those builders hold, and every build
 installs only signed binaries from `cache/`.
-**Answer:**
+**Answer:** yes, make a shared EasyBuild install and a Spack cache under /opt/ap (owner, 2026-11-02)
+**Status (2026-11-02):** Done: `CACHE_DIR=/opt/ap` on the builder. `/opt/ap/spack/<target>-<arch>`
+is a file binary cache and `/opt/ap/eb/<target>-<arch>` an EasyBuild install tree (both
+symlinks to CephFS). Only builds a sysadmin starts write to them (`build.cache_push`, set when
+queued; repairs and retries copy it; never for restricted builds). User and chatbot requests
+read the Spack cache read-only and build their EasyBuild dependencies themselves. Unsigned
+and per builder host for now; the signed OCI cache follows once Zot runs.
 
 ## Q46 (2026-11-01): Spack packages that get CUDA only through a dependency (cryoDRGN)
 
@@ -473,7 +487,10 @@ later builds reuse".
 generation) tree** at a time. The tree is read-only-mounted into other builds. Spack and pixi
 builds run in parallel.
 **Answer:** You need to figure this out we want to maximize performance we want to use as many cores as possible but we also um want to have no data corruption so you need to find a middle ground how this all works 
-**Status (2026-11-01):** To do: my proposal is one EasyBuild job per (target, toolchain) install tree, each using all of the builder's cores; Spack and pixi jobs run in parallel with per-job scratch.
+**Status (2026-11-02):** Done: one shared EasyBuild install tree per target and CPU arch
+(`/opt/ap/eb/<target>-<arch>`), at most one EasyBuild job writing to it at a time (the claim
+query), each job with all cores; Spack and pixi jobs run in parallel. Each image gets only
+its own dependency closure from the tree (Q47).
 
 ## Q8 (2026-10-31): Is Harbor already installed, and what is its hostname?
 

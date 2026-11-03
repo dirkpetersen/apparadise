@@ -63,8 +63,14 @@ CONTAINERFILES = {
     "spack": """\
 FROM {registry}/{base_builder} AS build
 COPY spack.yaml /work/spack.yaml
+# /cache: this builder's Spack binary cache (plan()), read-only unless the job may push.
+# shortcut: unsigned and per builder host; move to the signed OCI cache once Zot runs (Q47).
 RUN spack -e /work buildcache keys --install --trust --yes-to-all \\
+ && if [ -d /cache ]; then spack -e /work mirror add --unsigned apparadise-local \\
+      file:///cache; fi \\
  && spack -e /work concretize --fresh && spack -e /work install --fail-fast \\
+ && if [ -w /cache ]; then spack -e /work buildcache push --unsigned --update-index \\
+      --with-build-dependencies apparadise-local || echo "apparadise: cache push failed"; fi \\
  && spack -e /work gc -y && chmod -R a+rX /opt/software /opt/view
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/software /opt/software
@@ -84,11 +90,21 @@ COPY easystack.yml /work/easystack.yml
 ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
     EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1 \
     EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1 \
-    EASYBUILD_DISABLE_CLEANUP_BUILDDIR=1
-RUN eb --easystack /work/easystack.yml --installpath=/opt/apps --robot \
- && chmod -R a+rX /opt/apps
+    EASYBUILD_DISABLE_CLEANUP_BUILDDIR=1 \
+    EASYBUILD_ACCEPT_EULA_FOR=cuDNN
+# /opt/apps may be the builder's shared install tree (plan()): the coordinator runs one
+# EasyBuild job per tree at a time, so a lock left there is stale. The image gets only this
+# package's dependency closure (the modules the dry run lists), not the whole tree.
+RUN rm -rf /opt/apps/software/.locks \\
+ && eb --easystack /work/easystack.yml --installpath=/opt/apps --robot \\
+ && eb --easystack /work/easystack.yml --installpath=/opt/apps --robot --dry-run \\
+    | sed -n 's/.*(module: \\(.*\\))$/\\1/p' > /tmp/closure && test -s /tmp/closure \\
+ && mkdir -p /opt/image-apps && cd /opt/apps \\
+ && while read -r m; do cp -a --parents "software/$m" "modules/all/$m.lua" /opt/image-apps/ \\
+    || exit 1; done < /tmp/closure \\
+ && chmod -R a+rX /opt/image-apps
 FROM {registry}/{base_runtime}
-COPY --from=build /opt/apps /opt/apps
+COPY --from=build /opt/image-apps /opt/apps
 ENV MODULEPATH=/opt/apps/modules/all
 USER 65534:65534
 """,
@@ -139,6 +155,20 @@ def plan(job: dict[str, Any], stage: str, s: Settings, workdir: Path) -> list[li
             (scratch / d).mkdir(parents=True, exist_ok=True)
         (scratch / "tmp").chmod(0o1777)
         vol = ["-v", f"{scratch}:/scratch"]
+        if s.cache_dir:
+            key = f"{job['target']}-{job['platform'].split('/')[-1]}"
+            push = job.get("cachePush", False)
+            if job["source"] == "spack":
+                cache = Path(s.cache_dir) / "spack" / key
+                cache.mkdir(parents=True, exist_ok=True)
+                vol += ["-v", f"{cache}:/cache:{'rw' if push else 'ro'}"]
+            elif job["source"] == "easybuild" and push:
+                # shortcut: user requests still build their whole EasyBuild tree (a writable
+                # shared tree would let them plant modules); give them a read-only lower
+                # tree if that gets too slow.
+                tree = Path(s.cache_dir) / "eb" / key
+                tree.mkdir(parents=True, exist_ok=True)
+                vol += ["-v", f"{tree}:/opt/apps"]
         # One podman build makes the final, labelled image. A second build in `package`
         # would resolve the base-builder tag again and rebuild everything if the base was
         # updated meanwhile (layer-cache miss).

@@ -64,6 +64,13 @@ needed:
 | test | push `cache/test-<name>:<job>`, then `srun --gpus=1 --nice` to run the smoke test on a GPU node |
 | publish | push the release tag, record the digest, `cosign sign` if `SIGN_KEY` is set |
 
+- **Shared caches** (`CACHE_DIR`, for example `/opt/ap`): `spack/<target>-<arch>` is a
+  Spack binary cache mounted at `/cache`, and `eb/<target>-<arch>` an EasyBuild install tree
+  mounted at `/opt/apps`, so GCC and other dependencies are built once per target. Only
+  builds a sysadmin started may write (`cachePush` in the job); user and chatbot requests
+  mount the Spack cache read-only and get no EasyBuild tree. The coordinator runs at most one
+  EasyBuild job per tree, and each EasyBuild image copies only its own dependency closure
+  (the modules `eb --dry-run` lists) out of the tree.
 - **EasyBuild hooks** (`containers/base/eb-hooks.py`, set in `base-builder`): GCCcore is built
   without its nvptx GPU offload compiler (CUDA 13's `ptxas` rejects GCC's default `sm_50`;
   CUDA code uses nvcc), and Perl's own test suite is skipped (its Net-Ping ICMP tests need

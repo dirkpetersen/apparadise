@@ -175,6 +175,24 @@ def test_restricted_only_onprem(env):
     assert job["image"].startswith("restricted/alphafold3:")
 
 
+def test_only_sysadmin_builds_may_fill_the_shared_caches(env):
+    # Anyone can request a build (also through the chatbot); a build that can write to the
+    # shared Spack cache or EasyBuild tree could plant binaries later builds install (Q47).
+    c, db, _ = env
+    db.index.replace_source("spack", [_item("spack", "gromacs", ["2026.3"], True, [], False),
+                                      _item("spack", "kokkos", ["5.1.1"], True, [], False)])
+    b, _ = new_builder(c)
+    queue(c, package="gromacs", version="2026.3", targets=["rtx"])
+    assert c.post("/api/builder/claim", headers=b).json()["cachePush"] is True
+    login(c, "alice")
+    r = c.post("/api/requests", headers=H, json={"name": "kokkos", "targets": ["rtx"]})
+    assert r.status_code == 200 and r.json()["queued"], r.text
+    assert c.post("/api/builder/claim", headers=b).json()["cachePush"] is False
+    queue(c, package="alphafold3", version="3.0.1", targets=["rtx"],
+          easyconfig="AlphaFold3-3.0.1-foss-2025b-CUDA-12.9.1.eb")  # restricted
+    assert c.post("/api/builder/claim", headers=b).json()["cachePush"] is False
+
+
 def test_one_easybuild_job_per_tree(env):
     c, _, _ = env
     for v in ("5.0.1", "5.0.2"):

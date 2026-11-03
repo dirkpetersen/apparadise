@@ -81,7 +81,8 @@ def retry(db: Database, settings: Settings, now: datetime | None = None) -> dict
                                spec=b["spec"], easyconfig=b["easyconfig"],
                                eb_options=json.loads(b["eb_options"] or "{}"),
                                requested_by="system", admin=True, skip_existing=True,
-                               request_id=b["request_id"], platforms=[b["platform"]])
+                               request_id=b["request_id"], platforms=[b["platform"]],
+                               cache_push=bool(b["cache_push"]))
         except QueueError as e:  # e.g. the recipe is gone from the index now
             errors.append({"build": b["id"], "error": e.message})
             continue

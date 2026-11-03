@@ -91,7 +91,7 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
                  enforce_quota: bool = False,
                  platforms: list[str] | None = None, spec_append: str = "",
                  eb_options: dict[str, Any] | None = None,
-                 repair: str = "") -> dict[str, Any]:
+                 repair: str = "", cache_push: bool = False) -> dict[str, Any]:
     """-> {package, version, source, rule, reason, cudaPort, queued, skipped, packageId,
     restricted}. Raises QueueError(422) for no recipe or an unknown version, (429) over quota.
 
@@ -188,7 +188,7 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
                                       requested_by=requested_by, restricted=restricted,
                                       request_id=request_id, spec=spec,
                                       easyconfig=easyconfig, eb_options=eb_options,
-                                      repair=repair)
+                                      repair=repair, cache_push=cache_push)
             queued.append({"id": bid, "target": target, "platform": platform})
     return {"package": package, "version": version, "source": res.source, "rule": res.rule,
             "reason": res.reason, "cudaPort": res.cuda_port, "queued": queued,

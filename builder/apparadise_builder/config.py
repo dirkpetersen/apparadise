@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     registry_host: str = Field(min_length=1)
     container_tool: str = "podman"
     work_dir: str = "/scratch/apparadise"
+    # Shared caches of this builder's jobs: <dir>/spack/<target>-<arch> (Spack binary cache)
+    # and <dir>/eb/<target>-<arch> (EasyBuild install tree). Empty: no shared caches.
+    cache_dir: str = ""
     # How the test stage runs: `slurm` (srun on a GPU node of the target) or `none`
     # (fail closed: an untested image is never published).
     test_mode: Literal["slurm", "none"] = "slurm"

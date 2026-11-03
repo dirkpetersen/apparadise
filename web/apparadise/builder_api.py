@@ -239,7 +239,7 @@ async def start_build(body: BuildBody, request: Request, user: Sysadmin,
         res = await db.run(queue_builds, db, request.app.state.settings, package=body.package,
                            version=body.version, targets=body.targets, source=body.source,
                            easyconfig=body.easyconfig, spec=body.spec,
-                           requested_by=user.username, admin=True)
+                           requested_by=user.username, admin=True, cache_push=True)
     except QueueError as e:
         raise HTTPException(e.status, e.message) from None
     await _audit(db, user.username, "build.queue", "package", body.package,
