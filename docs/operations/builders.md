@@ -72,7 +72,11 @@ needed:
   EasyBuild job per tree, and each EasyBuild image copies only its own dependency closure
   (the modules `eb --dry-run` lists) out of the tree. `eb/sources` holds EasyBuild's
   downloads for all targets (every file is checksum-checked): sysadmin builds download into
-  it, requests read it.
+  it, requests read it. Seed `generic/eb_v<EB version>/ConfigureMake/config.guess` there once
+  per EasyBuild version: savannah.gnu.org refuses connections from here, and every
+  ConfigureMake package otherwise loses 3 minutes to download retries. The same commit is on
+  `gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/<commit>/config.guess`, and
+  EasyBuild checks its sha256.
 - **EasyBuild hooks** (`containers/base/eb-hooks.py`, set in `base-builder`): GCCcore is built
   without its nvptx GPU offload compiler (CUDA 13's `ptxas` rejects GCC's default `sm_50`;
   CUDA code uses nvcc), and Perl's own test suite is skipped (its Net-Ping ICMP tests need
