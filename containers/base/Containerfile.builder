@@ -84,11 +84,13 @@ RUN ln -sf libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 \
  && echo /usr/local/cuda/lib64/stubs > /etc/ld.so.conf.d/zz-cuda-stubs.conf && ldconfig
 
 # CUDA 13 has only the header-only NVTX3 (include/nvtx3/). Older code (MotionCor3) still has
-# `#include <nvToolsExt.h>` and `-lnvToolsExt`: forward each header, and point the library
-# name at libnvtx3interop, which base-runtime ships too.
+# `#include <nvToolsExt.h>` and `-lnvToolsExt`: forward each header. The library name is a
+# linker script that links libnvtx3interop only if a symbol is used (header-only NVTX3 uses
+# none): that library has a bogus DT_AUXILIARY "visibility=hidden", so ldd prints "not found"
+# and EasyBuild's sanity check fails every binary linked to it (MotionCor3).
 RUN cd /usr/local/cuda/include && for f in nvtx3/nvToolsExt*.h; do \
       [ -e "${f#nvtx3/}" ] || echo "#include <$f>" > "${f#nvtx3/}"; done \
- && ln -sf libnvtx3interop.so.1 /usr/local/cuda/lib64/libnvToolsExt.so
+ && echo 'INPUT(AS_NEEDED(libnvtx3interop.so.1))' > /usr/local/cuda/lib64/libnvToolsExt.so
 
 COPY eb-hooks.py /opt/easybuild/hooks.py
 ENV EASYBUILD_HOOKS=/opt/easybuild/hooks.py
