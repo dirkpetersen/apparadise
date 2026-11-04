@@ -73,7 +73,7 @@ needed:
   (the modules `eb --dry-run` lists) out of the tree. `eb/sources` holds EasyBuild's
   downloads for all targets (every file is checksum-checked): sysadmin builds download into
   it, requests read it. Seed `generic/eb_v<EB version>/ConfigureMake/config.guess` there once
-  per EasyBuild version: savannah.gnu.org refuses connections from here, and every
+  per EasyBuild version, mode 0755 (EasyBuild runs it in place): savannah.gnu.org refuses connections from here, and every
   ConfigureMake package otherwise loses 3 minutes to download retries. The same commit is on
   `gitlab.com/freedesktop-sdk/mirrors/savannah/config/-/raw/<commit>/config.guess`, and
   EasyBuild checks its sha256.
