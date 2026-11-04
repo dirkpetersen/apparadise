@@ -16,6 +16,12 @@ def parse_hook(ec, *args, **kwargs):
     if ec.name == "LLVM":
         ec["test_suite_ignore_patterns"] = [*(ec.get("test_suite_ignore_patterns") or []),
                                             *LLVM_ROOT_TESTS]
+    # CUDA 13 drops the unversioned PFN_cu* driver typedefs; UCX 1.16 uses one of them
+    # (alphafold3). The _v11070 name exists in CUDA 11.7 to 13, so the define is safe for all.
+    if ec.name == "UCX-CUDA":
+        ec["preconfigopts"] = (
+            'export CPPFLAGS="$CPPFLAGS -DPFN_cuMemGetHandleForAddressRange='
+            'PFN_cuMemGetHandleForAddressRange_v11070" && ' + (ec.get("preconfigopts") or ""))
     # The MPI GitLab answers downloads with an HTML anti-bot page (HTTP 200), so EasyBuild
     # never tries a second URL and the checksum fails: every foss toolchain needs FlexiBLAS.
     # The group's own web server has the same files (checksums match for 3.2.0 to 3.5.0).

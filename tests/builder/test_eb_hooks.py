@@ -39,3 +39,10 @@ def test_llvm_ignores_the_tests_that_fail_as_root():
     hooks.parse_hook(ec)
     assert ec["test_suite_ignore_patterns"][0] == "keep"
     assert "llvm-dwarfdump/X86/output.s" in ec["test_suite_ignore_patterns"]
+
+
+def test_ucx_cuda_maps_the_dropped_cuda_typedef():
+    ec = EC("UCX-CUDA", preconfigopts="x && ")
+    hooks.parse_hook(ec)
+    assert "PFN_cuMemGetHandleForAddressRange_v11070" in ec["preconfigopts"]
+    assert ec["preconfigopts"].endswith("&& x && ")
