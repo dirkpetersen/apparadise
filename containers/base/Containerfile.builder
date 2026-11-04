@@ -25,7 +25,7 @@ LABEL io.apparadise.target="${TARGET}" io.apparadise.role="builder"
 RUN printf 'APT::Sandbox::User "root";\n' > /etc/apt/apt.conf.d/00apparadise-sandbox \
  && apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      build-essential gfortran git curl ca-certificates file patch unzip bzip2 xz-utils zstd \
+      build-essential gfortran git curl openssh-client ca-certificates file patch unzip bzip2 xz-utils zstd \
       python3 python3-venv python3-pip pkg-config autoconf automake libtool autotools-dev \
       cmake ninja-build rdma-core libibverbs-dev librdmacm-dev libnuma-dev \
       lmod tcl squashfs-tools zlib1g-dev libssl-dev libbz2-dev liblzma-dev \
@@ -70,7 +70,8 @@ ENV APPARADISE_TARGET=${TARGET} \
     OMPI_ALLOW_RUN_AS_ROOT=1 \
     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
-# OMPI_ALLOW_RUN_AS_ROOT*: EasyBuild's OpenMPI sanity check runs mpirun, which refuses uid 0;
+# OMPI_ALLOW_RUN_AS_ROOT*: EasyBuild's OpenMPI sanity check runs mpirun, which refuses uid 0
+# (and needs an ssh binary even on one node: openssh-client above);
 # here that is the rootless builder's mapped user, not host root. Builder only.
 # The eb wrapper looks for `python` on PATH, where only the system python3 is: EB_PYTHON
 # names the venv's. Ubuntu's lmod package sets LMOD_CMD only in login shells (/etc/profile.d); a plain

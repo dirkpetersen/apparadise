@@ -358,7 +358,8 @@ these cost one 4 to 8 hour GCC build to find:
 | NCCL 2.26 `fatal error: cuda/atomic: No such file or directory` | CUDA 13 moved CCCL (`cuda/`, `thrust/`, `cub/`) to `include/cccl/`; g++ with only `-I$CUDA/include` misses it | base-builder links each `include/cccl/*` back into `include/` |
 | package stage: `unreadable as a non-root user: .../OpenSSL/3/include/openssl` | EasyBuild's OpenSSL wrapper links to the builder's `/usr/include/openssl`, absent at runtime | the check skips symlinks (`! -type l`) |
 | OpenMPI sanity check: `mpirun has detected an attempt to run as root` | the build runs as (namespaced) root | base-builder sets `OMPI_ALLOW_RUN_AS_ROOT=1` and `OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1` |
-| NCCL 2.26 `libcu++ requires at least C++ 17` | NCCL < 2.27 builds with `-std=c++11` | hook prepends `CXXSTD=-std=c++17` to `buildopts` |
+| OpenMPI sanity check: `plm_rsh_agent: ssh : rsh` not found | mpirun needs an ssh binary even on one node | base-builder installs `openssh-client` |
+| NCCL 2.26 `libcu++ requires at least C++ 17` | NCCL < 2.27 hard-codes `-std=c++11` in `makefiles/common.mk` (`CXXSTD=` does nothing) | hook seds it to `-std=c++17` in `prebuildopts` |
 | `cuDNN ... EULA is currently not accepted` | EasyBuild needs explicit acceptance | `EASYBUILD_ACCEPT_EULA_FOR=cuDNN` (Q48) |
 | `podman commit` fails on `lstat ... confdir3/confdir3/...`, or `rm -rf` says "Directory not empty" | gnulib's deliberately deep test tree (M4, Bison, tar) on overlayfs over CephFS | build trees on the job's `/scratch` bind mount, never in a layer |
 | EasyBuild crashes with `RecursionError` in `make_builddir` → `shutil.rmtree` | an old build dir with that deep tree; Python 3.12.3's rmtree recurses per level | a fresh `/scratch` per job (the agent deletes the job dir) |
