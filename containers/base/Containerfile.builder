@@ -92,6 +92,11 @@ RUN cd /usr/local/cuda/include && for f in nvtx3/nvToolsExt*.h; do \
       [ -e "${f#nvtx3/}" ] || echo "#include <$f>" > "${f#nvtx3/}"; done \
  && echo 'INPUT(AS_NEEDED(libnvtx3interop.so.1))' > /usr/local/cuda/lib64/libnvToolsExt.so
 
+# CUDA 13 moved the CCCL headers (cuda/, thrust/, cub/) to include/cccl/. nvcc finds them,
+# but C++ files compiled by g++ with only -I$CUDA/include do not (NCCL 2.26: cuda/atomic).
+RUN cd /usr/local/cuda/include && for d in cccl/*; do \
+      [ -e "${d#cccl/}" ] || ln -s "$d" "${d#cccl/}"; done && test -e cuda/atomic
+
 COPY eb-hooks.py /opt/easybuild/hooks.py
 ENV EASYBUILD_HOOKS=/opt/easybuild/hooks.py
 

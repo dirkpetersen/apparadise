@@ -49,7 +49,9 @@ CONCRETIZE = {
 }
 # A uid/gid no image knows: the package must work for it (user-identity.md).
 ANY_UID = "54321:54321"
-ANY_UID_CHECK = ('test "$(id -u)" = 54321 && bad="$(find /opt /work -xdev ! -readable '
+# Symlinks are skipped: a link has no mode of its own, and a broken one (EasyBuild's OpenSSL
+# wrapper links include/openssl to the builder's /usr/include) is no permission problem.
+ANY_UID_CHECK = ('test "$(id -u)" = 54321 && bad="$(find /opt /work -xdev ! -type l ! -readable '
                  '-print 2>/dev/null | head -5)" && { [ -z "$bad" ] || '
                  '{ echo "unreadable as a non-root user: $bad" >&2; exit 1; }; }')
 
