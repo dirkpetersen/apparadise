@@ -9,6 +9,15 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q49 (2026-11-04): May I delete the `*-build` intermediate images?
+
+Every finished image has a `<name>-<target>-build` image next to it in the local podman
+storage (8 to 21 GB each, up to 197 GB in all on /storage/t3; layers are partly shared). Nothing uses them after the
+final image is made; they only help to debug a failed build.
+**Default:** keep them until you answer. Builds continue at `nice 19`, so other users of this
+host keep a responsive system.
+**Answer:**
+
 ## Q48 (2026-11-02): Accept NVIDIA's cuDNN licence for EasyBuild builds?
 
 AlphaFold3 (both targets) failed at `cuDNN-9.5.1.17-CUDA-12.6.0.eb`: EasyBuild refuses to

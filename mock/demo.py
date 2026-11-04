@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Try apparadise locally with no AD, registry or cluster: one command.
 
-    cd web && .venv/bin/python3 ../mock/demo.py [--port 8000] [--password demo] [--keep-data]
+    cd web && .venv/bin/python3 ../mock/demo.py [--port 8000] [--keep-data]
+        [--password demo | --password-file F]
 
 Runs the real app (real login flow, throttle, sessions, CSRF) on 127.0.0.1 with:
 - `DemoDirectory` (mock/directory.py) in place of AD, injected via create_app(authenticator=...);
@@ -177,8 +178,14 @@ def main(argv=None) -> int:
         description="Run apparadise with a fake directory and sample catalog.")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--password", default=DEMO_PASSWORD)
+    p.add_argument("--password-file", type=Path,
+                   help="read the password from this file (keeps it out of `ps` on a shared host)")
     p.add_argument("--keep-data", action="store_true", help="keep the temporary DATA_DIR on exit")
     args = p.parse_args(argv)
+    shown = args.password
+    if args.password_file:
+        args.password = args.password_file.read_text().strip()
+        shown = f"(from {args.password_file})"
     if not port_free(args.port):
         sys.exit(f"error: port {args.port} is already in use; pick another with --port")
     scrub_environment()
@@ -191,7 +198,7 @@ def main(argv=None) -> int:
         users = ", ".join(
             f"{u}{' (sysadmin)' if admin else ''}" for u, (_, admin) in DEMO_USERS.items())
         print(f"apparadise demo on http://127.0.0.1:{args.port}  users: {users}  "
-              f"password: {args.password}  data: {data_dir}", flush=True)
+              f"password: {shown}  data: {data_dir}", flush=True)
         uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
     finally:
         if args.keep_data:
