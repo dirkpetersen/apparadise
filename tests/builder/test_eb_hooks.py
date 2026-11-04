@@ -66,3 +66,15 @@ def test_ucx_cuda_names_its_plugins_when_cuda_is_filtered():
     other = Block("UCX-CUDA", ["UCX", "CUDA"], plugins={"uct": ["cuda"]})
     hooks.pre_configure_hook(other)
     assert other.plugins == {"uct": ["cuda"]}
+
+
+def test_bundle_gets_its_component_urls_at_the_top_level():
+    gh = "https://github.com/%(github_account)s/%(namelower)s/archive"
+    ec = EC("SentencePiece", easyblock="Bundle",
+            default_component_specs={"source_urls": [gh], "sources": ["v0.2.0.tar.gz"]})
+    hooks.parse_hook(ec)
+    assert ec["source_urls"] == [gh]
+    own = EC("X", easyblock="Bundle", source_urls=["https://own/"],
+             default_component_specs={"source_urls": [gh]})
+    hooks.parse_hook(own)
+    assert own["source_urls"] == ["https://own/"]

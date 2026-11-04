@@ -25,6 +25,11 @@ def parse_hook(ec, *args, **kwargs):
     # The MPI GitLab answers downloads with an HTML anti-bot page (HTTP 200), so EasyBuild
     # never tries a second URL and the checksum fails: every foss toolchain needs FlexiBLAS.
     # The group's own web server has the same files (checksums match for 3.2.0 to 3.5.0).
+    # A Bundle that sets its URLs only in default_component_specs (SentencePiece 0.2.0) never
+    # passes them to EasyBuild 5.4's download step, which then tries only sources.easybuild.io.
+    specs = ec.get("default_component_specs") or {}
+    if ec.get("easyblock") == "Bundle" and not ec.get("source_urls") and specs.get("source_urls"):
+        ec["source_urls"] = list(specs["source_urls"])
     _mirror_first(ec, "gitlab.mpi-magdeburg.mpg.de/", FLEXIBLAS_MIRROR)
 
 
