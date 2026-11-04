@@ -78,7 +78,8 @@ needed:
   CUDA code uses nvcc), and Perl's own test suite is skipped (its Net-Ping ICMP tests need
   raw sockets, which a rootless build container does not have). FlexiBLAS (in every foss
   toolchain) is fetched from the MPI group's web server first, because their GitLab answers
-  with an HTML anti-bot page that fails the checksum.
+  with an HTML anti-bot page that fails the checksum. LLVM ignores 4 lit tests that expect
+  "Permission denied" and so fail when the build runs as root.
 
 - **Credentials:** each job gets its own one-time registry login (`job-<id>`), valid only
   while the job runs ([Registry](registry.md)). The builder

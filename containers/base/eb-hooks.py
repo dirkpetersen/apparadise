@@ -11,12 +11,22 @@ def parse_hook(ec, *args, **kwargs):
     # UID 0 and open raw sockets, which the container cannot (alphafold3, 5.38.2).
     if ec.name == "Perl":
         ec["runtest"] = False
+    # LLVM's lit suite has tests that expect "Permission denied" on a read-only file; as
+    # root in the build container the write works, so 4 tests fail (relion, LLVM 16.0.6).
+    if ec.name == "LLVM":
+        ec["test_suite_ignore_patterns"] = [*(ec.get("test_suite_ignore_patterns") or []),
+                                            *LLVM_ROOT_TESTS]
     # The MPI GitLab answers downloads with an HTML anti-bot page (HTTP 200), so EasyBuild
     # never tries a second URL and the checksum fails: every foss toolchain needs FlexiBLAS.
     # The group's own web server has the same files (checksums match for 3.2.0 to 3.5.0).
     _mirror_first(ec, "gitlab.mpi-magdeburg.mpg.de/", FLEXIBLAS_MIRROR)
 
 
+LLVM_ROOT_TESTS = [
+    "error-opening-permission.test",  # llvm-ar, llvm-ranlib
+    "llvm-dwarfdump/X86/output.s",
+    "llvm-ifs/fail-file-write.test",
+]
 FLEXIBLAS_MIRROR = "https://csc.mpi-magdeburg.mpg.de/mpcsc/software/flexiblas/"
 
 

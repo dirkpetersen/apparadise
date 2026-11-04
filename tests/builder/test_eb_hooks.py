@@ -32,3 +32,10 @@ def test_other_easyconfigs_keep_their_urls():
     hooks.parse_hook(ec)
     assert ec["source_urls"] == ["https://zlib.net/"]
     assert "components" not in ec
+
+
+def test_llvm_ignores_the_tests_that_fail_as_root():
+    ec = EC(name="LLVM", test_suite_ignore_patterns=["keep"])
+    hooks.parse_hook(ec)
+    assert ec["test_suite_ignore_patterns"][0] == "keep"
+    assert "llvm-dwarfdump/X86/output.s" in ec["test_suite_ignore_patterns"]

@@ -349,6 +349,7 @@ these cost one 4 to 8 hour GCC build to find:
 |---|---|---|
 | GCCcore `make` fails at the end: `ptxas fatal: Value 'sm_50' is not defined` (in `build-nvptx-gcc/.../libgcc/config.log`) | GCCcore's `withnvptx` offload compiler runs the image's CUDA 13 `ptxas`, which dropped `sm_50` | `parse_hook` in `containers/base/eb-hooks.py` sets `withnvptx = False` |
 | Perl test step fails: Net-Ping `*_icmp*.t`, `perl5db.t` | tests see UID 0 and open raw ICMP sockets; a rootless container has no `CAP_NET_RAW` | same hook: `runtest = False` for Perl |
+| LLVM test step: `Too many failed tests: 4` (llvm-ar/llvm-ranlib `error-opening-permission`, llvm-dwarfdump `output.s`, llvm-ifs `fail-file-write`) | the tests expect "Permission denied" on a read-only file; root can write it | hook adds them to `test_suite_ignore_patterns` (keeps the other 45,000 tests) |
 | `cuDNN ... EULA is currently not accepted` | EasyBuild needs explicit acceptance | `EASYBUILD_ACCEPT_EULA_FOR=cuDNN` (Q48) |
 | `podman commit` fails on `lstat ... confdir3/confdir3/...`, or `rm -rf` says "Directory not empty" | gnulib's deliberately deep test tree (M4, Bison, tar) on overlayfs over CephFS | build trees on the job's `/scratch` bind mount, never in a layer |
 | EasyBuild crashes with `RecursionError` in `make_builddir` → `shutil.rmtree` | an old build dir with that deep tree; Python 3.12.3's rmtree recurses per level | a fresh `/scratch` per job (the agent deletes the job dir) |
