@@ -46,3 +46,23 @@ def test_ucx_cuda_maps_the_dropped_cuda_typedef():
     hooks.parse_hook(ec)
     assert "PFN_cuMemGetHandleForAddressRange_v11070" in ec["preconfigopts"]
     assert ec["preconfigopts"].endswith("&& x && ")
+
+
+class Block:
+    def __init__(self, name, deps, plugins=None):
+        self.name, self._plugins = name, plugins
+        self.cfg = type("Cfg", (), {"dependency_names": lambda _: deps})()
+
+    @property
+    def plugins(self):
+        return self._plugins
+
+
+def test_ucx_cuda_names_its_plugins_when_cuda_is_filtered():
+    block = Block("UCX-CUDA", ["UCX", "GDRCopy"], plugins={})
+    hooks.pre_configure_hook(block)
+    assert block.plugins["uct"] == ["cuda"]
+    assert block.plugins["uct_cuda"] == ["gdrcopy"]
+    other = Block("UCX-CUDA", ["UCX", "CUDA"], plugins={"uct": ["cuda"]})
+    hooks.pre_configure_hook(other)
+    assert other.plugins == {"uct": ["cuda"]}

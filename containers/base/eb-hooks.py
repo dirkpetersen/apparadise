@@ -48,3 +48,14 @@ def _mirror_first(ec, host, mirror):
         ec["components"] = [
             (*c[:2], {**c[2], "source_urls": fix(list(c[2].get("source_urls") or []))}, *c[3:])
             if len(c) > 2 else c for c in comps]
+
+
+def pre_configure_hook(self, *args, **kwargs):
+    # UCX-CUDA's easyblock picks its plugins from the easyconfig's dependency names, but our
+    # builds filter out CUDA (the image has it), so the list is empty: the sanity check then
+    # fails and the module would not enable the CUDA transports. Configure still finds CUDA
+    # through EBROOTCUDA, so name the plugins it builds.
+    if self.name == "UCX-CUDA" and not getattr(self, "plugins", None):
+        uct_cuda = ["gdrcopy"] if "GDRCopy" in self.cfg.dependency_names() else []
+        self._plugins = {"ucm": ["cuda"], "uct": ["cuda"], "ucx_perftest": ["cuda"],
+                         **({"uct_cuda": uct_cuda} if uct_cuda else {})}
