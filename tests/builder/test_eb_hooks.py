@@ -78,3 +78,12 @@ def test_bundle_gets_its_component_urls_at_the_top_level():
              default_component_specs={"source_urls": [gh]})
     hooks.parse_hook(own)
     assert own["source_urls"] == ["https://own/"]
+
+
+def test_old_nccl_builds_as_cxx17():
+    ec = EC("NCCL", version="2.26.2", buildopts="NVCC_GENCODE=x")
+    hooks.parse_hook(ec)
+    assert ec["buildopts"] == "CXXSTD=-std=c++17 NVCC_GENCODE=x"
+    new = EC("NCCL", version="2.27.7", buildopts="NVCC_GENCODE=x")
+    hooks.parse_hook(new)
+    assert new["buildopts"] == "NVCC_GENCODE=x"

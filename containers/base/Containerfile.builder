@@ -66,8 +66,12 @@ ENV APPARADISE_TARGET=${TARGET} \
     LMOD_CMD=/usr/share/lmod/lmod/libexec/lmod \
     EASYBUILD_DOWNLOAD_TIMEOUT=30 \
     EB_PYTHON=/opt/easybuild/bin/python \
-    MODULEPATH=/opt/apps/modules/all
+    MODULEPATH=/opt/apps/modules/all \
+    OMPI_ALLOW_RUN_AS_ROOT=1 \
+    OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
+# OMPI_ALLOW_RUN_AS_ROOT*: EasyBuild's OpenMPI sanity check runs mpirun, which refuses uid 0;
+# here that is the rootless builder's mapped user, not host root. Builder only.
 # The eb wrapper looks for `python` on PATH, where only the system python3 is: EB_PYTHON
 # names the venv's. Ubuntu's lmod package sets LMOD_CMD only in login shells (/etc/profile.d); a plain
 # RUN does not read that, so it is set above. Fail here, not in the first build, if moved.

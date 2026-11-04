@@ -25,6 +25,9 @@ def parse_hook(ec, *args, **kwargs):
     # The MPI GitLab answers downloads with an HTML anti-bot page (HTTP 200), so EasyBuild
     # never tries a second URL and the checksum fails: every foss toolchain needs FlexiBLAS.
     # The group's own web server has the same files (checksums match for 3.2.0 to 3.5.0).
+    # NCCL before 2.27 compiles as C++11; CUDA 13's libcu++ refuses anything below C++17.
+    if ec.name == "NCCL" and tuple(int(x) for x in ec["version"].split(".")[:2]) < (2, 27):
+        ec["buildopts"] = "CXXSTD=-std=c++17 " + (ec.get("buildopts") or "")
     # A Bundle that sets its URLs only in default_component_specs (SentencePiece 0.2.0) never
     # passes them to EasyBuild 5.4's download step, which then tries only sources.easybuild.io.
     specs = ec.get("default_component_specs") or {}
