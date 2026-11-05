@@ -87,6 +87,10 @@ needed:
   one driver typedef that CUDA 13 renamed. A Bundle that sets its download URLs only in
   `default_component_specs` (SentencePiece) gets them at the top level too, because
   EasyBuild 5.4 otherwise tries only sources.easybuild.io.
+  NCCL dependencies older than 2.27.7 move to 2.27.7, the first NCCL that supports CUDA 13;
+  `containers/base/easyconfigs/` (on the robot path before EasyBuild's own) has it for
+  toolchains EasyBuild ships none for. magma no longer reads the removed
+  `cudaDeviceProp.clockRate`.
 
 - **Credentials:** each job gets its own one-time registry login (`job-<id>`), valid only
   while the job runs ([Registry](registry.md)). The builder

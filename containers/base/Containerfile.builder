@@ -103,6 +103,9 @@ RUN cd /usr/local/cuda/include && for d in cccl/*; do \
       [ -e "${d#cccl/}" ] || ln -s "$d" "${d#cccl/}"; done && test -e cuda/atomic
 
 COPY eb-hooks.py /opt/easybuild/hooks.py
-ENV EASYBUILD_HOOKS=/opt/easybuild/hooks.py
+# Our own easyconfigs (eb-hooks.py names them); the trailing ':' keeps EasyBuild's after them.
+COPY easyconfigs/ /opt/easybuild/apparadise-easyconfigs/
+ENV EASYBUILD_HOOKS=/opt/easybuild/hooks.py \
+    EASYBUILD_ROBOT_PATHS=/opt/easybuild/apparadise-easyconfigs:
 
 WORKDIR /work

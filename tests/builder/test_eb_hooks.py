@@ -88,3 +88,20 @@ def test_old_nccl_builds_as_cxx17():
     new = EC("NCCL", version="2.27.7")
     hooks.parse_hook(new)
     assert "prebuildopts" not in new
+
+
+def test_old_nccl_dependencies_move_to_the_cuda13_version():
+    ec = EC("jax", dependencies=[("NCCL", "2.26.2", "-CUDA-%(cudaver)s"), ("zlib", "1.3.1")],
+            builddependencies=[("NCCL", "2.27.7", "-CUDA-x")])
+    hooks.parse_hook(ec)
+    assert ec["dependencies"] == [("NCCL", "2.27.7", "-CUDA-%(cudaver)s"), ("zlib", "1.3.1")]
+    assert ec["builddependencies"] == [("NCCL", "2.27.7", "-CUDA-x")]
+    shipped = Path(__file__).parents[2] / "containers/base/easyconfigs"
+    assert (shipped / "NCCL-2.27.7-GCCcore-13.3.0-CUDA-12.6.0.eb").exists()
+
+
+def test_magma_no_longer_reads_the_removed_clock_rate():
+    ec = EC("magma", preconfigopts="X=1 ")
+    hooks.parse_hook(ec)
+    assert "cudaDevAttrClockRate" in ec["preconfigopts"]
+    assert ec["preconfigopts"].endswith("&& X=1 ")

@@ -30,6 +30,21 @@ def parse_hook(ec, *args, **kwargs):
     if ec.name == "NCCL" and tuple(int(x) for x in ec["version"].split(".")[:2]) < (2, 27):
         ec["prebuildopts"] = ("sed -i 's/-std=c++11/-std=c++17/' makefiles/common.mk && "
                               + (ec.get("prebuildopts") or ""))
+    # CUDA 13 dropped the unversioned PFN_cu* typedefs and changed driver signatures
+    # (cuCtxCreate) that NCCL looks up at run time: only NCCL 2.27.7 and later support it.
+    # containers/base/easyconfigs/ has 2.27.7 for toolchains EasyBuild ships none for.
+    for key in ("dependencies", "builddependencies"):
+        deps = ec.get(key) or []
+        new = [(d[0], NCCL_CUDA13, *d[2:]) if _old_nccl(d) else d for d in deps]
+        if new != deps:
+            ec[key] = new
+    # CUDA 13 removed cudaDeviceProp.clockRate; magma only prints it (interface.cpp; the
+    # second use is in the HIP branch).
+    if ec.name == "magma":
+        ec["preconfigopts"] = (
+            "sed -i '0,/prop\\.clockRate/s//[\\&]{ int r = 0; cudaDeviceGetAttribute("
+            "\\&r, cudaDevAttrClockRate, dev); return r; }()/' "
+            "%(start_dir)s/interface_cuda/interface.cpp && " + (ec.get("preconfigopts") or ""))
     # A Bundle that sets its URLs only in default_component_specs (SentencePiece 0.2.0) never
     # passes them to EasyBuild 5.4's download step, which then tries only sources.easybuild.io.
     specs = ec.get("default_component_specs") or {}
@@ -43,6 +58,14 @@ LLVM_ROOT_TESTS = [
     "llvm-dwarfdump/X86/output.s",
     "llvm-ifs/fail-file-write.test",
 ]
+NCCL_CUDA13 = "2.27.7"
+
+
+def _old_nccl(dep):
+    return (isinstance(dep, tuple) and dep[0] == "NCCL"
+            and tuple(int(x) for x in dep[1].split(".")) < (2, 27, 7))
+
+
 FLEXIBLAS_MIRROR = "https://csc.mpi-magdeburg.mpg.de/mpcsc/software/flexiblas/"
 
 
