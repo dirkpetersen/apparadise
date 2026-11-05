@@ -9,6 +9,18 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q50 (2026-11-04): relion from EasyBuild cannot build for CUDA 13: drop it or port it?
+
+EasyBuild has one RELION easyconfig, `RELION-5.0.0-foss-2023a-CUDA-12.1.1.eb`. It needs
+PyTorch-bundle 2.1.2 and cuDNN 8.9. PyTorch 2.1 does not know `sm_120` ("Unknown CUDA
+Architecture Name 12.0"; Blackwell support came in 2.7), and a port of 2.1 to CUDA 13 is
+far more than a hook. Spack has relion 5.0.1 with `cuda_arch=120` and a newer PyTorch.
+**Default:** the EasyBuild relion build stays a failure (stage `build`, recorded) and I stop
+retrying it; relion comes from Spack (`relion@5.0.1 +cuda cuda_arch=120`), which I start once
+the alphafold3 builds finish. The other choice is our own `RELION-5.0.x-foss-2024a` easyconfig
+on PyTorch 2.7.1 (several hours of work and of build time per target).
+**Answer:**
+
 ## Q49 (2026-11-04): May I delete the `*-build` intermediate images?
 
 Every finished image has a `<name>-<target>-build` image next to it in the local podman
