@@ -35,7 +35,7 @@ def test_other_easyconfigs_keep_their_urls():
 
 
 def test_llvm_ignores_the_tests_that_fail_as_root():
-    ec = EC(name="LLVM", test_suite_ignore_patterns=["keep"])
+    ec = EC(name="LLVM", version="16.0.6", test_suite_ignore_patterns=["keep"])
     hooks.parse_hook(ec)
     assert ec["test_suite_ignore_patterns"][0] == "keep"
     assert "llvm-dwarfdump/X86/output.s" in ec["test_suite_ignore_patterns"]
@@ -105,3 +105,12 @@ def test_magma_no_longer_reads_the_removed_clock_rate():
     hooks.parse_hook(ec)
     assert "cudaDevAttrClockRate" in ec["preconfigopts"]
     assert ec["preconfigopts"].endswith("&& X=1 ")
+
+
+def test_clang_before_20_builds_no_openmp_offload():
+    old = EC("Clang", version="18.1.8")
+    hooks.parse_hook(old)
+    assert old["build_openmp_offload"] is False
+    new = EC("LLVM", version="20.1.8")
+    hooks.parse_hook(new)
+    assert "build_openmp_offload" not in new

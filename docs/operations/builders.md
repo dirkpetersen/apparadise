@@ -91,6 +91,8 @@ needed:
   `containers/base/easyconfigs/` (on the robot path before EasyBuild's own) has it for
   toolchains EasyBuild ships none for. magma no longer reads the removed
   `cudaDeviceProp.clockRate`.
+  Clang and LLVM before 20 build without the OpenMP GPU offload runtime, which knows no
+  Blackwell architecture and stops configure.
 
 - **Credentials:** each job gets its own one-time registry login (`job-<id>`), valid only
   while the job runs ([Registry](registry.md)). The builder

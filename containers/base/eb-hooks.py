@@ -30,6 +30,11 @@ def parse_hook(ec, *args, **kwargs):
     if ec.name == "NCCL" and tuple(int(x) for x in ec["version"].split(".")[:2]) < (2, 27):
         ec["prebuildopts"] = ("sed -i 's/-std=c++11/-std=c++17/' makefiles/common.mk && "
                               + (ec.get("prebuildopts") or ""))
+    # LLVM before 20 knows no Blackwell GPU (sm_100, sm_120), so its OpenMP offload runtime
+    # stops configure ("LIBOMPTARGET: Unknown GPU architecture 'sm_100'", Clang 18.1.8 for
+    # alphafold3). Our packages use Clang as a compiler, not for OpenMP GPU offload.
+    if ec.name in ("Clang", "LLVM") and int(ec["version"].split(".")[0]) < 20:
+        ec["build_openmp_offload"] = False
     # CUDA 13 dropped the unversioned PFN_cu* typedefs and changed driver signatures
     # (cuCtxCreate) that NCCL looks up at run time: only NCCL 2.27.7 and later support it.
     # containers/base/easyconfigs/ has 2.27.7 for toolchains EasyBuild ships none for.
