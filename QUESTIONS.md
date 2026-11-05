@@ -9,6 +9,20 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q51 (2026-11-05): Should each catalog entry carry its own short GPU test with sample data?
+
+The `test` stage needs a short job per package that shows the GPU code really works. Today a
+catalog file has no place for that. Free sample data exists for most packages: GROMACS
+(regression tests, MPI Goettingen benchMEM), LAMMPS (`bench/` in its own tarball), RELION and
+MotionCor3 (EMPIAR-10204), cryoDRGN (its repo's test data), cellpose (cellpose.org, BBBC),
+rapids-singlecell (PBMC 3k), vLLM (`facebook/opt-125m`). nccl-tests, osu, ucx, hpl, cupy and
+kokkos need no data. AlphaFold3 needs the DeepMind model weights, which have their own terms.
+**Default:** add an optional `test:` block to `catalog/<name>.yml` (data URL, sha256, command,
+time limit); a sysadmin stages the data once on CephFS, and test jobs never download. I do not
+add AlphaFold3 weights to any test until you say their terms allow it. I will not start this
+before the alphafold3 builds are done.
+**Answer:**
+
 ## Q50 (2026-11-04): relion from EasyBuild cannot build for CUDA 13: drop it or port it?
 
 EasyBuild has one RELION easyconfig, `RELION-5.0.0-foss-2023a-CUDA-12.1.1.eb`. It needs
