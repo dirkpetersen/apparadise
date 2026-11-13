@@ -15,6 +15,14 @@ is a sysadmin (RCO-Admins) and sees the restricted AlphaFold 3 entry and the `re
 `cache` registry projects. Nothing in `web/apparadise/` imports `mock/`, and no setting turns
 the demo on.
 
+To show the real `catalog/` with this host's own builds instead of the sample, write a catalog
+dir first: `python3 ../mock/real_catalog.py DIR`, then start the demo with `--catalog DIR`.
+Each local image `apparadise-local/<name>-<version>-<target>` becomes a published build (its
+image ID stands in for the digest; nothing is pushed or GPU-tested), and a build log that ends in
+`EXIT=n STAGE=s` becomes a failure. The sample failures are only seeded with the sample catalog.
+The shared demo host runs this as a systemd user service, `apparadise.service`, which writes the
+catalog dir at every start (`systemctl --user restart apparadise` picks up new builds).
+
 To run against a real directory, copy `web/.env.default` to `web/.env`, fill in the REQUIRED
 values, and start `.venv/bin/python3 app.py` from `web/`.
 

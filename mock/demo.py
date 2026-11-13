@@ -2,7 +2,7 @@
 """Try apparadise locally with no AD, registry or cluster: one command.
 
     cd web && .venv/bin/python3 ../mock/demo.py [--port 8000] [--keep-data]
-        [--password demo | --password-file F]
+        [--password demo | --password-file F] [--catalog DIR]
 
 Runs the real app (real login flow, throttle, sessions, CSRF) on 127.0.0.1 with:
 - `DemoDirectory` (mock/directory.py) in place of AD, injected via create_app(authenticator=...);
@@ -157,7 +157,8 @@ def build_demo_app(settings: Settings, db=None, directory: DemoDirectory | None 
     from apparadise.catalog import load_and_sync
 
     load_and_sync(db, settings)
-    seed_failures(db)
+    if Path(settings.catalog_dir) == DEMO_CATALOG:  # the sample failures name sample builds
+        seed_failures(db)
     app.state.fake_zot = fake_zot
     app.state.demo = True
     return app
@@ -180,6 +181,8 @@ def main(argv=None) -> int:
     p.add_argument("--password", default=DEMO_PASSWORD)
     p.add_argument("--password-file", type=Path,
                    help="read the password from this file (keeps it out of `ps` on a shared host)")
+    p.add_argument("--catalog", type=Path, default=DEMO_CATALOG,
+                   help="catalog dir (mock/real_catalog.py writes one from this host's builds)")
     p.add_argument("--keep-data", action="store_true", help="keep the temporary DATA_DIR on exit")
     args = p.parse_args(argv)
     shown = args.password
@@ -193,7 +196,8 @@ def main(argv=None) -> int:
 
     data_dir = tempfile.mkdtemp(prefix="apparadise-demo-")
     try:
-        settings = demo_settings(port=args.port, data_dir=data_dir)
+        settings = demo_settings(port=args.port, data_dir=data_dir,
+                                 catalog_dir=str(args.catalog.resolve()))
         app = build_demo_app(settings, directory=DemoDirectory(args.password))
         users = ", ".join(
             f"{u}{' (sysadmin)' if admin else ''}" for u, (_, admin) in DEMO_USERS.items())
