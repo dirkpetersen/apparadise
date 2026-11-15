@@ -11,9 +11,9 @@ def parse_hook(ec, *args, **kwargs):
     # UID 0 and open raw sockets, which the container cannot (alphafold3, 5.38.2).
     if ec.name == "Perl":
         ec["runtest"] = False
-    # LLVM's lit suite has tests that expect "Permission denied" on a read-only file; as
-    # root in the build container the write works, so 4 tests fail (relion, LLVM 16.0.6).
-    if ec.name == "LLVM":
+    # LLVM's lit suite has tests the rootless build container cannot pass (LLVM_ROOT_TESTS).
+    # They test the build host, not the compiler (relion LLVM 16.0.6, alphafold3 Clang 18.1.8).
+    if ec.name in ("LLVM", "Clang"):
         ec["test_suite_ignore_patterns"] = [*(ec.get("test_suite_ignore_patterns") or []),
                                             *LLVM_ROOT_TESTS]
     # CUDA 13 drops the unversioned PFN_cu* driver typedefs; UCX 1.16 uses one of them
@@ -58,10 +58,18 @@ def parse_hook(ec, *args, **kwargs):
     _mirror_first(ec, "gitlab.mpi-magdeburg.mpg.de/", FLEXIBLAS_MIRROR)
 
 
-LLVM_ROOT_TESTS = [
+LLVM_ROOT_TESTS = [  # substrings of lit test names
+    # Expect "Permission denied" on a read-only file; as root the write works.
     "error-opening-permission.test",  # llvm-ar, llvm-ranlib
     "llvm-dwarfdump/X86/output.s",
     "llvm-ifs/fail-file-write.test",
+    "llvm-libc++-shared.cfg.in :: std/input.output/filesystems/",
+    # Need ptrace or ASLR control (personality), which rootless podman does not give.
+    "lldb-shell :: ", "lldb-unit :: ", "libarcher :: ", "MemProfiler-", "libFuzzer-",
+    # Need a GPU, or OpenMP offload, which the hook turns off for LLVM < 20.
+    "libomptarget :: ",
+    # Runs CUDA 13 ptxas on an nvptx target that CUDA 13 dropped.
+    "MLIRTargetLLVMNVVM/SerializeNVVMToBinary",
 ]
 NCCL_CUDA13 = "2.27.7"
 

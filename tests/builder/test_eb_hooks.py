@@ -41,6 +41,13 @@ def test_llvm_ignores_the_tests_that_fail_as_root():
     assert "llvm-dwarfdump/X86/output.s" in ec["test_suite_ignore_patterns"]
 
 
+def test_clang_ignores_the_tests_the_container_cannot_pass():
+    ec = EC(name="Clang", version="18.1.8")
+    hooks.parse_hook(ec)
+    failed = "FAIL: lldb-shell :: Breakpoint/foo.test (1 of 2)"
+    assert any(p in failed for p in ec["test_suite_ignore_patterns"])
+
+
 def test_ucx_cuda_maps_the_dropped_cuda_typedef():
     ec = EC("UCX-CUDA", preconfigopts="x && ")
     hooks.parse_hook(ec)
