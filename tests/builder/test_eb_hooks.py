@@ -121,3 +121,12 @@ def test_clang_before_20_builds_no_openmp_offload():
     new = EC("LLVM", version="20.1.8")
     hooks.parse_hook(new)
     assert "build_openmp_offload" not in new
+
+
+def test_triton_gets_the_cuda_headers_for_proton():
+    ec = EC(name="Triton", version="3.3.1",
+            exts_list=[("pybind11", "2.13", {}), ("Triton", "3.3.1", {"preinstallopts": "X=1 "})])
+    hooks.parse_hook(ec)
+    assert ec["exts_list"][0] == ("pybind11", "2.13", {})
+    assert ec["exts_list"][1][2]["preinstallopts"] == (
+        'TRITON_CUPTI_INCLUDE_PATH="$CUDA_HOME/include" X=1 ')

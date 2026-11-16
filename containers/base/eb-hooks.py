@@ -50,6 +50,10 @@ def parse_hook(ec, *args, **kwargs):
             "sed -i '0,/prop\\.clockRate/s//[\\&]{ int r = 0; cudaDeviceGetAttribute("
             "\\&r, cudaDevAttrClockRate, dev); return r; }()/' "
             "%(start_dir)s/interface_cuda/interface.cpp && " + (ec.get("preconfigopts") or ""))
+    # Triton's Proton profiler takes cuda.h and cupti.h from TRITON_CUPTI_INCLUDE_PATH. A real
+    # CUDA module puts them on CPATH; our image's CUDA is only env vars (alphafold3, 3.3.1).
+    if ec.name == "Triton":
+        ec["exts_list"] = [_triton_cupti(e) for e in ec.get("exts_list") or []]
     # A Bundle that sets its URLs only in default_component_specs (SentencePiece 0.2.0) never
     # passes them to EasyBuild 5.4's download step, which then tries only sources.easybuild.io.
     specs = ec.get("default_component_specs") or {}
@@ -79,7 +83,16 @@ def _old_nccl(dep):
             and tuple(int(x) for x in dep[1].split(".")) < (2, 27, 7))
 
 
-FLEXIBLAS_MIRROR = "https://csc.mpi-magdeburg.mpg.de/mpcsc/software/flexiblas/"
+def _triton_cupti(ext):
+    if not (isinstance(ext, tuple) and len(ext) == 3 and ext[0] == "Triton"):
+        return ext
+    opts = dict(ext[2])
+    opts["preinstallopts"] = ('TRITON_CUPTI_INCLUDE_PATH="$CUDA_HOME/include" '
+                              + (opts.get("preinstallopts") or ""))
+    return (ext[0], ext[1], opts)
+
+
+FLEXIBLAS_MIRROR ="https://csc.mpi-magdeburg.mpg.de/mpcsc/software/flexiblas/"
 
 
 def _mirror_first(ec, host, mirror):
