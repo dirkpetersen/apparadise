@@ -32,8 +32,12 @@ Code and runbooks are done. What remains needs the hardware, the registry host a
 - [x] Harbor runbook (`docs/operations/harbor.md`): projects public/restricted/cache, nvcr.io proxy cache (Q8)
 - [ ] Install Zot for real (Q8; tested on 127.0.0.1), build and push base images (Q5, Q6, Q16)
 - [ ] Read Rubin's compute capability on the NVL72 and fill in `containers/targets.yml` (Q13)
-- [ ] Concretize a rendered `spack.yaml` with real Spack (`spack -e <dir> concretize`); not run here, since executing a freshly cloned Spack was outside this session's permissions
+- [x] Concretize a rendered `spack.yaml` with real Spack: every local Spack build does (gromacs, lammps, openmpi, ucx, relion, ...)
 - [ ] Top 20 packages built on both targets (Q4)
+  - 2026-11-16, local x86 builds (rtx, generic; vr needs an aarch64 builder): 15 of 20 have
+    images. Blocked on owner questions: alphafold3 (Q52), cryodrgn (no CUDA recipe), hpl and
+    rapids, rapids-singlecell (no CUDA recipe on our sources), kokkos generic (one cuda_arch
+    only). None is GPU-tested yet (Q51).
 - [x] Visual check in Chromium (catalog, package, login, admin; light/dark; desktop/phone). Found and fixed the CSRF header and 401 event name left over from Bucketeer (browser sign-in was broken)
 - [ ] Re-check in a normal desktop browser: this host's sandboxed Chromium crashes shaping the Fraunces display font and drops monospace text at phone width, both most likely a library mismatch in the sandbox
 
