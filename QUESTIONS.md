@@ -9,6 +9,24 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q52 (2026-11-16): AlphaFold3 from EasyBuild cannot build for CUDA 13: how do we get it?
+
+`AlphaFold3-3.0.1-20250908-foss-2024a-CUDA-12.6.0.eb` needs jax 0.6.2. jax 0.6.2's XLA only
+knows CUDA 11 and 12 ("nvidia_nvshmem: Platform cuda13_x86_64-unknown-linux-gnu is not
+supported"). EasyBuild 5.4.2 has no jax easyconfig for CUDA 13 (the newest CUDA one is 0.7.0
+with CUDA 12.8; 0.8.1 and 0.10.x are CPU-only). Clang 18 and Triton 3.3.1 now build (hooks
+d7f3c88, 42fbb62). conda-forge has jaxlib 0.12.0.1 for CUDA 13 (our `jax` image uses it).
+**Default:** alphafold3 stays a failure (stage `build`, recorded) and I stop retrying it. I go on
+with relion from Spack (Q50). The choices, from least to most work:
+(a) a pixi recipe: conda-forge jaxlib for CUDA 13 plus AlphaFold3 built from its source. It
+needs a jax 0.12 that AlphaFold3 3.0.1 was never tested with, and AlphaFold3 is not a
+conda-forge package, so it is your choice against the resolver order;
+(b) our own jax CUDA 13 easyconfigs (jax 0.8 or later) and an AlphaFold3 easyconfig on them:
+days of work, and also not tested upstream;
+(c) an exception to Q38 for this one package: a CUDA 12.8 or 12.9 base (both know `sm_120`)
+with an adapted EasyBuild jax 0.7.0. It is the stack closest to what upstream tests.
+**Answer:**
+
 ## Q51 (2026-11-05): Should each catalog entry carry its own short GPU test with sample data?
 
 The `test` stage needs a short job per package that shows the GPU code really works. Today a
