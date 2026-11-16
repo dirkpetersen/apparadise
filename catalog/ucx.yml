@@ -9,3 +9,7 @@ tags: [networking, library]
 aliases: {spack: ucx, easybuild: UCX}
 executables: [ucx_info]
 versions: {}
+# GPU smoke test, no data needed (Q51 default, 2026-11-16)
+test:
+  command: ucx_info -d | grep -q cuda_copy
+  minutes: 2

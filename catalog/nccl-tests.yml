@@ -9,3 +9,7 @@ tags: [benchmark, networking]
 aliases: {spack: nccl-tests}
 executables: [all_reduce_perf]
 versions: {}
+# GPU smoke test, no data needed (Q51 default, 2026-11-16)
+test:
+  command: all_reduce_perf -b 8 -e 64M -f 2 -g 1
+  minutes: 5

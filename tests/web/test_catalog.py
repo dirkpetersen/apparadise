@@ -46,10 +46,25 @@ def test_repo_catalogs_are_valid():
     {"versions": {"2026.3": {"rtx": {"status": "published", "digest": "sha256:xyz"}}}},
     {"versions": {"2026.3": {"rtx": {"status": "failed"}}}},  # no stage
     {"versions": {"bad version": {"rtx": {}}}},
+    {"test": {"minutes": 5}},  # no command
+    {"test": {"command": "a\nb"}},
+    {"test": {"command": "x", "minutes": 0}},
+    {"test": {"command": "x", "minutes": True}},
+    {"test": {"command": "x", "data": {"url": "http://x", "sha256": "a" * 64}}},
+    {"test": {"command": "x", "data": {"url": "https://x"}}},  # no sha256
+    {"test": {"command": "x", "gpus": 8}},
 ])
 def test_invalid_entries_rejected(bad):
     with pytest.raises(CatalogError):
         parse_entry(entry(**bad), "x.yml")
+
+
+def test_gpu_test_block():
+    assert parse_entry(entry())["test"] is None
+    t = parse_entry(entry(test={"command": " nvidia-smi ", "data": {
+        "url": "https://example.org/d.tar", "sha256": "b" * 64}}))["test"]
+    assert t == {"command": "nvidia-smi", "minutes": 10,
+                 "data": {"url": "https://example.org/d.tar", "sha256": "b" * 64}}
 
 
 def test_planned_package_without_versions():

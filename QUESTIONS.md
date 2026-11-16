@@ -55,6 +55,11 @@ time limit); a sysadmin stages the data once on CephFS, and test jobs never down
 add AlphaFold3 weights to any test until you say their terms allow it. I will not start this
 before the alphafold3 builds are done.
 **Answer:**
+**Status (2026-11-16):** Done for the schema: `test:` (command, minutes 1-60, optional data
+url + sha256) is parsed and checked in `catalog.py`. nccl-tests, osu, ucx, cupy and pytorch
+have a test that needs no data. Nothing runs them yet: that is the `test` stage on Slurm.
+The entries with data wait for a sysadmin to pick and stage the files (I did not download
+any, so I have no sha256 to write).
 
 ## Q50 (2026-11-04): relion from EasyBuild cannot build for CUDA 13: drop it or port it?
 

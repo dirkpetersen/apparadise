@@ -61,6 +61,9 @@ ANY_UID_CHECK = ('test "$(id -u)" = 54321 && bad="$(find /opt /work -xdev ! -typ
 # readable by all (a+rX; done there, so the final image gets no second copy of each file),
 # the final stage has no entrypoint and a numeric non-root default user, and nothing needs
 # to be written inside the image at runtime.
+# Spack: the image has no entrypoint to source a package's run environment, so the dirs
+# it puts on PATH (OSU: /opt/view/libexec/osu-micro-benchmarks/mpi/pt2pt) are linked into
+# the view's bin; a name already there wins.
 CONTAINERFILES = {
     "spack": """\
 FROM {registry}/{base_builder} AS build
@@ -73,7 +76,12 @@ RUN spack -e /work buildcache keys --install --trust --yes-to-all \\
  && spack -e /work concretize --fresh && spack -e /work install --fail-fast \\
  && if [ -w /cache ]; then spack -e /work buildcache push --unsigned --update-index \\
       --with-build-dependencies apparadise-local || echo "apparadise: cache push failed"; fi \\
- && spack -e /work gc -y && chmod -R a+rX /opt/software /opt/view
+ && spack -e /work gc -y \\
+ && eval "$(spack env activate --sh /work)" && {{ for d in $(echo "$PATH" | tr : ' '); do \\
+      case "$d" in /opt/view/bin) ;; /opt/software/*|/opt/view/*) for f in "$d"/*; do \\
+        [ -f "$f" ] && [ -x "$f" ] && ln -s "$f" /opt/view/bin/ 2>/dev/null; done;; \\
+      esac; done; true; }} \\
+ && chmod -R a+rX /opt/software /opt/view
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/software /opt/software
 COPY --from=build /opt/view /opt/view

@@ -9,3 +9,7 @@ tags: [benchmark, mpi]
 aliases: {spack: osu-micro-benchmarks, easybuild: OSU-Micro-Benchmarks}
 executables: [osu_latency, osu_bw]
 versions: {}
+# GPU smoke test, no data needed (Q51 default, 2026-11-16)
+test:
+  command: mpirun -np 2 osu_bw -d cuda D D
+  minutes: 5

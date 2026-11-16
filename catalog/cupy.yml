@@ -9,3 +9,7 @@ tags: [python, library]
 aliases: {pixi: cupy, spack: py-cupy, easybuild: CuPy}
 executables: [python]
 versions: {}
+# GPU smoke test, no data needed (Q51 default, 2026-11-16)
+test:
+  command: python -c 'import cupy as cp; assert int(cp.arange(1000).sum()) == 499500'
+  minutes: 5

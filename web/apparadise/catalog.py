@@ -16,6 +16,10 @@ File format (see catalog/README.md):
     tags: [molecular-dynamics, mpi]
     aliases: {spack: gromacs, easybuild: GROMACS}
     executables: [gmx_mpi]
+    test:                         # optional GPU smoke test for the `test` stage (Q51)
+      command: gmx_mpi mdrun -s /data/benchMEM.tpr -nsteps 1000
+      minutes: 10                 # job time limit, 1 to 60
+      data: {url: "https://...", sha256: "<64 hex>"}   # optional; staged once, read at /data
     versions:
       "2026.3":
         vr:  {status: planned}
@@ -43,7 +47,7 @@ DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}\Z")
 TAG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}\Z")
 CATALOG_STATUSES = ("planned", "queued", "running", "published", "failed")
 FIELDS = {"name", "title", "description", "homepage", "source", "visibility", "tags",
-          "aliases", "executables", "versions"}
+          "aliases", "executables", "versions", "test"}
 TARGET_FIELDS = {"status", "digest", "test", "built", "stage"}
 
 
@@ -88,6 +92,7 @@ def parse_entry(data: Any, origin: str = "<memory>") -> dict[str, Any]:
         isinstance(k, str) and isinstance(v, str) for k, v in aliases.items()
     ):
         raise bad("aliases: a mapping of source to upstream name")
+    test = _parse_test(data.get("test"), bad)
     versions = data.get("versions", {})
     if not isinstance(versions, dict):  # empty: planned, version chosen at build time
         raise bad("versions: a mapping of version to targets")
@@ -140,8 +145,33 @@ def parse_entry(data: Any, origin: str = "<memory>") -> dict[str, Any]:
         "tags": tags,
         "aliases": aliases,
         "executables": exes,
+        "test": test,
         "builds": builds,
     }
+
+
+def _parse_test(test: Any, bad) -> dict[str, Any] | None:
+    """The optional GPU smoke test (Q51). Its data is staged once by a sysadmin and mounted
+    read-only at /data, so a test job never downloads anything."""
+    if test is None:
+        return None
+    if not isinstance(test, dict) or set(test) - {"command", "minutes", "data"}:
+        raise bad("test: fields are command, minutes, data")
+    command = test.get("command")
+    if not isinstance(command, str) or not command.strip() or "\n" in command:
+        raise bad("test.command: one line of shell")
+    minutes = test.get("minutes", 10)
+    if not isinstance(minutes, int) or isinstance(minutes, bool) or not 1 <= minutes <= 60:
+        raise bad("test.minutes: a whole number from 1 to 60")
+    data = test.get("data")
+    if data is not None:
+        if not isinstance(data, dict) or set(data) != {"url", "sha256"}:
+            raise bad("test.data: url and sha256")
+        if not isinstance(data["url"], str) or not re.match(r"^https://[^\s\"'<>]+\Z", data["url"]):
+            raise bad("test.data.url: must be an https:// URL")
+        if not isinstance(data["sha256"], str) or not re.match(r"^[0-9a-f]{64}\Z", data["sha256"]):
+            raise bad("test.data.sha256: 64 lowercase hex digits")
+    return {"command": command.strip(), "minutes": minutes, "data": data}
 
 
 def load_dir(path: str | Path) -> list[dict[str, Any]]:

@@ -9,3 +9,7 @@ tags: [machine-learning, python]
 aliases: {pixi: pytorch, spack: py-torch, easybuild: PyTorch}
 executables: [python, torchrun]
 versions: {}
+# GPU smoke test, no data needed (Q51 default, 2026-11-16)
+test:
+  command: python -c 'import torch; x = torch.ones(1024, device="cuda"); assert x.sum().item() == 1024'
+  minutes: 5
