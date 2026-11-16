@@ -9,6 +9,21 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q53 (2026-11-16): Where does a package's build spec live (relion: `build_type=Release ^mesa~llvm`)?
+
+relion 5.0.1 from Spack now builds and passes the any-UID check on rtx and generic. Two spec
+parts matter: `build_type=Release` (Spack's relion default is RelWithDebInfo, -O2 -g; Q9 asks
+for speed) and `^mesa~llvm`. Without the second one Mesa pulls a full LLVM 22 toolchain
+(clang, clang-tidy, 12 GB) into the runtime image: 18.9 GB instead of 6.5 GB. The pipeline
+today builds `<name>@<version>` plus the requester's spec text, so a nightly or chatbot build
+of relion would lose both. **Default:** I set `source: spack` in `catalog/relion.yml` and put
+the spec in a comment there; nothing reads it yet. The choices: (a) a `spec` field per source
+in the catalog entry, used when the requester gives none (small change: catalog.py, buildqueue);
+(b) site-wide Spack preferences in the template (`mesa: variants: [~llvm]`, `build_type=Release`
+for all CMake packages), which also changes every other package; (c) leave it to requesters.
+I recommend (a), with (b) only for `build_type=Release`.
+**Answer:**
+
 ## Q52 (2026-11-16): AlphaFold3 from EasyBuild cannot build for CUDA 13: how do we get it?
 
 `AlphaFold3-3.0.1-20250908-foss-2024a-CUDA-12.6.0.eb` needs jax 0.6.2. jax 0.6.2's XLA only
