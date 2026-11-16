@@ -103,6 +103,10 @@ RUN cd /usr/local/cuda/include && for d in cccl/*; do \
       [ -e "${d#cccl/}" ] || ln -s "$d" "${d#cccl/}"; done && test -e cuda/atomic
 
 COPY eb-hooks.py /opt/easybuild/hooks.py
+# Spack package overlays (CUDA 13 fixes not upstream yet); `repo add` puts it before builtin.
+COPY spack-repo/ /opt/spack-apparadise/
+RUN spack repo add --scope site /opt/spack-apparadise/spack_repo/apparadise \
+ && spack repo list | grep -q apparadise
 # Our own easyconfigs (eb-hooks.py names them); the trailing ':' keeps EasyBuild's after them.
 COPY easyconfigs/ /opt/easybuild/apparadise-easyconfigs/
 ENV EASYBUILD_HOOKS=/opt/easybuild/hooks.py \
