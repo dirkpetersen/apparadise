@@ -49,6 +49,7 @@ def test_render_spack():
     doc = yaml.safe_load(text)["spack"]
     assert doc["specs"] == ["gromacs@2026.3+mpi +cuda cuda_arch=120 target=x86_64_v4"]
     assert doc["container"]["images"]["final"] == "reg.example/cache/base-runtime:13.0-rtx"
+    assert doc["packages"]["llvm"]["variants"] == ["~cuda"]
     e4s = doc["mirrors"]["e4s"]  # Q35
     assert e4s["url"].startswith("https://cache.e4s.io/") and e4s["signed"] is True
 

@@ -9,6 +9,10 @@ spack:
     all:
       require: ["target=$SPACK_TARGET"]
       variants: [+cuda, "cuda_arch=$CUDA_ARCH_CSV"]
+    # LLVM +cuda builds its OpenMP GPU runtime for cuda_arch, and LLVM before 20 knows no
+    # sm_100/sm_120 (relion: mesa pulls llvm@14). Packages use LLVM as a compiler only.
+    llvm:
+      variants: [~cuda]
     # The CUDA toolkit comes from the builder base image, never rebuilt by Spack.
     cuda:
       buildable: false
