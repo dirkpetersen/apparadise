@@ -114,6 +114,9 @@ ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
 # /opt/apps may be the builder's shared install tree (plan()): the coordinator runs one
 # EasyBuild job per tree at a time, so a lock left there is stale. The image gets only this
 # package's dependency closure (the modules the dry run lists), not the whole tree.
+# The runtime base has no Lmod and no entrypoint, so the closure's bin/ files are linked
+# into /opt/apps/bin, the package itself first (the dry run lists it last); a name already
+# there wins.
 RUN rm -rf /opt/apps/software/.locks \\
  && eb --easystack /work/easystack.yml --installpath=/opt/apps --robot \\
  && eb --easystack /work/easystack.yml --installpath=/opt/apps --robot --dry-run \\
@@ -121,10 +124,14 @@ RUN rm -rf /opt/apps/software/.locks \\
  && mkdir -p /opt/image-apps && cd /opt/apps \\
  && while read -r m; do cp -a --parents "software/$m" "modules/all/$m.lua" /opt/image-apps/ \\
     || exit 1; done < /tmp/closure \\
+ && mkdir /opt/image-apps/bin && {{ tac /tmp/closure | while read -r m; do \\
+      for f in /opt/image-apps/software/$m/bin/*; do [ -f "$f" ] && [ -x "$f" ] \\
+        && ln -s "/opt/apps/${{f#/opt/image-apps/}}" /opt/image-apps/bin/ 2>/dev/null; done; \\
+    done; true; }} \\
  && chmod -R a+rX /opt/image-apps
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/image-apps /opt/apps
-ENV MODULEPATH=/opt/apps/modules/all
+ENV MODULEPATH=/opt/apps/modules/all PATH=/opt/apps/bin:$PATH
 USER 65534:65534
 """,
     "pixi": """\

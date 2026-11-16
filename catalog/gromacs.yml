@@ -7,5 +7,5 @@ source: spack
 visibility: public
 tags: [molecular-dynamics, mpi]
 aliases: {spack: gromacs, easybuild: GROMACS}
-executables: [gmx_mpi, gmx]
+executables: [gmx_mpi]  # +mpi build: no plain gmx
 versions: {}
