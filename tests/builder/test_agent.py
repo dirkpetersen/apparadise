@@ -331,7 +331,8 @@ def test_containerfiles_expose_base_cuda_to_the_build_tools():
     assert "EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1" in eb
     assert "EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS=1" in eb
     # no Lmod in the image: the closure's bin/ (the package first) is on PATH
-    assert "tac /tmp/closure | while read -r m; do" in eb
+    assert "tail -n 1 /tmp/closure > /tmp/run" in eb  # runtime closure from depends_on
+    assert 'done < /tmp/run; true; }' in eb
     assert "ENV MODULEPATH=/opt/apps/modules/all PATH=/opt/apps/bin:$PATH" in eb
     spack = CONTAINERFILES["spack"].format(**fmt)
     # no entrypoint sources the run environment: its PATH dirs (OSU's libexec) go into the view

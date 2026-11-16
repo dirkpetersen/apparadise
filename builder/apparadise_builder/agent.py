@@ -113,21 +113,25 @@ ENV EBROOTCUDA=/usr/local/cuda EBVERSIONCUDA=${{CUDA_VERSION}} \
 # UIDs outside the user namespace (Perl 5.36.1: uid 197609) and leaves sub-UID files behind.
 # /opt/apps may be the builder's shared install tree (plan()): the coordinator runs one
 # EasyBuild job per tree at a time, so a lock left there is stale. The image gets only this
-# package's dependency closure (the modules the dry run lists), not the whole tree.
+# package and its runtime closure: the dry run lists the package last, and its module files
+# name the runtime dependencies (depends_on); build-only tools (CMake, Perl) stay out.
 # The runtime base has no Lmod and no entrypoint, so the closure's bin/ files are linked
-# into /opt/apps/bin, the package itself first (the dry run lists it last); a name already
-# there wins.
+# into /opt/apps/bin, the package itself first; a name already there wins.
 RUN rm -rf /opt/apps/software/.locks \\
  && eb --easystack /work/easystack.yml --installpath=/opt/apps --robot \\
  && eb --easystack /work/easystack.yml --installpath=/opt/apps --robot --dry-run \\
     | sed -n 's/.*(module: \\(.*\\))$/\\1/p' > /tmp/closure && test -s /tmp/closure \\
- && mkdir -p /opt/image-apps && cd /opt/apps \\
+ && mkdir -p /opt/image-apps && cd /opt/apps && tail -n 1 /tmp/closure > /tmp/run && i=1 \\
+ && while m="$(sed -n "${{i}}p" /tmp/run)" && [ -n "$m" ]; do \\
+      sed -n 's/^ *\\(depends_on\\|load\\)("\\([^"]*\\)").*/\\2/p' "modules/all/$m.lua" \\
+      | while read -r d; do grep -qxF "$d" /tmp/run || echo "$d" >> /tmp/run; done; \\
+      i=$((i + 1)); done \\
  && while read -r m; do cp -a --parents "software/$m" "modules/all/$m.lua" /opt/image-apps/ \\
-    || exit 1; done < /tmp/closure \\
- && mkdir /opt/image-apps/bin && {{ tac /tmp/closure | while read -r m; do \\
+    || exit 1; done < /tmp/run \\
+ && mkdir /opt/image-apps/bin && {{ while read -r m; do \\
       for f in /opt/image-apps/software/$m/bin/*; do [ -f "$f" ] && [ -x "$f" ] \\
         && ln -s "/opt/apps/${{f#/opt/image-apps/}}" /opt/image-apps/bin/ 2>/dev/null; done; \\
-    done; true; }} \\
+    done < /tmp/run; true; }} \\
  && chmod -R a+rX /opt/image-apps
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/image-apps /opt/apps
