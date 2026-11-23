@@ -375,3 +375,9 @@ def test_any_uid_check_flags_unreadable_files(tmp_path):
                            capture_output=True, text=True)
         assert r.returncode == code, r.stderr
         assert (out in r.stderr) if out else r.stderr == ""
+
+
+def test_runtime_base_has_no_entrypoint():
+    """Q36: NGC's entrypoint prints a banner on stdout before every command."""
+    runtime = Path(__file__).parents[2] / "containers" / "base" / "Containerfile.runtime"
+    assert runtime.read_text().rstrip().endswith("ENTRYPOINT []")

@@ -26,3 +26,7 @@ RUN printf 'APT::Sandbox::User "root";\n' > /etc/apt/apt.conf.d/00apparadise-san
 
 ENV APPARADISE_TARGET=${TARGET} \
     LANG=C.UTF-8
+
+# No entrypoint (Q36): NGC's nvidia_entrypoint.sh prints a banner on stdout before every
+# command, which corrupts piped output. Pyxis ignores it anyway.
+ENTRYPOINT []
