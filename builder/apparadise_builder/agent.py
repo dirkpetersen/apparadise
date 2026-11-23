@@ -61,6 +61,8 @@ ANY_UID_CHECK = ('test "$(id -u)" = 54321 && bad="$(find /opt /work -xdev ! -typ
 # readable by all (a+rX; done there, so the final image gets no second copy of each file),
 # the final stage has no entrypoint and a numeric non-root default user, and nothing needs
 # to be written inside the image at runtime.
+# Every image keeps its solver's record of what is in it under /opt/apparadise (the SBOM
+# the package stage promises): spack.lock, pixi.lock, or the EasyBuild module list.
 # Spack: the image has no entrypoint to source a package's run environment, so the dirs
 # it puts on PATH (OSU: /opt/view/libexec/osu-micro-benchmarks/mpi/pt2pt) are linked into
 # the view's bin; a name already there wins.
@@ -81,10 +83,11 @@ RUN spack -e /work buildcache keys --install --trust --yes-to-all \\
       case "$d" in /opt/view/bin) ;; /opt/software/*|/opt/view/*) for f in "$d"/*; do \\
         [ -f "$f" ] && [ -x "$f" ] && ln -s "$f" /opt/view/bin/ 2>/dev/null; done;; \\
       esac; done; true; }} \\
- && chmod -R a+rX /opt/software /opt/view
+ && chmod -R a+rX /opt/software /opt/view /work/spack.lock
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/software /opt/software
 COPY --from=build /opt/view /opt/view
+COPY --from=build /work/spack.lock /opt/apparadise/spack.lock
 ENV PATH=/opt/view/bin:$PATH
 USER 65534:65534
 """,
@@ -132,9 +135,12 @@ RUN rm -rf /opt/apps/software/.locks \\
       for f in /opt/image-apps/software/$m/bin/*; do [ -f "$f" ] && [ -x "$f" ] \\
         && ln -s "/opt/apps/${{f#/opt/image-apps/}}" /opt/image-apps/bin/ 2>/dev/null; done; \\
     done < /tmp/run; true; }} \\
- && chmod -R a+rX /opt/image-apps
+ && mkdir -p /opt/image-record && cp /tmp/run /opt/image-record/easybuild-modules.txt \
+ && cp /work/easystack.yml /opt/image-record/ \
+ && chmod -R a+rX /opt/image-apps /opt/image-record
 FROM {registry}/{base_runtime}
 COPY --from=build /opt/image-apps /opt/apps
+COPY --from=build /opt/image-record /opt/apparadise
 ENV MODULEPATH=/opt/apps/modules/all PATH=/opt/apps/bin:$PATH
 USER 65534:65534
 """,

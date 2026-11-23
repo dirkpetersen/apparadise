@@ -381,3 +381,15 @@ def test_runtime_base_has_no_entrypoint():
     """Q36: NGC's entrypoint prints a banner on stdout before every command."""
     runtime = Path(__file__).parents[2] / "containers" / "base" / "Containerfile.runtime"
     assert runtime.read_text().rstrip().endswith("ENTRYPOINT []")
+
+
+def test_every_image_ships_its_solver_record():
+    """The SBOM: what the solver put in the image, under /opt/apparadise."""
+    from apparadise_builder.agent import CONTAINERFILES
+
+    fmt = {"registry": "r.example", "base_builder": "b", "base_runtime": "r"}
+    want = {"spack": "/work/spack.lock /opt/apparadise/spack.lock",
+            "pixi": "/work/pixi.lock /opt/apparadise/pixi.lock",
+            "easybuild": "/opt/image-record /opt/apparadise"}
+    for source, copy in want.items():
+        assert f"COPY --from=build {copy}" in CONTAINERFILES[source].format(**fmt)

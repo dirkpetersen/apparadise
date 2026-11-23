@@ -60,7 +60,7 @@ needed:
 |---|---|
 | concretize | the solver alone in `base-builder`: `spack concretize`, `eb --robot --dry-run`, `pixi lock`. A failure here is a `concretize` failure, which the toolchain fallback and source switch repair |
 | build | one `podman build`: the source's own tool inside `base-builder`, then the final labelled image `FROM base-runtime`. Build trees go to the job's `/scratch` mount, never into a layer |
-| package | run the final image as uid 54321 and fail on unreadable files ([user identity](user-identity.md)) |
+| package | run the final image as uid 54321 and fail on unreadable files ([user identity](user-identity.md)). Each image carries its solver's record under `/opt/apparadise/` (`spack.lock`, `pixi.lock`, or `easybuild-modules.txt` and `easystack.yml`) |
 | test | push `cache/test-<name>:<job>`, then `srun --gpus=1 --nice` to run the smoke test on a GPU node |
 | publish | push the release tag, record the digest, `cosign sign` if `SIGN_KEY` is set |
 

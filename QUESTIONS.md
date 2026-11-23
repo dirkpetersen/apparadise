@@ -9,6 +9,17 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q55 (2026-11-23): Do images need an SBOM in a standard format (SPDX or CycloneDX)?
+
+The architecture doc says the package stage makes "an SBOM". Every image now carries its
+solver's own record under `/opt/apparadise/`: `spack.lock` (every package with version,
+variants and hash), `pixi.lock`, or the EasyBuild module list plus the easystack. These are
+exact, but no scanner reads them. A standard SBOM needs a tool such as syft on every builder
+host (one Go binary), and would be attached to the image as a signed cosign attestation
+once signing is live. **Default:** the solver records only. I add syft when you say a scanner
+or a policy needs SPDX or CycloneDX.
+**Answer:**
+
 ## Q54 (2026-11-23): How are apparadise releases numbered and when is one made?
 
 You asked me to release new versions automatically. The repo had no tags or releases.
@@ -18,7 +29,7 @@ work round that adds a feature or a migration, a patch release (`v0.N.M`) for fi
 start at `v0.1.0` (phases 1 to 4 built, 15 of 20 packages on x86). `v1.0.0` waits for you:
 I suggest it once the registry is live and the first package has passed a GPU test. Releases
 are code only; images keep their own `<version>-<target>` tags.
-**Answer:**
+**Answer:** Approved (owner, 2026-11-23).
 
 ## Q53 (2026-11-16): Where does a package's build spec live (relion: `build_type=Release ^mesa~llvm`)?
 

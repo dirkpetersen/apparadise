@@ -81,7 +81,7 @@ Nothing has run on a GPU, on Slurm, on Run:ai or on the Vera Rubin (`vr`) hardwa
 | PIPE-6 | `package` runs the image as uid `54321:54321` and fails if `id -u` is wrong or any file under `/opt` or `/work` is not readable (Q36). | Done, local |
 | PIPE-7 | `test` pushes `cache/test-<name>:<job>` and runs the smoke test as a low-priority Slurm job through Pyxis (`srun --gpus=1 --nice --container-image`). `TEST_MODE=none` fails every job at the test stage, so no untested image is published. | Done (code), not run on Slurm |
 | PIPE-8 | `publish` pushes the release tag, records the digest, and signs the image with `cosign` when `SIGN_KEY` is set. | Done (code) |
-| PIPE-9 | An SBOM is made for each image. | Open |
+| PIPE-9 | Each image holds its solver's record of what is in it under `/opt/apparadise/`: `spack.lock`, `pixi.lock`, or the EasyBuild module list and easystack. A standard-format SBOM (SPDX or CycloneDX) is Open (Q55). | Done, local |
 
 ## 7. Base images
 
@@ -229,6 +229,6 @@ Nothing has run on a GPU, on Slurm, on Run:ai or on the Vera Rubin (`vr`) hardwa
 - The remaining top-20 packages and all `vr` builds (CAT-8). Blocked: alphafold3 (Q52), and
   packages with no CUDA recipe on our sources.
 - GPU smoke tests on real nodes, and test data (PIPE-7, CAT-4, Q51).
-- SBOM per image (PIPE-9).
+- Standard-format SBOM (PIPE-9, Q55).
 - Slurm REST and Run:ai clients (`slurm.py`, `runai.py`).
 - Visual check in a normal desktop browser (UI-5).
