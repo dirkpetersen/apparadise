@@ -9,6 +9,17 @@ Format: `Qn (date) - question`, then **Default** (what I assumed) and **Answer**
 
 ---
 
+## Q54 (2026-11-23): How are apparadise releases numbered and when is one made?
+
+You asked me to release new versions automatically. The repo had no tags or releases.
+**Default:** semantic versions as git tags with a GitHub release (`gh release create`), notes
+written from the commits since the last tag. Before 1.0: a minor release (`v0.N.0`) after a
+work round that adds a feature or a migration, a patch release (`v0.N.M`) for fixes only. I
+start at `v0.1.0` (phases 1 to 4 built, 15 of 20 packages on x86). `v1.0.0` waits for you:
+I suggest it once the registry is live and the first package has passed a GPU test. Releases
+are code only; images keep their own `<version>-<target>` tags.
+**Answer:**
+
 ## Q53 (2026-11-16): Where does a package's build spec live (relion: `build_type=Release ^mesa~llvm`)?
 
 relion 5.0.1 from Spack now builds and passes the any-UID check on rtx and generic. Two spec
