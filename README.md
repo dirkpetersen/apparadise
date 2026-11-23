@@ -1,9 +1,11 @@
-# apparadise
+# Apparadise
 
 Manage applications for HPC, currently focused on CUDA software, containers, and integrating
-**Spack**, **EasyBuild** and **pixi/conda-forge** behind one catalog.
+**EasyBuild**, **Spack**, and **pixi/conda-forge** behind one catalog.
 
-apparadise builds CUDA software once per hardware target and ships each build as a signed OCI
+<img width="730" height="853" alt="image" src="https://github.com/user-attachments/assets/2d5f846a-a9e3-458c-8d02-585a18bc4c59" />
+
+Apparadise builds CUDA software once per hardware target and ships each build as a signed OCI
 container image. The same image is also exposed as `module load <name>/<version>`. Users never
 need root, and never need to know whether a package came from Spack, EasyBuild or conda-forge.
 
