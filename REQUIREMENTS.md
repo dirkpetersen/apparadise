@@ -41,7 +41,7 @@ Nothing has run on a GPU, on Slurm, on Run:ai or on the Vera Rubin (`vr`) hardwa
 | ID | Requirement | Status |
 |---|---|---|
 | CAT-1 | Sysadmins maintain the catalog as one YAML file per package in `catalog/<name>.yml`. The app loads and validates them at startup and syncs them to the database. | Done |
-| CAT-2 | An entry has the fields `name`, `title`, `description`, `homepage`, `source`, `visibility`, `tags`, `aliases`, `executables`, `versions` and `test`. Per target, a version has `status`, `digest`, `test`, `built` and `stage`. Unknown fields fail with a message that names the file and the field. | Done |
+| CAT-2 | An entry has the fields `name`, `title`, `description`, `homepage`, `source`, `visibility`, `tags`, `aliases`, `executables`, `versions`, `test` and `spec`. Per target, a version has `status`, `digest`, `test`, `built` and `stage`. Unknown fields fail with a message that names the file and the field. | Done |
 | CAT-3 | Executable names, digests and tags are checked against strict patterns. | Done |
 | CAT-4 | An optional `test:` block gives a GPU smoke test: `command` (one line), `minutes` (1 to 60) and optional `data` (an `https` URL and a sha256) (Q51). | Done (schema); data entries Open |
 | CAT-5 | Everyone can browse the catalog without an account (Q26). The catalog page lists packages, search, and per package its targets, status, source, test result, votes, and the `module load` and `srun --container-image` commands. | Done |
@@ -67,7 +67,7 @@ Nothing has run on a GPU, on Slurm, on Run:ai or on the Vera Rubin (`vr`) hardwa
 | REC-3 | EasyBuild recipes use the `foss,2025b` toolchain with `filter-deps: CUDA`, so the base image's CUDA is used (Q22). | Done, local |
 | REC-4 | A Spack overlay repo (`containers/base/spack-repo/`, namespace `apparadise`) holds package fixes. It fixes relion for CUDA 13 (removes `-D__INTEL_COMPILER`). | Done, local |
 | REC-5 | EasyBuild hooks (`containers/base/eb-hooks.py`) fix known CUDA 13 and container problems: GCCcore without nvptx, no Perl test suite, FlexiBLAS mirror, LLVM lit tests, UCX-CUDA typedef, Bundle source URLs, NCCL 2.27.7 minimum, magma `clockRate`, Clang/LLVM before 20 without OpenMP GPU offload, Triton CUPTI path. | Done, local |
-| REC-6 | Where a package's build spec (for example `relion@5.0.1+cuda build_type=Release ^mesa~llvm`) is stored (Q53). | Open |
+| REC-6 | A Spack catalog entry may carry a default `spec` (the text after `name@version`, for example `+cuda build_type=Release ^mesa~llvm`). It is used when a request names no spec (Q53). | Done |
 
 ## 6. Build pipeline
 
@@ -90,6 +90,7 @@ Nothing has run on a GPU, on Slurm, on Run:ai or on the Vera Rubin (`vr`) hardwa
 | BASE-1 | There is a `base-builder` and a `base-runtime` image per target, derived from NGC (`nvcr.io`) CUDA images (Q5, Q6, Q10). | Done, local (rtx, generic) |
 | BASE-2 | `base-builder` holds Spack 1.2.2 with the `apparadise` overlay repo and EasyBuild 5.4.2 with the hooks and extra easyconfigs. | Done, local |
 | BASE-3 | Base images are pinned by digest in `targets.yml` (`base_digests`) after the first push. | Done (code); digests Open |
+| BASE-5 | The runtime base clears NGC's entrypoint, so no image has one (Q36). | Done, local |
 | BASE-4 | `libcuda.so.1` is a stub in the builder, so builds that link against the driver work without a GPU. | Done, local |
 
 ## 8. Image rules (user identity)
@@ -228,7 +229,6 @@ Nothing has run on a GPU, on Slurm, on Run:ai or on the Vera Rubin (`vr`) hardwa
 - The remaining top-20 packages and all `vr` builds (CAT-8). Blocked: alphafold3 (Q52), and
   packages with no CUDA recipe on our sources.
 - GPU smoke tests on real nodes, and test data (PIPE-7, CAT-4, Q51).
-- Where build specs live (REC-6, Q53).
 - SBOM per image (PIPE-9).
 - Slurm REST and Run:ai clients (`slurm.py`, `runai.py`).
 - Visual check in a normal desktop browser (UI-5).

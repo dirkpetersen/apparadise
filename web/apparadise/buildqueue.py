@@ -141,6 +141,8 @@ def queue_builds(db: Database, settings: Settings, *, package: str, version: str
                        if r["source"] == "pixi" and r["upstream_name"] == res.upstream_name),
                       False)
     restricted = bool(pkg and pkg["visibility"] == "restricted")
+    if not spec and res.source == "spack" and pkg and pkg.get("spec"):
+        spec = f"{res.upstream_name}@{version} {pkg['spec']}"  # the catalog's default (Q53)
     if spec_append:  # a repair (or a retry of one) adds to the spec; store the result
         spec = f"{spec or f'{res.upstream_name}@{version}'} {spec_append}"
 

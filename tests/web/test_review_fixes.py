@@ -239,3 +239,17 @@ def test_concurrent_first_requests_queue_a_new_package_once(env):
     list(ThreadPoolExecutor(4).map(one, ["alice", "bob", "carol", "dave"]))
     assert db.query_one("SELECT COUNT(*) AS n FROM build b JOIN package p ON p.id = "
                         "b.package_id WHERE p.name = 'lammps'")["n"] == 1
+
+
+# Q53: a catalog entry's spec is the default when a request names none
+def test_catalog_spec_is_default(env):
+    c, db = env, env.app_db
+    db.packages.upsert({"name": "lammps", "title": "LAMMPS", "spec": "+kokkos ^mesa~llvm"})
+    res = queue_builds(db, c.settings, package="lammps", version="20250722", targets=["rtx"],
+                       requested_by="dana", admin=True)
+    row = db.query_one("SELECT spec FROM build WHERE id = ?", (res["queued"][0]["id"],))
+    assert row["spec"] == "lammps@20250722 +kokkos ^mesa~llvm"
+    res = queue_builds(db, c.settings, package="lammps", version="20250722", targets=["rtx"],
+                       requested_by="dana", admin=True, spec="lammps@20250722+openmp")
+    row = db.query_one("SELECT spec FROM build WHERE id = ?", (res["queued"][0]["id"],))
+    assert row["spec"] == "lammps@20250722+openmp"

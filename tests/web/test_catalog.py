@@ -53,6 +53,9 @@ def test_repo_catalogs_are_valid():
     {"test": {"command": "x", "data": {"url": "http://x", "sha256": "a" * 64}}},
     {"test": {"command": "x", "data": {"url": "https://x"}}},  # no sha256
     {"test": {"command": "x", "gpus": 8}},
+    {"spec": "+cuda; rm -rf /"},
+    {"spec": "+cuda", "source": "pixi"},  # spack only
+    {"spec": 5},
 ])
 def test_invalid_entries_rejected(bad):
     with pytest.raises(CatalogError):

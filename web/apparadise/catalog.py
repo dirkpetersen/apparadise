@@ -16,6 +16,7 @@ File format (see catalog/README.md):
     tags: [molecular-dynamics, mpi]
     aliases: {spack: gromacs, easybuild: GROMACS}
     executables: [gmx_mpi]
+    spec: "+mpi+cuda"             # optional, spack only: used when a request names no spec (Q53)
     test:                         # optional GPU smoke test for the `test` stage (Q51)
       command: gmx_mpi mdrun -s /data/benchMEM.tpr -nsteps 1000
       minutes: 10                 # job time limit, 1 to 60
@@ -47,7 +48,9 @@ DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}\Z")
 TAG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}\Z")
 CATALOG_STATUSES = ("planned", "queued", "running", "published", "failed")
 FIELDS = {"name", "title", "description", "homepage", "source", "visibility", "tags",
-          "aliases", "executables", "versions", "test"}
+          "aliases", "executables", "versions", "test", "spec"}
+# Spack spec text after <name>@<version>, e.g. "+cuda build_type=Release ^mesa~llvm" (Q53).
+SPEC_TAIL_RE = re.compile(r"^[+~^%A-Za-z][A-Za-z0-9_.@%+~=:,^ -]{0,199}\Z")
 TARGET_FIELDS = {"status", "digest", "test", "built", "stage"}
 
 
@@ -93,6 +96,11 @@ def parse_entry(data: Any, origin: str = "<memory>") -> dict[str, Any]:
     ):
         raise bad("aliases: a mapping of source to upstream name")
     test = _parse_test(data.get("test"), bad)
+    spec = data.get("spec", "")
+    if spec and (source != "spack" or not isinstance(spec, str)
+                 or not SPEC_TAIL_RE.match(spec.strip())):
+        raise bad("spec: Spack spec text after name@version, e.g. '+cuda ^mesa~llvm', "
+                  "for source spack only")
     versions = data.get("versions", {})
     if not isinstance(versions, dict):  # empty: planned, version chosen at build time
         raise bad("versions: a mapping of version to targets")
@@ -146,6 +154,7 @@ def parse_entry(data: Any, origin: str = "<memory>") -> dict[str, Any]:
         "aliases": aliases,
         "executables": exes,
         "test": test,
+        "spec": spec.strip(),
         "builds": builds,
     }
 

@@ -104,7 +104,7 @@ TODO.md  QUESTIONS.md  zensical.toml  ruff.toml (lint config for mock/ and tests
 ```
 
 Existing modules in `web/apparadise/`: config, main (app factory + lost-builder reaper), db
-(migrations 1-12), auth, ldapauth, ldapca, catalog, modules (Lmod + Enroot wrappers), recipes
+(migrations 1-14), auth, ldapauth, ldapca, catalog, modules (Lmod + Enroot wrappers), recipes
 (template rendering), index (three-way index), resolver, coordinator (queue, claim, report),
 builder_api (`/api/builder/*`, `/api/admin/*`), failures (signatures, scrubbing), zot
 (read-only search client), registry_auth (`/registry/token`: Zot's token service; job, AD

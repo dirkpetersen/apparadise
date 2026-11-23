@@ -23,6 +23,9 @@ in the catalog entry, used when the requester gives none (small change: catalog.
 for all CMake packages), which also changes every other package; (c) leave it to requesters.
 I recommend (a), with (b) only for `build_type=Release`.
 **Answer:**
+**Status (2026-11-23):** (a) is done as the default: `spec:` in `catalog/<name>.yml` (Spack
+only, the text after `name@version`), stored in the DB (migration 14) and used when a request
+names no spec. `catalog/relion.yml` uses it. (b) is not done.
 
 ## Q52 (2026-11-16): AlphaFold3 from EasyBuild cannot build for CUDA 13: how do we get it?
 

@@ -248,6 +248,11 @@ MIGRATIONS: list[str] = [
     """
     ALTER TABLE build ADD COLUMN cache_push INTEGER NOT NULL DEFAULT 0;
     """,
+    # 14: a catalog entry's default Spack spec after <name>@<version> (Q53), used when a
+    # request names no spec, so nightly and chatbot builds keep e.g. ^mesa~llvm.
+    """
+    ALTER TABLE package ADD COLUMN spec TEXT NOT NULL DEFAULT '';
+    """,
 ]
 
 _SECRET_KEY = re.compile(
@@ -434,19 +439,19 @@ class Packages(_Repo):
         with self.db.tx() as c:
             row = c.execute(
                 "INSERT INTO package (name, title, description, homepage, visibility, aliases, "
-                "executables, tags, origin, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET "
+                "executables, tags, origin, spec, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET "
                 "title = excluded.title, description = excluded.description, "
                 "homepage = excluded.homepage, visibility = excluded.visibility, "
                 "aliases = excluded.aliases, executables = excluded.executables, "
-                "tags = excluded.tags, origin = excluded.origin, "
+                "tags = excluded.tags, origin = excluded.origin, spec = excluded.spec, "
                 "updated_at = excluded.updated_at RETURNING id",
                 (
                     pkg["name"], pkg["title"], pkg.get("description", ""),
                     pkg.get("homepage", ""), pkg.get("visibility", "public"),
                     json.dumps(pkg.get("aliases", {}), sort_keys=True),
                     json.dumps(pkg.get("executables", [])), json.dumps(pkg.get("tags", [])),
-                    pkg.get("origin", "catalog"), ts, ts,
+                    pkg.get("origin", "catalog"), pkg.get("spec", ""), ts, ts,
                 ),
             ).fetchone()
             return row[0]
