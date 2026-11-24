@@ -38,6 +38,8 @@ Code and runbooks are done. What remains needs the hardware, the registry host a
     images. Blocked on owner questions: alphafold3 (Q52), cryodrgn (no CUDA recipe), hpl and
     rapids, rapids-singlecell (no CUDA recipe on our sources), kokkos generic (one cuda_arch
     only). None is GPU-tested yet (Q51).
+  - 2026-11-23: all 29 x86 images rebuilt from their saved recipes: no NGC entrypoint (Q36),
+    and each carries its solver record under `/opt/apparadise/` (Q55). All pass the any-UID check.
 - [x] Visual check in Chromium (catalog, package, login, admin; light/dark; desktop/phone). Found and fixed the CSRF header and 401 event name left over from Bucketeer (browser sign-in was broken)
 - [ ] Re-check in a normal desktop browser: this host's sandboxed Chromium crashes shaping the Fraunces display font and drops monospace text at phone width, both most likely a library mismatch in the sandbox
 
