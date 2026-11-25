@@ -2,6 +2,7 @@
 [project]
 site_name = "apparadise"
 site_description = "CUDA software for HPC as signed OCI images, modules and containers"
+site_url = "https://dirkpetersen.github.io/apparadise/"
 docs_dir = "docs"
 site_dir = "site"
 nav = [

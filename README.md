@@ -153,7 +153,7 @@ This project uses the same stack as [Bucketeer](https://github.com/dirkpetersen/
 - AD login over LDAPS, signed stateless cookie sessions, CSRF header
 - Plain HTML/CSS/vanilla JS ES modules, with no framework and no bundler, under a strict CSP
 - pytest + ruff, and a `mock/` folder with fake Zot, Slurm and builder APIs
-- Docs in `docs/`, built with Zensical
+- Docs in `docs/`, built with Zensical and published at <https://dirkpetersen.github.io/apparadise/>
 - Deployed with [appmotel](https://github.com/dirkpetersen/appmotel). Zot runs alongside
   on the same server.
 
