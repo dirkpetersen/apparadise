@@ -138,6 +138,7 @@ cp .env.default .env                     # then fill in the REQUIRED values
 .venv/bin/python -m apparadise.modules --catalog ../catalog --module-dir /m --wrapper-dir /w --sqsh-dir /s --dry-run
 .venv/bin/python -m apparadise.recipes spack gromacs 2026.3 rtx --spec gromacs@2026.3+mpi --stdout
 zensical serve                           # docs (pip install zensical); build → site/ (git-ignored)
+# Pushes to main that touch docs/ or zensical.toml publish to https://dirkpetersen.github.io/apparadise/ (.github/workflows/docs.yml)
 ```
 
 ## Stack (same as [Bucketeer](https://github.com/dirkpetersen/bucketeer))
