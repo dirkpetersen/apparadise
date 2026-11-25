@@ -14,10 +14,9 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  # Two jobs, as in GitHub's Pages template: deploy-pages in the same job as the upload
+  # sometimes does not see the artifact yet.
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/configure-pages@v6
@@ -31,5 +30,12 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v5
