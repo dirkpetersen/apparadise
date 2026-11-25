@@ -1,5 +1,7 @@
 # Apparadise
 
+[![docs](https://github.com/dirkpetersen/apparadise/actions/workflows/docs.yml/badge.svg)](https://dirkpetersen.github.io/apparadise/)
+
 Manage applications for HPC, currently focused on CUDA software, containers, and integrating
 **EasyBuild**, **Spack**, and **pixi/conda-forge** behind one catalog.
 
